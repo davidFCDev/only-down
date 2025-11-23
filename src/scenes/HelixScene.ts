@@ -134,6 +134,27 @@ export default class HelixScene extends Phaser.Scene {
         // Initial resize to align canvases
         this.resize(this.scale.gameSize);
     }
+    resize(gameSize: Phaser.Structs.Size) {
+        const width = gameSize.width;
+        const height = gameSize.height;
+
+        this.threeRenderer.setSize(width, height);
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+
+        const threeCanvas = this.threeRenderer.domElement;
+        const phaserCanvas = this.game.canvas;
+        
+        // Align using getBoundingClientRect for precision
+        const rect = phaserCanvas.getBoundingClientRect();
+        
+        threeCanvas.style.position = 'absolute';
+        threeCanvas.style.left = rect.left + 'px';
+        threeCanvas.style.top = rect.top + 'px';
+        threeCanvas.style.width = rect.width + 'px';
+        threeCanvas.style.height = rect.height + 'px';
+        threeCanvas.style.zIndex = '0';
+    }
 
     createPlatforms() {
         const platformCount = 100;
@@ -145,9 +166,10 @@ export default class HelixScene extends Phaser.Scene {
         for (let i = 0; i < platformCount; i++) {
             const yPos = -2 - (i * 4); // Vertical spacing downwards
             
-            // Variable Gap Size: From PI/4 (45 deg) to PI (180 deg)
-            const minGap = Math.PI / 4;
-            const maxGap = Math.PI; 
+            // Enhanced Randomness: Wider gap variation
+            // From PI/6 (30 deg) to PI/1.5 (120 deg) - varied difficulty
+            const minGap = Math.PI / 6;
+            const maxGap = Math.PI / 1.5; 
             const gapSize = minGap + Math.random() * (maxGap - minGap);
 
             const innerRadius = 2;
@@ -155,6 +177,7 @@ export default class HelixScene extends Phaser.Scene {
             const startAngle = gapSize / 2;
             const endAngle = Math.PI * 2 - gapSize / 2;
 
+            // Main Platform Shape
             const shape = new THREE.Shape();
             shape.moveTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
             shape.lineTo(outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle));
@@ -169,7 +192,7 @@ export default class HelixScene extends Phaser.Scene {
             platform.rotation.x = -Math.PI / 2;
             platform.position.y = yPos;
             
-            // Smart Gap Placement
+            // Smart Gap Placement - Force rotation but keep it playable
             const minSeparation = gapSize / 2 + 0.5; 
             let targetGapAngle;
             let attempts = 0;
@@ -178,16 +201,63 @@ export default class HelixScene extends Phaser.Scene {
                 let diff = Math.abs(targetGapAngle - lastGapAngle);
                 if (diff > Math.PI) diff = 2 * Math.PI - diff;
                 
-                if (diff > 1.0) break; 
+                // Ensure it's not TOO close (boring) but not impossible
+                if (diff > 1.5) break; 
                 
                 attempts++;
                 if (attempts > 10) break; 
             } while (true);
             
             lastGapAngle = targetGapAngle;
-            
             platform.rotation.z = targetGapAngle;
-            platform.userData = { isBase: false, gapSize: gapSize, gapCenter: targetGapAngle, id: i, color: colors[i % colors.length] };
+
+            // Danger Zone Generation (30% chance, increasing with depth?)
+            let hasDanger = Math.random() > 0.5; // 50% chance
+            let dangerStart = 0;
+            let dangerSize = 0;
+
+            if (hasDanger) {
+                // Create a red segment on the platform
+                // It must be within the solid part (startAngle to endAngle)
+                // Solid arc length = 2PI - gapSize
+                const solidLength = Math.PI * 2 - gapSize;
+                dangerSize = Math.PI / 4; // Fixed size for now (45 deg)
+                
+                // Random position within solid area
+                // We need to offset from startAngle
+                const maxOffset = solidLength - dangerSize;
+                const offset = Math.random() * maxOffset;
+                
+                dangerStart = startAngle + offset;
+                const dangerEnd = dangerStart + dangerSize;
+
+                const dangerShape = new THREE.Shape();
+                dangerShape.moveTo(innerRadius * Math.cos(dangerStart), innerRadius * Math.sin(dangerStart));
+                dangerShape.lineTo(outerRadius * Math.cos(dangerStart), outerRadius * Math.sin(dangerStart));
+                dangerShape.absarc(0, 0, outerRadius, dangerStart, dangerEnd, false);
+                dangerShape.absarc(0, 0, innerRadius, dangerEnd, dangerStart, true);
+
+                const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, { depth: this.platformThickness + 0.05, bevelEnabled: false }); // Slightly higher
+                const dangerMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0xff0000,
+                    emissiveIntensity: 0.5
+                });
+                const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
+                // No rotation needed relative to platform, it's built in same space
+                platform.add(dangerMesh);
+            }
+
+            platform.userData = { 
+                isBase: false, 
+                gapSize: gapSize, 
+                gapCenter: targetGapAngle, 
+                id: i, 
+                color: colors[i % colors.length],
+                hasDanger: hasDanger,
+                dangerStart: dangerStart, // In Local Platform Space
+                dangerSize: dangerSize
+            };
 
             this.tower.add(platform);
             this.platforms.push(platform);
@@ -200,6 +270,7 @@ export default class HelixScene extends Phaser.Scene {
         this.scoreText.setText('Score: 0');
         this.ballVelocity = 0;
         this.ball.position.set(0, 2, 2.5);
+        this.ball.scale.set(1, 1, 1); // Reset scale
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, 0, 0);
         
@@ -264,11 +335,18 @@ export default class HelixScene extends Phaser.Scene {
             if (this.ballVelocity < 0) {
                 // If we were above the platform and now are below/inside it
                 if (this.ball.position.y >= topSurfaceY && nextY <= topSurfaceY) {
-                    if (this.checkCollision(platform)) {
+                    
+                    const collisionResult = this.checkCollision(platform);
+                    
+                    if (collisionResult === 'hit') {
                         // Hit Platform -> Bounce
                         this.ballVelocity = this.jumpStrength;
                         this.ball.position.y = topSurfaceY; // Snap to top
                         collided = true;
+                    } else if (collisionResult === 'danger') {
+                        // Hit Danger Zone -> Die
+                        this.gameOverSplatter(topSurfaceY);
+                        return;
                     } else {
                         // Passed through gap!
                         // Destroy platform
@@ -286,13 +364,6 @@ export default class HelixScene extends Phaser.Scene {
             this.ball.position.y += this.ballVelocity;
         }
 
-        // Game Over check (Falling too far without platforms)
-        // Or if we fall past the last platform
-        if (this.ball.position.y < -450) { // Approx end of 100 platforms * 4 spacing
-             this.isGameActive = false;
-             this.scoreText.setText('Game Over! Score: ' + this.score);
-        }
-        
         // Camera follow (Downwards)
         const targetY = this.ball.position.y + 4;
         // Smooth follow
@@ -300,6 +371,32 @@ export default class HelixScene extends Phaser.Scene {
         this.camera.lookAt(0, this.camera.position.y - 4, 0); // Look slightly down? Or straight.
         
         this.threeRenderer.render(this.threeScene, this.camera);
+    }
+
+    gameOverSplatter(yPos: number) {
+        this.isGameActive = false;
+        this.ball.position.y = yPos + 0.1;
+        this.ball.scale.set(1.5, 0.1, 1.5); // Flatten
+        this.scoreText.setText('GAME OVER! Score: ' + this.score);
+        
+        // Red particles
+        const debrisCount = 30;
+        const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        
+        for (let i = 0; i < debrisCount; i++) {
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(this.ball.position);
+            
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.8,
+                Math.random() * 0.5,
+                (Math.random() - 0.5) * 0.8
+            );
+            
+            this.threeScene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 1.5 });
+        }
     }
 
     destroyPlatform(platform: THREE.Mesh, index: number) {
@@ -343,13 +440,32 @@ export default class HelixScene extends Phaser.Scene {
         this.platforms.splice(index, 1);
     }
 
-    checkCollision(platform: THREE.Mesh): boolean {
-        if (platform.userData.isBase) return true;
+    checkCollision(platform: THREE.Mesh): 'hit' | 'gap' | 'danger' {
+        if (platform.userData.isBase) return 'hit';
 
         // Calculate ball angle in Tower Space
         let ballAngleInTower = (Math.PI / 2 - this.tower.rotation.y + Math.PI) % (Math.PI * 2);
         if (ballAngleInTower < 0) ballAngleInTower += Math.PI * 2;
         
+        // 1. Check Danger Zone
+        if (platform.userData.hasDanger) {
+            const dangerStart = platform.userData.dangerStart;
+            const dangerSize = platform.userData.dangerSize;
+            const gapCenter = platform.userData.gapCenter;
+            
+            // Danger zone is relative to the platform rotation (gapCenter)
+            let dangerCenter = (dangerStart + dangerSize / 2 + gapCenter) % (Math.PI * 2);
+            if (dangerCenter < 0) dangerCenter += Math.PI * 2;
+            
+            let diffDanger = Math.abs(ballAngleInTower - dangerCenter);
+            if (diffDanger > Math.PI) diffDanger = 2 * Math.PI - diffDanger;
+            
+            if (diffDanger < dangerSize / 2) {
+                return 'danger';
+            }
+        }
+
+        // 2. Check Gap
         const gapCenter = platform.userData.gapCenter;
         const gapSize = platform.userData.gapSize;
         
@@ -360,31 +476,9 @@ export default class HelixScene extends Phaser.Scene {
         const ballRadiusAngle = 0.4 / 2; 
         
         if (diff < (halfGap - ballRadiusAngle)) {
-            return false; // In gap
+            return 'gap'; // In gap
         }
         
-        return true; // Collision
-    }
-
-    resize(gameSize: Phaser.Structs.Size) {
-        const width = gameSize.width;
-        const height = gameSize.height;
-
-        this.threeRenderer.setSize(width, height);
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
-
-        const threeCanvas = this.threeRenderer.domElement;
-        const phaserCanvas = this.game.canvas;
-        
-        // Align using getBoundingClientRect for precision
-        const rect = phaserCanvas.getBoundingClientRect();
-        
-        threeCanvas.style.position = 'absolute';
-        threeCanvas.style.left = rect.left + 'px';
-        threeCanvas.style.top = rect.top + 'px';
-        threeCanvas.style.width = rect.width + 'px';
-        threeCanvas.style.height = rect.height + 'px';
-        threeCanvas.style.zIndex = '0';
+        return 'hit'; // Collision with safe platform
     }
 }
