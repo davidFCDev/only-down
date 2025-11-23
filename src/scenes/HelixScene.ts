@@ -324,7 +324,7 @@ export default class HelixScene extends Phaser.Scene {
                 let valid = false;
                 let attempts = 0;
                 while (!valid && attempts < 20) {
-                    const size = (Math.PI / 6) + Math.random() * (Math.PI / 3); 
+                    const size = (Math.PI / 4) + Math.random() * (Math.PI / 2.5); 
                     const start = Math.random() * Math.PI * 2;
                     if (!isOverlapping(start, size)) {
                         gaps.push({ start, end: start + size, size, center: start + size / 2 });
@@ -419,12 +419,17 @@ export default class HelixScene extends Phaser.Scene {
 
             // POWER UP SPAWNING
             // 5% chance per platform, but not on first 5
-            if (i > 5 && Math.random() < 0.05) {
-                // Pick a random spot on a solid segment
+            // Power-ups float BETWEEN platforms, not on them
+            if (i > 5 && i < platformCount - 1 && Math.random() < 0.05) {
+                // Pick a random spot in world space
                 if (solidSegments.length > 0) {
                     const seg = solidSegments[Math.floor(Math.random() * solidSegments.length)];
                     const angle = seg.start + Math.random() * (seg.end - seg.start);
-                    const radius = 3; // Middle of platform
+                    const radius = 3; // Middle radius between inner and outer
+                    
+                    // Position in WORLD coordinates between this platform and the next
+                    const worldAngle = angle + rotationZ;
+                    const betweenY = yPos - 2; // Halfway between platforms (platforms are 4 units apart)
                     
                     const puGeo = new THREE.OctahedronGeometry(0.3, 0);
                     const puMat = new THREE.MeshStandardMaterial({ 
@@ -432,20 +437,24 @@ export default class HelixScene extends Phaser.Scene {
                     });
                     const powerUp = new THREE.Mesh(puGeo, puMat);
                     
-                    // Position relative to platform
-                    // Platform is rotated by -PI/2 on X
-                    // So Y is Up (relative to platform surface), Z is "Forward"
-                    // We need to convert polar coords to Cartesian on the platform plane (X, Y)
+                    // Set position in world space
                     powerUp.position.set(
-                        Math.cos(angle) * radius,
-                        Math.sin(angle) * radius,
-                        0.5 // Height above platform
+                        Math.cos(worldAngle) * radius,
+                        betweenY,
+                        Math.sin(worldAngle) * radius
                     );
                     
                     // Animation data
-                    powerUp.userData = { isPowerUp: true, rotationSpeed: 0.05, bobSpeed: 0.05, time: Math.random() * 100 };
+                    powerUp.userData = { 
+                        isPowerUp: true, 
+                        rotationSpeed: 0.05, 
+                        bobSpeed: 0.05, 
+                        time: Math.random() * 100,
+                        baseY: betweenY 
+                    };
                     
-                    platform.add(powerUp);
+                    // Add directly to tower (world space), not to platform
+                    this.tower.add(powerUp);
                     this.powerUps.push(powerUp);
                 }
             }
@@ -502,7 +511,8 @@ export default class HelixScene extends Phaser.Scene {
             pu.rotation.z += 0.05;
             pu.rotation.x += 0.05;
             pu.userData.time += 0.1;
-            pu.position.z = 0.5 + Math.sin(pu.userData.time) * 0.2; // Bobbing
+            // Bob vertically around the base Y position
+            pu.position.y = pu.userData.baseY + Math.sin(pu.userData.time) * 0.2;
         }
 
         // Update Particles
@@ -544,44 +554,35 @@ export default class HelixScene extends Phaser.Scene {
         let collided = false;
 
         // Check Power Up Collection
-        // We need to check world positions
+        // Power-ups are now in world space (direct children of tower)
         let ballAngleInTower = (Math.PI / 2 - this.tower.rotation.y + Math.PI) % (Math.PI * 2);
         if (ballAngleInTower < 0) ballAngleInTower += Math.PI * 2;
+
+        // Check power-ups directly (they're in world space now)
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+            const pu = this.powerUps[i];
+            
+            // Simple distance-based collision (more generous)
+            const dx = this.ball.position.x - pu.position.x;
+            const dy = this.ball.position.y - pu.position.y;
+            const dz = this.ball.position.z - pu.position.z;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            
+            // Generous collision radius (ball radius 0.4 + power-up size 0.3 + extra margin)
+            if (distance < 1.5) {
+                // COLLECTED!
+                this.activateSuperSmash();
+                this.tower.remove(pu);
+                this.powerUps.splice(i, 1);
+            }
+        }
 
         for (let i = this.platforms.length - 1; i >= 0; i--) {
             const platform = this.platforms[i];
             
             // Optimization: Only check nearby platforms
             if (Math.abs(platform.position.y - this.ball.position.y) > 5) continue;
-
-            // Check Power Ups on this platform
-            // PowerUps are children of platform
-            for (let j = platform.children.length - 1; j >= 0; j--) {
-                const child = platform.children[j];
-                if (child.userData.isPowerUp) {
-                    // Check angle
-                    // Child pos is local. x/y are on the plane.
-                    // We can get the angle from x/y
-                    const puAngle = Math.atan2(child.position.y, child.position.x);
-                    let puWorldAngle = (puAngle + platform.userData.rotationOffset) % (Math.PI * 2);
-                    if (puWorldAngle < 0) puWorldAngle += Math.PI * 2;
-                    
-                    let diff = Math.abs(ballAngleInTower - puWorldAngle);
-                    if (diff > Math.PI) diff = 2 * Math.PI - diff;
-                    
-                    // Check height
-                    const puWorldY = platform.position.y + 0.5; // Approx
-                    const yDiff = Math.abs(this.ball.position.y - puWorldY);
-
-                    if (diff < 0.3 && yDiff < 1.0) {
-                        // COLLECTED!
-                        this.activateSuperSmash();
-                        platform.remove(child); // Remove visual
-                        // Remove from array? Not strictly necessary if we remove from scene
-                    }
-                }
-            }
-
+            
             const platformY = platform.position.y;
             const topSurfaceY = platformY + this.platformThickness;
             
