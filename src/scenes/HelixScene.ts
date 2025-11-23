@@ -17,6 +17,10 @@ export default class HelixScene extends Phaser.Scene {
     private scoreText!: Phaser.GameObjects.Text;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
+    // Particles
+    private particles: { mesh: THREE.Mesh, velocity: THREE.Vector3, life: number }[] = [];
+    private platformThickness: number = 0.8;
+
     constructor() {
         super('HelixScene');
     }
@@ -24,8 +28,6 @@ export default class HelixScene extends Phaser.Scene {
     init() {
         // Initialize Three.js with its own canvas
         const threeCanvas = document.createElement('canvas');
-        threeCanvas.id = 'three-canvas';
-        threeCanvas.style.position = 'absolute';
         threeCanvas.style.zIndex = '0'; // Behind Phaser
         document.body.appendChild(threeCanvas);
 
@@ -124,13 +126,227 @@ export default class HelixScene extends Phaser.Scene {
                 const deltaX = pointer.position.x - pointer.prevPosition.x;
                 this.tower.rotation.y += deltaX * 0.005;
             }
-        // Ball is at World +Z (PI/2).
-        // Platform Geometry (rotated X -90) maps its Local +Y to World -Z.
-        // So Platform Local +Y (PI/2) is opposite to Ball.
-        // Platform Local -Y (3PI/2) is at World +Z (Ball).
-        // So there is a PI (180 deg) offset between Standard World Angles and Platform Local Angles.
-        // We add PI to the ball's calculated angle to align with Platform space.
+        });
         
+        // Handle window resize
+        this.scale.on('resize', this.resize, this);
+        
+        // Initial resize to align canvases
+        this.resize(this.scale.gameSize);
+    }
+
+    createPlatforms() {
+        const platformCount = 100;
+        // Slightly lighter dark colors for better visibility
+        const colors = [0x333333, 0x444444, 0x3a3a3a, 0x2a2a2a];
+
+        let lastGapAngle = 0;
+
+        for (let i = 0; i < platformCount; i++) {
+            const yPos = -2 - (i * 4); // Vertical spacing downwards
+            
+            // Variable Gap Size: From PI/4 (45 deg) to PI (180 deg)
+            const minGap = Math.PI / 4;
+            const maxGap = Math.PI; 
+            const gapSize = minGap + Math.random() * (maxGap - minGap);
+
+            const innerRadius = 2;
+            const outerRadius = 4;
+            const startAngle = gapSize / 2;
+            const endAngle = Math.PI * 2 - gapSize / 2;
+
+            const shape = new THREE.Shape();
+            shape.moveTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
+            shape.lineTo(outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle));
+            shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
+            shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
+
+            const extrudeSettings = { depth: this.platformThickness, bevelEnabled: false };
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            const material = new THREE.MeshPhongMaterial({ color: colors[i % colors.length] });
+            
+            const platform = new THREE.Mesh(geometry, material);
+            platform.rotation.x = -Math.PI / 2;
+            platform.position.y = yPos;
+            
+            // Smart Gap Placement
+            const minSeparation = gapSize / 2 + 0.5; 
+            let targetGapAngle;
+            let attempts = 0;
+            do {
+                targetGapAngle = Math.random() * Math.PI * 2;
+                let diff = Math.abs(targetGapAngle - lastGapAngle);
+                if (diff > Math.PI) diff = 2 * Math.PI - diff;
+                
+                if (diff > 1.0) break; 
+                
+                attempts++;
+                if (attempts > 10) break; 
+            } while (true);
+            
+            lastGapAngle = targetGapAngle;
+            
+            platform.rotation.z = targetGapAngle;
+            platform.userData = { isBase: false, gapSize: gapSize, gapCenter: targetGapAngle, id: i, color: colors[i % colors.length] };
+
+            this.tower.add(platform);
+            this.platforms.push(platform);
+        }
+    }
+
+    restartGame() {
+        this.isGameActive = true;
+        this.score = 0;
+        this.scoreText.setText('Score: 0');
+        this.ballVelocity = 0;
+        this.ball.position.set(0, 2, 2.5);
+        this.camera.position.set(0, 5, 10);
+        this.camera.lookAt(0, 0, 0);
+        
+        // Clear particles
+        for (const p of this.particles) {
+            this.threeScene.remove(p.mesh);
+        }
+        this.particles = [];
+
+        // Re-create platforms
+        // Remove old platforms from tower
+        for(const p of this.platforms) {
+            this.tower.remove(p);
+        }
+        this.platforms = [];
+        this.createPlatforms();
+    }
+
+    update(time: number, delta: number) {
+        if (!this.isGameActive) return;
+
+        // Keyboard Rotation
+        if (this.cursors.left.isDown) {
+            this.tower.rotation.y -= 0.05;
+        } else if (this.cursors.right.isDown) {
+            this.tower.rotation.y += 0.05;
+        }
+
+        // Update Particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life -= 0.02;
+            p.mesh.position.add(p.velocity);
+            p.mesh.rotation.x += 0.1;
+            p.mesh.rotation.y += 0.1;
+            p.mesh.scale.setScalar(p.life); // Shrink
+            
+            if (p.life <= 0) {
+                this.threeScene.remove(p.mesh);
+                this.particles.splice(i, 1);
+            }
+        }
+
+        // Physics
+        this.ballVelocity += this.gravity;
+        const nextY = this.ball.position.y + this.ballVelocity;
+
+        // Collision Detection
+        let collided = false;
+
+        // Iterate backwards so we can remove platforms safely if needed
+        for (let i = this.platforms.length - 1; i >= 0; i--) {
+            const platform = this.platforms[i];
+            
+            // Optimization: Skip far platforms
+            if (Math.abs(platform.position.y - this.ball.position.y) > 5) continue;
+
+            const platformY = platform.position.y;
+            const topSurfaceY = platformY + this.platformThickness;
+            
+            // Check Floor Collision (Falling down onto a platform)
+            if (this.ballVelocity < 0) {
+                // If we were above the platform and now are below/inside it
+                if (this.ball.position.y >= topSurfaceY && nextY <= topSurfaceY) {
+                    if (this.checkCollision(platform)) {
+                        // Hit Platform -> Bounce
+                        this.ballVelocity = this.jumpStrength;
+                        this.ball.position.y = topSurfaceY; // Snap to top
+                        collided = true;
+                    } else {
+                        // Passed through gap!
+                        // Destroy platform
+                        this.destroyPlatform(platform, i);
+                        
+                        // Increase Score
+                        this.score++;
+                        this.scoreText.setText('Score: ' + this.score);
+                    }
+                }
+            }
+        }
+
+        if (!collided) {
+            this.ball.position.y += this.ballVelocity;
+        }
+
+        // Game Over check (Falling too far without platforms)
+        // Or if we fall past the last platform
+        if (this.ball.position.y < -450) { // Approx end of 100 platforms * 4 spacing
+             this.isGameActive = false;
+             this.scoreText.setText('Game Over! Score: ' + this.score);
+        }
+        
+        // Camera follow (Downwards)
+        const targetY = this.ball.position.y + 4;
+        // Smooth follow
+        this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
+        this.camera.lookAt(0, this.camera.position.y - 4, 0); // Look slightly down? Or straight.
+        
+        this.threeRenderer.render(this.threeScene, this.camera);
+    }
+
+    destroyPlatform(platform: THREE.Mesh, index: number) {
+        // Explosion FX
+        const yPos = platform.position.y;
+        const color = platform.userData.color;
+        
+        // Create debris
+        const debrisCount = 20;
+        const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+        const material = new THREE.MeshBasicMaterial({ color: color });
+        
+        for (let i = 0; i < debrisCount; i++) {
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Random position in the ring
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 2 + Math.random() * 2; // Between inner 2 and outer 4
+            
+            // Convert to World Space taking Tower Rotation into account
+            const worldAngle = angle + this.tower.rotation.y;
+            
+            mesh.position.set(
+                Math.cos(worldAngle) * radius,
+                yPos + this.platformThickness / 2,
+                Math.sin(worldAngle) * radius
+            );
+            
+            // Random velocity
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5
+            );
+            
+            this.threeScene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 1.0 });
+        }
+
+        this.tower.remove(platform);
+        this.platforms.splice(index, 1);
+    }
+
+    checkCollision(platform: THREE.Mesh): boolean {
+        if (platform.userData.isBase) return true;
+
+        // Calculate ball angle in Tower Space
         let ballAngleInTower = (Math.PI / 2 - this.tower.rotation.y + Math.PI) % (Math.PI * 2);
         if (ballAngleInTower < 0) ballAngleInTower += Math.PI * 2;
         
@@ -161,11 +377,14 @@ export default class HelixScene extends Phaser.Scene {
         const threeCanvas = this.threeRenderer.domElement;
         const phaserCanvas = this.game.canvas;
         
-        threeCanvas.style.width = phaserCanvas.style.width;
-        threeCanvas.style.height = phaserCanvas.style.height;
-        threeCanvas.style.marginLeft = phaserCanvas.style.marginLeft;
-        threeCanvas.style.marginTop = phaserCanvas.style.marginTop;
-        threeCanvas.style.top = phaserCanvas.style.top;
-        threeCanvas.style.left = phaserCanvas.style.left;
+        // Align using getBoundingClientRect for precision
+        const rect = phaserCanvas.getBoundingClientRect();
+        
+        threeCanvas.style.position = 'absolute';
+        threeCanvas.style.left = rect.left + 'px';
+        threeCanvas.style.top = rect.top + 'px';
+        threeCanvas.style.width = rect.width + 'px';
+        threeCanvas.style.height = rect.height + 'px';
+        threeCanvas.style.zIndex = '0';
     }
 }
