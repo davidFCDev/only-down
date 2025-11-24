@@ -38,46 +38,38 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     init() {
-        // ... (existing init code) ...
-        // Initialize Three.js with its own canvas
         const threeCanvas = document.createElement('canvas');
-        threeCanvas.style.zIndex = '0'; // Behind Phaser
+        threeCanvas.style.zIndex = '0'; 
         document.body.appendChild(threeCanvas);
 
-        // Ensure Phaser canvas is on top
         this.game.canvas.style.position = 'relative';
         this.game.canvas.style.zIndex = '1';
 
         this.threeScene = new THREE.Scene();
-        this.threeScene.background = new THREE.Color(0x000000); // Black background
+        this.threeScene.background = new THREE.Color(0x000000); // Solid Black Background
         
-        // Camera setup
         const width = this.scale.width;
         const height = this.scale.height;
         this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, -2, 0);
 
-        // Renderer setup - Use the new canvas
         this.threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
         this.threeRenderer.setSize(width, height);
     }
 
-    // ... (existing properties) ...
-
     create() {
-        // ... (existing create code) ...
-        // Lighting - Dark Mode / Atmospheric
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        // Lighting - Neutral/Dim
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
         this.threeScene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.1);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
         dirLight.position.set(5, 10, 7);
         this.threeScene.add(dirLight);
 
         // Create Tower
         const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 32);
-        const towerMat = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 10 });
+        const towerMat = new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 30 });
         const cylinder = new THREE.Mesh(towerGeo, towerMat);
         
         this.tower = new THREE.Group();
@@ -85,11 +77,21 @@ export default class HelixScene extends Phaser.Scene {
         this.threeScene.add(this.tower);
 
         // Materials
+        // Neon Green Ball
         this.normalMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1, roughness: 0.4, metalness: 0.8
+            color: 0xB7FF00, 
+            emissive: 0xB7FF00, 
+            emissiveIntensity: 0.8, 
+            roughness: 0.2, 
+            metalness: 0.5
         });
+        // Super Mode (Bright White/Blue)
         this.superMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffaa00, emissive: 0xff4400, emissiveIntensity: 2, roughness: 0.2, metalness: 1.0
+            color: 0xffffff, 
+            emissive: 0x00ffff, 
+            emissiveIntensity: 2, 
+            roughness: 0.1, 
+            metalness: 1.0
         });
 
         // Create Platforms
@@ -101,10 +103,9 @@ export default class HelixScene extends Phaser.Scene {
         this.ball.position.set(0, 2, 2.5); 
         this.threeScene.add(this.ball);
 
-        const ballLight = new THREE.PointLight(0xffffff, 3, 25); 
+        const ballLight = new THREE.PointLight(0xB7FF00, 2, 10); 
         this.ball.add(ballLight);
 
-        // ... (rest of create) ...
         // Camera Start
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, -2, 0);
@@ -126,7 +127,6 @@ export default class HelixScene extends Phaser.Scene {
             }
         });
         
-        // Handle window resize
         this.scale.on('resize', this.resize, this);
         this.resize(this.scale.gameSize);
     }
@@ -135,46 +135,41 @@ export default class HelixScene extends Phaser.Scene {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        // 1. Score Badge (Top Center)
         this.scoreContainer = this.add.container(width / 2, 80);
         
         this.scoreText = this.add.text(0, 0, '0', { 
             fontSize: '80px', 
-            color: '#ffffff',
-            fontFamily: 'Arial',
+            color: '#B7FF00', // Neon Green
+            fontFamily: 'Courier New', 
             fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 6
+            stroke: '#003300',
+            strokeThickness: 4
         }).setOrigin(0.5);
 
         this.scoreContainer.add(this.scoreText);
 
-        // 2. Game Over Modal (Centered, Hidden initially)
         this.gameOverContainer = this.add.container(width / 2, height / 2);
         this.gameOverContainer.setVisible(false);
         this.gameOverContainer.setDepth(100);
 
-        // Modal Background
         const modalBg = this.add.graphics();
-        modalBg.fillStyle(0x000000, 0.85);
+        modalBg.fillStyle(0x000000, 0.9);
         modalBg.fillRoundedRect(-150, -100, 300, 200, 15);
-        modalBg.lineStyle(2, 0xff0000, 1);
+        modalBg.lineStyle(2, 0xB7FF00, 1);
         modalBg.strokeRoundedRect(-150, -100, 300, 200, 15);
 
-        const gameOverText = this.add.text(0, -40, 'GAME OVER', {
-            fontSize: '32px', color: '#ff0000', fontFamily: 'Arial', fontStyle: 'bold'
+        const gameOverText = this.add.text(0, -40, 'SYSTEM FAILURE', {
+            fontSize: '28px', color: '#B7FF00', fontFamily: 'Courier New', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Restart Button
         const btnBg = this.add.graphics();
-        btnBg.fillStyle(0xffffff, 1);
+        btnBg.fillStyle(0xB7FF00, 1);
         btnBg.fillRoundedRect(-60, 20, 120, 40, 10);
         
-        const btnText = this.add.text(0, 40, 'RESTART', {
-            fontSize: '20px', color: '#000000', fontFamily: 'Arial', fontStyle: 'bold'
+        const btnText = this.add.text(0, 40, 'REBOOT', {
+            fontSize: '20px', color: '#000000', fontFamily: 'Courier New', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Interactive Zone for Button
         const btnZone = this.add.zone(0, 40, 120, 40).setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.restartGame());
 
@@ -192,7 +187,6 @@ export default class HelixScene extends Phaser.Scene {
         const threeCanvas = this.threeRenderer.domElement;
         const phaserCanvas = this.game.canvas;
         
-        // Align using getBoundingClientRect for precision
         const rect = phaserCanvas.getBoundingClientRect();
         
         threeCanvas.style.position = 'absolute';
@@ -205,106 +199,19 @@ export default class HelixScene extends Phaser.Scene {
 
     createPlatforms() {
         const platformCount = 100;
-        const colors = [0x333333, 0x444444, 0x3a3a3a, 0x2a2a2a];
-        let lastGapAngle = 0;
-
-        for (let i = 0; i < platformCount; i++) {
-            const yPos = -2 - (i * 4);
-            
-            // ... (Gap generation logic) ...
-            // Variable Gap Size
-            const minGap = Math.PI / 6;
-            const maxGap = Math.PI / 1.5; 
-            const gapSize = minGap + Math.random() * (maxGap - minGap);
-
-            const innerRadius = 2;
-            const outerRadius = 4;
-            const startAngle = gapSize / 2;
-            const endAngle = Math.PI * 2 - gapSize / 2;
-
-            const shape = new THREE.Shape();
-            shape.moveTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
-            shape.lineTo(outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle));
-            shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
-            shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
-
-            const extrudeSettings = { depth: this.platformThickness, bevelEnabled: false };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            const material = new THREE.MeshPhongMaterial({ color: colors[i % colors.length] });
-            
-            const platform = new THREE.Mesh(geometry, material);
-            platform.rotation.x = -Math.PI / 2;
-            platform.position.y = yPos;
-            
-            // Smart Gap Placement
-            const minSeparation = gapSize / 2 + 0.5; 
-            let targetGapAngle;
-            let attempts = 0;
-            do {
-                targetGapAngle = Math.random() * Math.PI * 2;
-                let diff = Math.abs(targetGapAngle - lastGapAngle);
-                if (diff > Math.PI) diff = 2 * Math.PI - diff;
-                if (diff > 1.5) break; 
-                attempts++;
-                if (attempts > 10) break; 
-            } while (true);
-            
-            lastGapAngle = targetGapAngle;
-            platform.rotation.z = targetGapAngle;
-
-            // ... (Danger Zone Logic) ...
-            // Multiple Danger Zones
-            // Safe Start: No danger on first platform (i=0)
-            const dangerZones: { start: number, size: number }[] = [];
-            
-            if (i > 0) {
-                // Progressive Difficulty
-                let minZones = 0;
-                let maxZones = 1;
-
-                if (i > 10) { minZones = 0; maxZones = 2; } // Early game: occasional danger
-                if (i > 25) { minZones = 1; maxZones = 2; } // Mid game: always at least 1
-                if (i > 50) { minZones = 1; maxZones = 3; } // Late game: harder
-                if (i > 75) { minZones = 2; maxZones = 3; } // End game: very hard
-
-                const numZones = minZones + Math.floor(Math.random() * (maxZones - minZones + 1));
-
-                const solidLength = Math.PI * 2 - gapSize;
-                const zoneSize = Math.PI / 5; // Smaller zones
-
-                // We need solid segments for placement
-                // Re-calculate solid segments for this platform simply
-                // Since we simplified generation above, let's assume single gap logic for now or adapt
-                // The previous code had complex gap logic, let's stick to the single gap logic used in the loop above for simplicity
-                // OR if we want to support the multiple gaps we added earlier, we need to bring that back.
-                // Wait, I replaced the whole createPlatforms in the previous step with the complex one.
-                // I should be careful not to revert that.
-                // The prompt asks to ADD power up logic.
-                // I will assume the complex gap logic is present and I just need to inject Power Up spawning.
-                
-                // Let's assume we have solidSegments from the previous step's logic.
-                // Since I am replacing the whole function, I need to include the complex logic again.
-                // I will copy the complex logic from the previous file content I read.
-                
-                // Actually, to be safe and concise, I will use the code I just wrote in step 520 as base.
-                // Step 520 had the complex logic.
-            }
-            
-            // ... (Danger Zone Generation from Step 520) ...
-            // I will re-implement the loop structure from Step 520 to be safe.
-        }
         
-        // RE-IMPLEMENTING CREATE PLATFORMS WITH POWER UPS
-        // Clearing old
+        // Dark Platform Palette
+        const colors = [0x111111, 0x222222, 0x1a1a1a, 0x0a0a0a];
+
         this.platforms = [];
         this.powerUps = [];
         this.tower.clear();
-        this.tower.add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 1000, 32), new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 10 })));
+        this.tower.add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 1000, 32), new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 30 })));
 
         for (let i = 0; i < platformCount; i++) {
             const yPos = -2 - (i * 4);
             
-            // 1. Generate Gaps (Complex Logic)
+            // 1. Generate Gaps
             const numGaps = (i > 10 && Math.random() > 0.7) ? 2 : 1; 
             const gaps: { start: number, end: number, size: number, center: number }[] = [];
             const solidSegments: { start: number, end: number }[] = [];
@@ -368,7 +275,14 @@ export default class HelixScene extends Phaser.Scene {
 
             const extrudeSettings = { depth: this.platformThickness, bevelEnabled: false };
             const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            const material = new THREE.MeshPhongMaterial({ color: colors[i % colors.length] });
+            
+            // Dark Material
+            const color = colors[i % colors.length];
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.5,
+                metalness: 0.5
+            });
             
             const platform = new THREE.Mesh(geometry, material);
             platform.rotation.x = -Math.PI / 2;
@@ -409,7 +323,11 @@ export default class HelixScene extends Phaser.Scene {
                             dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
                             dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
                             const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, { depth: this.platformThickness + 0.05, bevelEnabled: false });
-                            const dangerMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+                            const dangerMat = new THREE.MeshStandardMaterial({ 
+                                color: 0xcc0000, // Darker Red Danger
+                                emissive: 0xcc0000, 
+                                emissiveIntensity: 0.3 
+                            });
                             const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
                             platform.add(dangerMesh);
                         }
@@ -417,34 +335,28 @@ export default class HelixScene extends Phaser.Scene {
                 }
             }
 
-            // POWER UP SPAWNING
-            // 5% chance per platform, but not on first 5
-            // Power-ups float BETWEEN platforms, not on them
+            // Power Ups
             if (i > 5 && i < platformCount - 1 && Math.random() < 0.05) {
-                // Pick a random spot in world space
                 if (solidSegments.length > 0) {
                     const seg = solidSegments[Math.floor(Math.random() * solidSegments.length)];
                     const angle = seg.start + Math.random() * (seg.end - seg.start);
-                    const radius = 3; // Middle radius between inner and outer
+                    const radius = 3; 
                     
-                    // Position in WORLD coordinates between this platform and the next
                     const worldAngle = angle + rotationZ;
-                    const betweenY = yPos - 2; // Halfway between platforms (platforms are 4 units apart)
+                    const betweenY = yPos - 2; 
                     
                     const puGeo = new THREE.OctahedronGeometry(0.3, 0);
                     const puMat = new THREE.MeshStandardMaterial({ 
-                        color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 1 
+                        color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 
                     });
                     const powerUp = new THREE.Mesh(puGeo, puMat);
                     
-                    // Set position in world space
                     powerUp.position.set(
                         Math.cos(worldAngle) * radius,
                         betweenY,
                         Math.sin(worldAngle) * radius
                     );
                     
-                    // Animation data
                     powerUp.userData = { 
                         isPowerUp: true, 
                         rotationSpeed: 0.05, 
@@ -453,7 +365,6 @@ export default class HelixScene extends Phaser.Scene {
                         baseY: betweenY 
                     };
                     
-                    // Add directly to tower (world space), not to platform
                     this.tower.add(powerUp);
                     this.powerUps.push(powerUp);
                 }
@@ -464,7 +375,7 @@ export default class HelixScene extends Phaser.Scene {
                 gaps: gaps, 
                 rotationOffset: rotationZ, 
                 id: i, 
-                color: colors[i % colors.length],
+                color: color,
                 dangerZones: dangerZones
             };
 
@@ -506,12 +417,11 @@ export default class HelixScene extends Phaser.Scene {
             this.tower.rotation.y += 0.05;
         }
 
-        // Update Power Ups (Animation)
+        // Update Power Ups
         for (const pu of this.powerUps) {
             pu.rotation.z += 0.05;
             pu.rotation.x += 0.05;
             pu.userData.time += 0.1;
-            // Bob vertically around the base Y position
             pu.position.y = pu.userData.baseY + Math.sin(pu.userData.time) * 0.2;
         }
 
@@ -532,15 +442,15 @@ export default class HelixScene extends Phaser.Scene {
 
         // Physics
         if (this.isSuperSmash) {
-            this.ballVelocity = -0.8; // Fast downwards
+            this.ballVelocity = -0.8; 
             
             // Trail Effect
             if (Math.random() > 0.5) {
                 const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-                const trailMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+                const trailMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
                 const trail = new THREE.Mesh(trailGeo, trailMat);
                 trail.position.copy(this.ball.position);
-                trail.position.y += 0.5; // Trail behind
+                trail.position.y += 0.5; 
                 this.threeScene.add(trail);
                 this.particles.push({ mesh: trail, velocity: new THREE.Vector3(0, 0.1, 0), life: 0.5 });
             }
@@ -554,23 +464,20 @@ export default class HelixScene extends Phaser.Scene {
         let collided = false;
 
         // Check Power Up Collection
-        // Power-ups are now in world space (direct children of tower)
         let ballAngleInTower = (Math.PI / 2 - this.tower.rotation.y + Math.PI) % (Math.PI * 2);
         if (ballAngleInTower < 0) ballAngleInTower += Math.PI * 2;
 
-        // Check power-ups directly (they're in world space now)
         for (let i = this.powerUps.length - 1; i >= 0; i--) {
             const pu = this.powerUps[i];
+            const puWorldPos = new THREE.Vector3();
+            pu.getWorldPosition(puWorldPos);
             
-            // Simple distance-based collision (more generous)
-            const dx = this.ball.position.x - pu.position.x;
-            const dy = this.ball.position.y - pu.position.y;
-            const dz = this.ball.position.z - pu.position.z;
+            const dx = this.ball.position.x - puWorldPos.x;
+            const dy = this.ball.position.y - puWorldPos.y;
+            const dz = this.ball.position.z - puWorldPos.z;
             const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             
-            // Generous collision radius (ball radius 0.4 + power-up size 0.3 + extra margin)
-            if (distance < 1.5) {
-                // COLLECTED!
+            if (distance < 1.2) {
                 this.activateSuperSmash();
                 this.tower.remove(pu);
                 this.powerUps.splice(i, 1);
@@ -580,7 +487,6 @@ export default class HelixScene extends Phaser.Scene {
         for (let i = this.platforms.length - 1; i >= 0; i--) {
             const platform = this.platforms[i];
             
-            // Optimization: Only check nearby platforms
             if (Math.abs(platform.position.y - this.ball.position.y) > 5) continue;
             
             const platformY = platform.position.y;
@@ -590,23 +496,19 @@ export default class HelixScene extends Phaser.Scene {
                 if (this.ball.position.y >= topSurfaceY && nextY <= topSurfaceY) {
                     
                     if (this.isSuperSmash) {
-                        // SMASH THROUGH!
                         this.destroyPlatform(platform, i);
                         this.score++;
                         this.scoreText.setText(this.score.toString());
-                        
-                        // Big Smash Particles
-                        this.createExplosion(platform.position.y, 0xffaa00, 40);
+                        this.createExplosion(platform.position.y, 0xB7FF00, 40);
                         
                         this.platformsToSmash--;
                         if (this.platformsToSmash <= 0) {
                             this.isSuperSmash = false;
                             this.ball.material = this.normalMaterial;
-                            this.ballVelocity = this.jumpStrength; // Bounce up after smash
+                            this.ballVelocity = this.jumpStrength; 
                         }
-                        collided = true; // Handled collision
+                        collided = true; 
                     } else {
-                        // Normal Physics
                         const collisionResult = this.checkCollision(platform);
                         
                         if (collisionResult === 'hit') {
@@ -641,7 +543,6 @@ export default class HelixScene extends Phaser.Scene {
         this.isSuperSmash = true;
         this.platformsToSmash = 5;
         this.ball.material = this.superMaterial;
-        // Sound effect would go here
     }
 
     createExplosion(yPos: number, color: number, count: number) {
@@ -674,7 +575,7 @@ export default class HelixScene extends Phaser.Scene {
         
         const debrisCount = 30;
         const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const material = new THREE.MeshBasicMaterial({ color: 0xB7FF00 }); // Neon Green Splatter
         
         for (let i = 0; i < debrisCount; i++) {
             const mesh = new THREE.Mesh(geometry, material);
