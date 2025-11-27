@@ -49,63 +49,48 @@ export default class HelixScene extends Phaser.Scene {
   private jumpSound!: Phaser.Sound.BaseSound;
   private currentMusic!: Phaser.Sound.BaseSound;
   private musicTracks: string[] = ["music1", "music2", "music3"];
+  private threeCanvas!: HTMLCanvasElement;
+  private isMuted: boolean = false;
 
   constructor() {
     super("HelixScene");
   }
 
   init() {
-    // Inject Cyberpunk Font
-    const fontLink = document.createElement("link");
-    fontLink.href =
-      "https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap";
-    fontLink.rel = "stylesheet";
-    document.head.appendChild(fontLink);
+    // Get the Phaser canvas position and size
+    const phaserCanvas = this.game.canvas;
+    const rect = phaserCanvas.getBoundingClientRect();
 
-    const threeCanvas = document.createElement("canvas");
-    threeCanvas.style.zIndex = "0";
-    document.body.appendChild(threeCanvas);
+    // Setup ThreeJS Layer - match Phaser canvas exactly
+    this.threeCanvas = document.createElement("canvas");
+    this.threeCanvas.style.zIndex = "0";
+    this.threeCanvas.style.position = "absolute";
+    this.threeCanvas.style.top = `${rect.top}px`;
+    this.threeCanvas.style.left = `${rect.left}px`;
+    this.threeCanvas.style.width = `${rect.width}px`;
+    this.threeCanvas.style.height = `${rect.height}px`;
+    this.threeCanvas.style.pointerEvents = "none";
+    document.body.appendChild(this.threeCanvas);
 
-    this.game.canvas.style.position = "relative";
-    this.game.canvas.style.zIndex = "1";
+    phaserCanvas.style.position = "relative";
+    phaserCanvas.style.zIndex = "1";
+    phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    this.threeScene.background = new THREE.Color(0x000000); // Pure black with violet fog
+    this.threeScene.background = new THREE.Color(0x000000);
 
-    const width = this.scale.width;
-    const height = this.scale.height;
+    const width = rect.width;
+    const height = rect.height;
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     this.camera.position.set(0, 5, 10);
     this.camera.lookAt(0, -2, 0);
 
     this.threeRenderer = new THREE.WebGLRenderer({
-      canvas: threeCanvas,
+      canvas: this.threeCanvas,
       antialias: true,
     });
-    this.threeRenderer.setSize(width, height);
-  }
-
-  preload() {
-    this.load.audio(
-      "beep",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta"
-    );
-    this.load.audio(
-      "music1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S"
-    );
-    this.load.audio(
-      "music2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
-    );
-    this.load.audio(
-      "music3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa"
-    );
-    this.load.audio(
-      "jump",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm"
-    );
+    this.threeRenderer.setPixelRatio(window.devicePixelRatio);
+    this.threeRenderer.setSize(rect.width, rect.height);
   }
 
   create() {
@@ -189,7 +174,7 @@ export default class HelixScene extends Phaser.Scene {
     this.camera.lookAt(0, -2, 0);
 
     // Audio Init
-    this.beepSound = this.sound.add("beep");
+    this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
     this.jumpSound = this.sound.add("jump", { volume: 0.3 }); // Low volume so music predominates
 
     // UI Setup
@@ -211,6 +196,9 @@ export default class HelixScene extends Phaser.Scene {
 
     this.scale.on("resize", this.resize, this);
     this.resize(this.scale.gameSize);
+
+    // SDK Event Listeners
+    this.setupSDKListeners();
 
     // Start the game logic
     this.restartGame();
@@ -322,46 +310,7 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.gameOverContainer.setDepth(100);
 
-    const modalBg = this.add.graphics();
-    modalBg.fillStyle(0x000000, 0.95); // Black background
-    modalBg.fillRoundedRect(-150, -100, 300, 200, 15);
-    modalBg.lineStyle(3, 0x00ff41, 1); // Bright green border
-    modalBg.strokeRoundedRect(-150, -100, 300, 200, 15);
-
-    const gameOverText = this.add
-      .text(0, -40, "SYSTEM FAILURE", {
-        fontSize: "28px",
-        color: "#FF0000",
-        fontFamily: "Orbitron",
-        fontStyle: "bold", // Pure red
-      })
-      .setOrigin(0.5);
-
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(0x00ff41, 1); // Bright green button
-    btnBg.fillRoundedRect(-60, 20, 120, 40, 10);
-
-    const btnText = this.add
-      .text(0, 40, "REBOOT", {
-        fontSize: "20px",
-        color: "#000000",
-        fontFamily: "Orbitron",
-        fontStyle: "bold", // Black text
-      })
-      .setOrigin(0.5);
-
-    const btnZone = this.add
-      .zone(0, 40, 120, 40)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => this.restartGame());
-
-    this.gameOverContainer.add([
-      modalBg,
-      gameOverText,
-      btnBg,
-      btnText,
-      btnZone,
-    ]);
+    // Game over container is now empty - SDK handles the game over UI
   }
 
   resize(gameSize: Phaser.Structs.Size) {
@@ -974,6 +923,9 @@ export default class HelixScene extends Phaser.Scene {
     this.isSuperSmash = true;
     this.platformsToSmash = 5;
     this.ball.material = this.superMaterial;
+
+    // Haptic feedback on power-up collection
+    this.triggerHapticFeedback();
   }
 
   createGlowTexture() {
@@ -1060,11 +1012,18 @@ export default class HelixScene extends Phaser.Scene {
     this.ball.position.y = yPos + 0.1;
     this.ball.scale.set(1.5, 0.1, 1.5);
 
-    this.gameOverContainer.setVisible(true);
     this.scoreContainer.setVisible(false);
 
     // Big Explosion
     this.createExplosion(yPos, 0x00ff41, 50, true); // Bright green explosion for game over
+
+    // Haptic feedback on death
+    this.triggerHapticFeedback();
+
+    // Call SDK gameOver
+    if (window.FarcadeSDK?.singlePlayer?.actions?.gameOver) {
+      window.FarcadeSDK.singlePlayer.actions.gameOver({ score: this.score });
+    }
   }
 
   destroyPlatform(platform: THREE.Mesh, index: number) {
@@ -1187,6 +1146,31 @@ export default class HelixScene extends Phaser.Scene {
       ease: "Power2",
       onComplete: () => text.destroy(),
     });
+
+    // Haptic feedback on combo
+    this.triggerHapticFeedback();
+  }
+
+  setupSDKListeners() {
+    const sdk = window.FarcadeSDK;
+    if (!sdk) return;
+
+    // Handle play again requests from SDK
+    sdk.on("play_again", () => {
+      this.restartGame();
+    });
+
+    // Handle mute/unmute from SDK
+    sdk.on("toggle_mute", (data: any) => {
+      this.isMuted = data.isMuted;
+      this.sound.mute = this.isMuted;
+    });
+  }
+
+  triggerHapticFeedback() {
+    if (window.FarcadeSDK?.singlePlayer?.actions?.hapticFeedback) {
+      window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+    }
   }
 
   createStars() {

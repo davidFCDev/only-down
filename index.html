@@ -4,9 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>antigravity-test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
     <style>
-      html, body {
+      html,
+      body {
         height: 100%;
         margin: 0;
         padding: 0;
@@ -15,7 +17,7 @@
         align-items: center;
         overflow: hidden; /* Prevent scrollbars */
       }
-      
+
       canvas {
         outline: none;
         margin: 0;
@@ -27,16 +29,17 @@
       // Development only - build script replaces this entire block
       if (import.meta.env.DEV) {
         // Load CSS for dev dashboard
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = '/node_modules/@insidethesim/remix-dev/dist/styles/remix-dev.css'
-        document.head.appendChild(link)
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href =
+          "/node_modules/@insidethesim/remix-dev/dist/styles/remix-dev.css";
+        document.head.appendChild(link);
 
-        import('@insidethesim/remix-dev/dev-init')
+        import("@insidethesim/remix-dev/dev-init");
 
         // Only load the game in iframe, not in top window (dashboard handles iframes)
         if (window !== window.top) {
-          import('/src/main.ts')
+          import("/src/main.ts");
         }
       }
     </script>
