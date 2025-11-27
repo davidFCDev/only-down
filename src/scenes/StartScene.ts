@@ -1,4 +1,5 @@
-import * as Phaser from "phaser";
+// Use global Phaser loaded via CDN
+const Phaser = (window as any).Phaser;
 
 export default class StartScene extends Phaser.Scene {
   private titleContainer!: Phaser.GameObjects.Container;

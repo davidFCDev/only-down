@@ -1,5 +1,7 @@
-import * as Phaser from "phaser";
 import * as THREE from "three";
+
+// Use global Phaser loaded via CDN
+const Phaser = (window as any).Phaser;
 
 export default class HelixScene extends Phaser.Scene {
   private threeScene!: THREE.Scene;
@@ -94,19 +96,24 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   create() {
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // Lighting - Increased for better platform visibility on mobile
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     this.threeScene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
     dirLight.position.set(5, 10, 7);
     this.threeScene.add(dirLight);
 
-    // Create Tower
-    const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 32);
+    // Additional light from below for platform visibility
+    const bottomLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    bottomLight.position.set(0, -10, 5);
+    this.threeScene.add(bottomLight);
+
+    // Create Tower - Reduced segments for mobile
+    const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 16);
     const towerMat = new THREE.MeshPhongMaterial({
-      color: 0x050505,
-      shininess: 30,
+      color: 0x0a0a0a,
+      shininess: 20,
     });
     const cylinder = new THREE.Mesh(towerGeo, towerMat);
 
@@ -121,17 +128,17 @@ export default class HelixScene extends Phaser.Scene {
     this.normalMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ff41, // Bright green neon
       emissive: 0x00ff41,
-      emissiveIntensity: 0.8,
-      roughness: 0.2,
-      metalness: 0.5,
+      emissiveIntensity: 1.5,
+      roughness: 0.1,
+      metalness: 0.3,
     });
 
     this.superMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ff41, // Bright green neon
       emissive: 0x00ff41,
-      emissiveIntensity: 2.0,
-      roughness: 0.1,
-      metalness: 1.0,
+      emissiveIntensity: 3.0,
+      roughness: 0.05,
+      metalness: 0.8,
     });
 
     // Striped Material for Moving Platforms
@@ -143,24 +150,24 @@ export default class HelixScene extends Phaser.Scene {
       metalness: 0.1,
     });
 
-    // Grid Material for Blinking Platforms
+    // Grid Material for Blinking Platforms - Brighter for mobile visibility
     const gridTexture = this.createGridTexture();
     this.blinkingMaterial = new THREE.MeshStandardMaterial({
       map: gridTexture,
       color: 0xffffff,
       transparent: true,
       opacity: 1.0,
-      roughness: 0.3,
-      metalness: 0.2,
-      emissive: 0x00ff41, // Bright green emissive
-      emissiveIntensity: 0.5,
+      roughness: 0.2,
+      metalness: 0.1,
+      emissive: 0x00ff41,
+      emissiveIntensity: 1.0,
     });
 
     // Create Platforms
     this.createPlatforms();
 
-    // Create Ball
-    const ballGeo = new THREE.SphereGeometry(0.4, 32, 32);
+    // Create Ball - Reduced segments for mobile
+    const ballGeo = new THREE.SphereGeometry(0.4, 16, 16);
     this.ball = new THREE.Mesh(ballGeo, this.normalMaterial);
     this.ball.position.set(0, 20, 2.5); // Start high up
     this.ball.scale.set(0.1, 0.1, 0.1); // Start tiny
@@ -335,18 +342,18 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   createPlatforms() {
-    const platformCount = 100;
+    const platformCount = 80; // Reduced for mobile performance
 
-    // Dark grey/black platform palette (no color tint)
-    const colors = [0x0a0a0a, 0x1a1a1a, 0x0f0f0f, 0x050505];
+    // Lighter platform colors for better visibility
+    const colors = [0x1a1a1a, 0x252525, 0x202020, 0x181818];
 
     this.platforms = [];
     this.powerUps = [];
     this.tower.clear();
     this.tower.add(
       new THREE.Mesh(
-        new THREE.CylinderGeometry(2, 2, 1000, 32),
-        new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 30 })
+        new THREE.CylinderGeometry(2, 2, 1000, 16),
+        new THREE.MeshPhongMaterial({ color: 0x0a0a0a, shininess: 20 })
       )
     );
 
@@ -455,7 +462,7 @@ export default class HelixScene extends Phaser.Scene {
           (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
       }
 
-      // Select Material
+      // Select Material - Brighter for mobile visibility
       let material;
       if (isBlinking) {
         material = this.blinkingMaterial.clone();
@@ -465,8 +472,10 @@ export default class HelixScene extends Phaser.Scene {
         const color = colors[i % colors.length];
         material = new THREE.MeshStandardMaterial({
           color: color,
-          roughness: 0.5,
-          metalness: 0.5,
+          roughness: 0.3,
+          metalness: 0.2,
+          emissive: 0x111111,
+          emissiveIntensity: 0.3,
         });
       }
 
@@ -557,18 +566,18 @@ export default class HelixScene extends Phaser.Scene {
           const betweenY = yPos - 2;
 
           const group = new THREE.Group();
-          const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 16);
+          const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
           const mat = new THREE.MeshStandardMaterial({
             color: 0x00ff41,
             emissive: 0x00ff41,
-            emissiveIntensity: 1, // Bright green power-up
+            emissiveIntensity: 1.5, // Brighter power-up for visibility
           });
           const cone = new THREE.Mesh(coneGeo, mat);
           cone.rotation.x = Math.PI;
           cone.position.y = -0.4;
           group.add(cone);
 
-          const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 16);
+          const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
           const cyl = new THREE.Mesh(cylGeo, mat);
           cyl.position.y = 0.4;
           group.add(cyl);
@@ -790,8 +799,8 @@ export default class HelixScene extends Phaser.Scene {
     if (this.isSuperSmash) {
       this.ballVelocity = -0.8;
 
-      // Trail Effect
-      if (Math.random() > 0.5) {
+      // Trail Effect - Reduced frequency for mobile
+      if (Math.random() > 0.7) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         const trailMat = new THREE.MeshBasicMaterial({ color: 0x00ff41 }); // Bright green trail
         const trail = new THREE.Mesh(trailGeo, trailMat);
@@ -833,7 +842,7 @@ export default class HelixScene extends Phaser.Scene {
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
         // Add explosion with shockwave for power-up
-        this.createExplosion(puWorldPos.y, 0x00ff41, 30, true); // Bright green explosion
+        this.createExplosion(puWorldPos.y, 0x00ff41, 15, true); // Reduced for mobile
       }
     }
 
@@ -875,7 +884,7 @@ export default class HelixScene extends Phaser.Scene {
             this.score++;
             this.comboCount++;
             this.scoreText.setText(this.score.toString());
-            this.createExplosion(platform.position.y, 0x00ff41, 40); // Bright green explosion
+            this.createExplosion(platform.position.y, 0x00ff41, 18); // Reduced for mobile
 
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
@@ -985,8 +994,8 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     if (hasShockwave) {
-      // Shockwave Ring
-      const ringGeo = new THREE.RingGeometry(2, 2.05, 64);
+      // Shockwave Ring - Further reduced for mobile
+      const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
       const ringMat = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
@@ -1014,8 +1023,8 @@ export default class HelixScene extends Phaser.Scene {
 
     this.scoreContainer.setVisible(false);
 
-    // Big Explosion
-    this.createExplosion(yPos, 0x00ff41, 50, true); // Bright green explosion for game over
+    // Big Explosion - Minimal for mobile
+    this.createExplosion(yPos, 0x00ff41, 12, true);
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
@@ -1029,8 +1038,8 @@ export default class HelixScene extends Phaser.Scene {
   destroyPlatform(platform: THREE.Mesh, index: number) {
     const yPos = platform.position.y;
 
-    // Subtle shockwave ring effect
-    const ringGeo = new THREE.RingGeometry(2, 2.05, 64);
+    // Subtle shockwave ring effect - Further reduced for mobile
+    const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x00ff41, // Bright green
       transparent: true,
@@ -1174,7 +1183,7 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   createStars() {
-    const starCount = 2000;
+    const starCount = 400; // Further reduced for mobile performance
     const geometry = new THREE.BufferGeometry();
     const positions = [];
 
@@ -1196,9 +1205,9 @@ export default class HelixScene extends Phaser.Scene {
 
     const material = new THREE.PointsMaterial({
       color: 0xffffff,
-      size: 0.5,
+      size: 0.8, // Slightly larger to compensate for fewer stars
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.7,
       sizeAttenuation: true,
     });
 

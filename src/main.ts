@@ -1,9 +1,11 @@
 import { initRemix } from "@insidethesim/remix-dev";
-import * as Phaser from "phaser";
 import GameSettings from "./config/GameSettings";
 import HelixScene from "./scenes/HelixScene";
 import { PreloadScene } from "./scenes/PreloadScene";
 import StartScene from "./scenes/StartScene";
+
+// Use global Phaser loaded via CDN
+const Phaser = (window as any).Phaser;
 
 // SDK mock is automatically initialized by the framework (dev-init.ts)
 
