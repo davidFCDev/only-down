@@ -38,6 +38,11 @@ export default class HelixScene extends Phaser.Scene {
     private keys!: { a: Phaser.Input.Keyboard.Key; d: Phaser.Input.Keyboard.Key };
     private scoreContainer!: Phaser.GameObjects.Container;
     private gameOverContainer!: Phaser.GameObjects.Container;
+    
+    // Audio
+    private beepSound!: Phaser.Sound.BaseSound;
+    private currentMusic!: Phaser.Sound.BaseSound;
+    private musicTracks: string[] = ['music1', 'music2', 'music3'];
 
     constructor() {
         super('HelixScene');
@@ -68,6 +73,13 @@ export default class HelixScene extends Phaser.Scene {
 
         this.threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
         this.threeRenderer.setSize(width, height);
+    }
+
+    preload() {
+        this.load.audio('beep', 'https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta');
+        this.load.audio('music1', 'https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S');
+        this.load.audio('music2', 'https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO');
+        this.load.audio('music3', 'https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa');
     }
 
     create() {
@@ -143,6 +155,9 @@ export default class HelixScene extends Phaser.Scene {
         // Camera Start
         this.camera.position.set(0, 5, 10);
         this.camera.lookAt(0, -2, 0);
+        
+        // Audio Init
+        this.beepSound = this.sound.add('beep');
 
         // UI Setup
         this.createUI();
@@ -163,6 +178,9 @@ export default class HelixScene extends Phaser.Scene {
         
         this.scale.on('resize', this.resize, this);
         this.resize(this.scale.gameSize);
+
+        // Start the game logic
+        this.restartGame();
     }
 
     createStripedTexture() {
@@ -238,7 +256,7 @@ export default class HelixScene extends Phaser.Scene {
         
         this.scoreText = this.add.text(0, 0, '0', { 
             fontSize: '100px', 
-            color: '#00FF41', // Bright green
+            color: '#FFFFFF', // White
             fontFamily: 'Orbitron', 
             fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -246,6 +264,7 @@ export default class HelixScene extends Phaser.Scene {
         this.scoreContainer.add(this.scoreText);
 
         this.scoreContainer.add(this.scoreText);
+        this.scoreContainer.setVisible(false); // Hide initially
 
         // Start Overlay
         this.startOverlay = this.add.graphics();
@@ -255,7 +274,7 @@ export default class HelixScene extends Phaser.Scene {
 
         this.startText = this.add.text(width / 2, height / 2 - 200, 'READY', {
             fontSize: '80px',
-            color: '#00FF41',
+            color: '#FFFFFF',
             fontFamily: 'Orbitron',
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(200);
@@ -533,6 +552,15 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     restartGame() {
+        // Audio Reset
+        if (this.currentMusic) {
+            this.currentMusic.stop();
+        }
+        const randomTrack = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
+        this.currentMusic = this.sound.add(randomTrack, { volume: 0, loop: true });
+        this.currentMusic.play();
+        this.beepSound.play(); // Initial beep for READY
+
         this.isGameActive = true;
         this.isGameStarting = true;
         this.startTimer = 0;
@@ -543,6 +571,7 @@ export default class HelixScene extends Phaser.Scene {
         
         this.score = 0;
         this.scoreText.setText('0');
+        this.scoreContainer.setVisible(false); // Hide during start
         this.gameOverContainer.setVisible(false);
         this.isSuperSmash = false;
         this.platformsToSmash = 0;
@@ -568,21 +597,37 @@ export default class HelixScene extends Phaser.Scene {
         if (this.isGameStarting) {
             this.startTimer += delta / 1000;
             
-            if (this.startTimer < 3) {
-                const progress = this.startTimer / 3;
+            if (this.startTimer < 4.5) {
+                const progress = this.startTimer / 4.5;
                 
+                // Fade in music volume (0 to 1)
+                if (this.currentMusic) {
+                    (this.currentMusic as any).setVolume(progress);
+                }
+
                 // Animate Ball
                 this.ball.position.y = 20 - (18 * progress);
                 const scale = 0.1 + (0.9 * progress);
                 this.ball.scale.set(scale, scale, scale);
                 
-                // Update Text
-                if (this.startTimer < 1) this.startText.setText('READY');
-                else if (this.startTimer < 2) this.startText.setText('STEADY');
-                else {
-                    this.startText.setText('GO!');
-                    // Fade out overlay in the last second
-                    this.startOverlay.setAlpha(1 - (this.startTimer - 2));
+                // Update Text & Play Beep
+                if (this.startTimer < 1.5) {
+                    if (this.startText.text !== 'READY') {
+                        this.startText.setText('READY');
+                        // Beep played in restartGame
+                    }
+                } else if (this.startTimer < 3.0) {
+                    if (this.startText.text !== 'STEADY') {
+                        this.startText.setText('STEADY');
+                        this.beepSound.play();
+                    }
+                } else {
+                    if (this.startText.text !== 'GO!') {
+                        this.startText.setText('GO!');
+                        this.beepSound.play();
+                    }
+                    // Fade out overlay in the last 1.5 seconds
+                    this.startOverlay.setAlpha(1 - (this.startTimer - 3.0) / 1.5);
                 }
                 
                 // Camera Follow
@@ -597,6 +642,7 @@ export default class HelixScene extends Phaser.Scene {
                 this.isGameStarting = false;
                 this.startText.setVisible(false);
                 this.startOverlay.setVisible(false);
+                this.scoreContainer.setVisible(true); // Show score
                 this.ball.position.y = 2;
                 this.ball.scale.set(1, 1, 1);
                 this.ballVelocity = 0; // Reset velocity
