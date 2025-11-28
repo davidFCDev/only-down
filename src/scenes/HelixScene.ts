@@ -14,10 +14,10 @@ export default class HelixScene extends Phaser.Scene {
   private powerUps: THREE.Object3D[] = [];
   private isSuperSmash: boolean = false;
   private platformsToSmash: number = 0;
-  private normalMaterial!: THREE.MeshStandardMaterial;
-  private superMaterial!: THREE.MeshStandardMaterial;
-  private stripedMaterial!: THREE.MeshStandardMaterial;
-  private blinkingMaterial!: THREE.MeshStandardMaterial;
+  private normalMaterial!: THREE.MeshBasicMaterial;
+  private superMaterial!: THREE.MeshBasicMaterial;
+  private stripedMaterial!: THREE.MeshBasicMaterial;
+  private blinkingMaterial!: THREE.MeshBasicMaterial;
 
   // Game State & Physics
   private platforms: THREE.Mesh[] = [];
@@ -41,6 +41,8 @@ export default class HelixScene extends Phaser.Scene {
     life: number;
   }[] = [];
   private platformThickness: number = 0.8;
+  private lowestPlatformY: number = 0;
+  private platformIdCounter: number = 0;
 
   private keys!: { a: Phaser.Input.Keyboard.Key; d: Phaser.Input.Keyboard.Key };
   private scoreContainer!: Phaser.GameObjects.Container;
@@ -79,7 +81,8 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    this.threeScene.background = new THREE.Color(0x000000);
+    // Rich dark purple-blue background
+    this.threeScene.background = new THREE.Color(0x0f0e17);
 
     const width = rect.width;
     const height = rect.height;
@@ -90,76 +93,47 @@ export default class HelixScene extends Phaser.Scene {
 
     this.threeRenderer = new THREE.WebGLRenderer({
       canvas: this.threeCanvas,
-      antialias: true,
+      antialias: false, // Disabled for mobile performance
     });
-    this.threeRenderer.setPixelRatio(window.devicePixelRatio);
+    this.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio
     this.threeRenderer.setSize(rect.width, rect.height);
   }
 
   create() {
-    // Lighting - Increased for better platform visibility on mobile
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    this.threeScene.add(ambientLight);
+    // No lights needed - using MeshBasicMaterial for flat shading
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(5, 10, 7);
-    this.threeScene.add(dirLight);
-
-    // Additional light from below for platform visibility
-    const bottomLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    bottomLight.position.set(0, -10, 5);
-    this.threeScene.add(bottomLight);
-
-    // Create Tower - Reduced segments for mobile
+    // Create Tower - Simple flat material
     const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 16);
-    const towerMat = new THREE.MeshPhongMaterial({
-      color: 0x0a0a0a,
-      shininess: 20,
-    });
+    const towerMat = new THREE.MeshBasicMaterial({ color: 0x232136 });
     const cylinder = new THREE.Mesh(towerGeo, towerMat);
 
     this.tower = new THREE.Group();
     this.tower.add(cylinder);
     this.threeScene.add(this.tower);
 
-    // Create Stars Background
-    this.createStars();
+    // No stars - solid background is more performant
 
-    // Materials
-    this.normalMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ff41, // Bright green neon
-      emissive: 0x00ff41,
-      emissiveIntensity: 1.5,
-      roughness: 0.1,
-      metalness: 0.3,
+    // Materials - Vibrant flat colors
+    this.normalMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00e676, // Bright green - very visible
     });
 
-    this.superMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ff41, // Bright green neon
-      emissive: 0x00ff41,
-      emissiveIntensity: 3.0,
-      roughness: 0.05,
-      metalness: 0.8,
+    this.superMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffeb3b, // Bright yellow for super mode
     });
 
-    // Striped Material for Moving Platforms
+    // Striped Material for Moving Platforms - Flat
     const stripedTexture = this.createStripedTexture();
-    this.stripedMaterial = new THREE.MeshStandardMaterial({
+    this.stripedMaterial = new THREE.MeshBasicMaterial({
       map: stripedTexture,
-      color: 0xffffff,
-      roughness: 0.5,
-      metalness: 0.1,
     });
 
-    // Dots Material for Blinking Platforms - Simple texture with transparency
+    // Dots Material for Blinking Platforms - Flat with transparency
     const dotsTexture = this.createDotsTexture();
-    this.blinkingMaterial = new THREE.MeshStandardMaterial({
+    this.blinkingMaterial = new THREE.MeshBasicMaterial({
       map: dotsTexture,
-      color: 0xffffff,
       transparent: true,
       opacity: 1.0,
-      roughness: 0.4,
-      metalness: 0.1,
     });
 
     // Create Platforms
@@ -172,8 +146,7 @@ export default class HelixScene extends Phaser.Scene {
     this.ball.scale.set(0.1, 0.1, 0.1); // Start tiny
     this.threeScene.add(this.ball);
 
-    const ballLight = new THREE.PointLight(0x00ff41, 2, 10); // Bright green light
-    this.ball.add(ballLight);
+    // No point light on ball - flat shading
 
     // Camera Start - Balanced angle
     this.camera.position.set(0, 5, 11);
@@ -220,18 +193,16 @@ export default class HelixScene extends Phaser.Scene {
     canvas.height = 64;
     const context = canvas.getContext("2d")!;
 
-    // Background (Black)
-    context.fillStyle = "#000000";
-    context.fillRect(0, 0, 64, 64);
+    // Transparent background
+    context.clearRect(0, 0, 64, 64);
 
-    // Stripes (Bright Green) - Thinner and more spaced out
-    context.fillStyle = "#00FF41";
+    // Dark stripes overlay
+    context.fillStyle = "rgba(0, 0, 0, 0.4)";
     context.beginPath();
-    for (let i = -64; i < 64; i += 32) {
-      // Increased spacing
+    for (let i = -64; i < 64; i += 24) {
       context.moveTo(i, 0);
-      context.lineTo(i + 2, 0); // Thinner stripe (2px)
-      context.lineTo(i + 66, 64); // Adjusted for slope
+      context.lineTo(i + 8, 0);
+      context.lineTo(i + 72, 64);
       context.lineTo(i + 64, 64);
     }
     context.fill();
@@ -249,13 +220,12 @@ export default class HelixScene extends Phaser.Scene {
     canvas.height = 64;
     const context = canvas.getContext("2d")!;
 
-    // Background (Black)
-    context.fillStyle = "#000000";
-    context.fillRect(0, 0, 64, 64);
+    // Transparent background
+    context.clearRect(0, 0, 64, 64);
 
-    // Green dots pattern
-    context.fillStyle = "#00FF41";
-    const dotRadius = 4;
+    // Dark dots overlay
+    context.fillStyle = "rgba(0, 0, 0, 0.5)";
+    const dotRadius = 6;
     const spacing = 16;
 
     for (let x = spacing / 2; x < 64; x += spacing) {
@@ -379,16 +349,18 @@ export default class HelixScene extends Phaser.Scene {
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
-    // Lighter platform colors for better visibility
-    const colors = [0x1a1a1a, 0x252525, 0x202020, 0x181818];
+    // Colorful platform palette - pastels and vibrant
+    const colors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
 
     this.platforms = [];
     this.powerUps = [];
+    this.lowestPlatformY = 0; // Reset lowest platform tracker
+    this.platformIdCounter = 0; // Reset ID counter
     this.tower.clear();
     this.tower.add(
       new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 1000, 16),
-        new THREE.MeshPhongMaterial({ color: 0x0a0a0a, shininess: 20 })
+        new THREE.MeshBasicMaterial({ color: 0x232136 }) // Dark purple
       )
     );
 
@@ -497,21 +469,28 @@ export default class HelixScene extends Phaser.Scene {
           (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
       }
 
-      // Select Material - Brighter for mobile visibility
+      // Select Material - All platforms use same color palette
+      const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
+      const baseColor = platformColors[i % platformColors.length];
+      
       let material;
       if (isBlinking) {
-        material = this.blinkingMaterial.clone();
-      } else if (isMoving) {
-        material = this.stripedMaterial.clone();
-      } else {
-        const color = colors[i % colors.length];
-        material = new THREE.MeshStandardMaterial({
-          color: color,
-          roughness: 0.3,
-          metalness: 0.2,
-          emissive: 0x111111,
-          emissiveIntensity: 0.3,
+        // Blinking: base color + dots overlay texture
+        material = new THREE.MeshBasicMaterial({
+          color: baseColor,
+          map: this.blinkingMaterial.map,
+          transparent: true,
+          opacity: 1.0,
         });
+      } else if (isMoving) {
+        // Moving: base color + stripes overlay texture
+        material = new THREE.MeshBasicMaterial({
+          color: baseColor,
+          map: this.stripedMaterial.map,
+        });
+      } else {
+        // Normal: just base color
+        material = new THREE.MeshBasicMaterial({ color: baseColor });
       }
 
       const platform = new THREE.Mesh(geometry, material);
@@ -577,10 +556,9 @@ export default class HelixScene extends Phaser.Scene {
                 depth: this.platformThickness + 0.05,
                 bevelEnabled: false,
               });
-              const dangerMat = new THREE.MeshStandardMaterial({
+              // Flat red - no emissive
+              const dangerMat = new THREE.MeshBasicMaterial({
                 color: 0xff0000, // Pure red
-                emissive: 0xff0000,
-                emissiveIntensity: 1.0,
               });
               const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
               platform.add(dangerMesh);
@@ -602,10 +580,9 @@ export default class HelixScene extends Phaser.Scene {
 
           const group = new THREE.Group();
           const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-          const mat = new THREE.MeshStandardMaterial({
-            color: 0x00ff41,
-            emissive: 0x00ff41,
-            emissiveIntensity: 1.5, // Brighter power-up for visibility
+          // Flat gold/yellow for power-ups
+          const mat = new THREE.MeshBasicMaterial({
+            color: 0x00d2d3, // Bright cyan
           });
           const cone = new THREE.Mesh(coneGeo, mat);
           cone.rotation.x = Math.PI;
@@ -652,7 +629,185 @@ export default class HelixScene extends Phaser.Scene {
 
       this.tower.add(platform);
       this.platforms.push(platform);
+      
+      // Track lowest platform position
+      if (yPos < this.lowestPlatformY) {
+        this.lowestPlatformY = yPos;
+      }
     }
+    
+    this.platformIdCounter = platformCount;
+  }
+
+  // Generate a single new platform at a specific Y position
+  spawnNewPlatform(yPos: number) {
+    const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
+    const innerRadius = 2;
+    const outerRadius = 4;
+    
+    // Increase difficulty based on score
+    const difficultyMultiplier = Math.min(this.score / 50, 1.5);
+    
+    // 1. Generate Gaps
+    const numGaps = this.score > 10 && Math.random() > 0.7 ? 2 : 1;
+    const gaps: { start: number; end: number; size: number; center: number }[] = [];
+    
+    const isOverlapping = (start: number, size: number) => {
+      for (const g of gaps) {
+        const center = start + size / 2;
+        const dist = Math.abs(g.center - center);
+        const minDist = (g.size + size) / 2 + 0.5;
+        if (dist < minDist) return true;
+        if (Math.abs(dist - Math.PI * 2) < minDist) return true;
+      }
+      return false;
+    };
+
+    for (let g = 0; g < numGaps; g++) {
+      let valid = false;
+      let attempts = 0;
+      while (!valid && attempts < 20) {
+        const size = Math.PI / 4 + Math.random() * (Math.PI / 2.5);
+        const start = Math.random() * Math.PI * 2;
+        if (!isOverlapping(start, size)) {
+          gaps.push({ start, end: start + size, size, center: start + size / 2 });
+          valid = true;
+        }
+        attempts++;
+      }
+    }
+    if (gaps.length === 0) {
+      const size = Math.PI / 4;
+      const start = 0;
+      gaps.push({ start, end: start + size, size, center: start + size / 2 });
+    }
+    gaps.sort((a, b) => a.start - b.start);
+
+    // Build solid segments
+    const solidSegments: { start: number; end: number }[] = [];
+    if (gaps.length === 1) {
+      const g = gaps[0];
+      solidSegments.push({ start: g.end, end: g.start + Math.PI * 2 });
+    } else {
+      for (let j = 0; j < gaps.length; j++) {
+        const currentGap = gaps[j];
+        const nextGap = gaps[(j + 1) % gaps.length];
+        let start = currentGap.end;
+        let end = nextGap.start;
+        if (end < start) end += Math.PI * 2;
+        solidSegments.push({ start, end });
+      }
+    }
+
+    // Construct Shape
+    const shape = new THREE.Shape();
+    for (const seg of solidSegments) {
+      shape.moveTo(innerRadius * Math.cos(seg.start), innerRadius * Math.sin(seg.start));
+      shape.lineTo(outerRadius * Math.cos(seg.start), outerRadius * Math.sin(seg.start));
+      shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
+      shape.lineTo(innerRadius * Math.cos(seg.end), innerRadius * Math.sin(seg.end));
+      shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
+    }
+
+    const extrudeSettings = { depth: this.platformThickness, bevelEnabled: false };
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geometry.rotateX(-Math.PI / 2);
+
+    // Determine platform type
+    const isBlinking = Math.random() < 0.08 + difficultyMultiplier * 0.05;
+    const isMoving = !isBlinking && Math.random() < 0.12 + difficultyMultiplier * 0.08;
+    const moveSpeed = isMoving ? 0.005 + Math.random() * 0.01 : 0;
+
+    // Select Material - All platforms use same color palette
+    const baseColor = platformColors[this.platformIdCounter % platformColors.length];
+    
+    let material;
+    if (isBlinking) {
+      material = new THREE.MeshBasicMaterial({
+        color: baseColor,
+        map: this.blinkingMaterial.map,
+        transparent: true,
+        opacity: 1.0,
+      });
+    } else if (isMoving) {
+      material = new THREE.MeshBasicMaterial({
+        color: baseColor,
+        map: this.stripedMaterial.map,
+      });
+    } else {
+      material = new THREE.MeshBasicMaterial({ color: baseColor });
+    }
+
+    const platform = new THREE.Mesh(geometry, material);
+    const rotationZ = Math.random() * Math.PI * 2;
+    platform.rotation.y = rotationZ;
+    platform.position.y = yPos;
+
+    // Add danger zones (higher chance at higher scores)
+    const dangerZones: { start: number; size: number }[] = [];
+    if (!isBlinking && !isMoving && Math.random() < 0.25 + difficultyMultiplier * 0.15) {
+      for (const seg of solidSegments) {
+        if (Math.random() < 0.5) {
+          const segmentSize = seg.end - seg.start;
+          const maxDangerSize = Math.min(segmentSize * 0.4, Math.PI / 3);
+          const dangerSize = Math.PI / 8 + Math.random() * (maxDangerSize - Math.PI / 8);
+          const dangerStart = seg.start + Math.random() * (segmentSize - dangerSize);
+          dangerZones.push({ start: dangerStart, size: dangerSize });
+
+          // Create danger visual
+          const dangerShape = new THREE.Shape();
+          dangerShape.moveTo(innerRadius * Math.cos(dangerStart), innerRadius * Math.sin(dangerStart));
+          dangerShape.lineTo(outerRadius * Math.cos(dangerStart), outerRadius * Math.sin(dangerStart));
+          dangerShape.absarc(0, 0, outerRadius, dangerStart, dangerStart + dangerSize, false);
+          dangerShape.lineTo(innerRadius * Math.cos(dangerStart + dangerSize), innerRadius * Math.sin(dangerStart + dangerSize));
+          dangerShape.absarc(0, 0, innerRadius, dangerStart + dangerSize, dangerStart, true);
+
+          const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, { depth: this.platformThickness + 0.05, bevelEnabled: false });
+          dangerGeo.rotateX(-Math.PI / 2);
+          const dangerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
+          dangerMesh.position.y = -0.025;
+          platform.add(dangerMesh);
+        }
+      }
+    }
+
+    // Add power-ups (less frequent at higher scores)
+    if (!isBlinking && !isMoving && dangerZones.length === 0 && Math.random() < 0.06) {
+      const randomGap = gaps[Math.floor(Math.random() * gaps.length)];
+      const gapCenter = randomGap.start + randomGap.size / 2;
+      const r = (innerRadius + outerRadius) / 2;
+      const localX = r * Math.cos(gapCenter);
+      const localZ = r * Math.sin(gapCenter);
+
+      const group = new THREE.Group();
+      const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x00d2d3 });
+      const cone = new THREE.Mesh(coneGeo, mat);
+      cone.rotation.x = Math.PI;
+      group.add(cone);
+      group.position.set(localX, this.platformThickness + 0.5, localZ);
+      group.userData = { baseY: yPos + this.platformThickness + 0.5, time: 0 };
+      this.tower.add(group);
+      this.powerUps.push(group);
+    }
+
+    platform.userData = {
+      isBase: false,
+      gaps: gaps,
+      rotationOffset: rotationZ,
+      id: this.platformIdCounter,
+      dangerZones: dangerZones,
+      isMoving: isMoving,
+      moveSpeed: moveSpeed,
+      isBlinking: isBlinking,
+      blinkTime: Math.random() * 100,
+    };
+
+    this.tower.add(platform);
+    this.platforms.push(platform);
+    this.platformIdCounter++;
+    this.lowestPlatformY = yPos;
   }
 
   restartGame() {
@@ -797,7 +952,7 @@ export default class HelixScene extends Phaser.Scene {
         const opacity = (Math.sin(platform.userData.blinkTime * 0.5) + 1) / 2;
 
         // Set material opacity (0.1 to 1.0 range)
-        const material = platform.material as THREE.MeshStandardMaterial;
+        const material = platform.material as THREE.MeshBasicMaterial;
         material.opacity = 0.1 + opacity * 0.9;
 
         // Track visibility state for collision
@@ -845,7 +1000,7 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile
       if (Math.random() > 0.7) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const trailMat = new THREE.MeshBasicMaterial({ color: 0x00ff41 }); // Bright green trail
+        const trailMat = new THREE.MeshBasicMaterial({ color: 0x00e676 }); // Bright green trail
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
@@ -885,7 +1040,7 @@ export default class HelixScene extends Phaser.Scene {
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
         // Add explosion with shockwave for power-up
-        this.createExplosion(puWorldPos.y, 0x00ff41, 15, true); // Reduced for mobile
+        this.createExplosion(puWorldPos.y, 0x00e676, 15, true); // Reduced for mobile
       }
     }
 
@@ -925,7 +1080,7 @@ export default class HelixScene extends Phaser.Scene {
             this.score++;
             this.comboCount++;
             this.scoreText.setText(this.score.toString());
-            this.createExplosion(platform.position.y, 0x00ff41, 18); // Reduced for mobile
+            this.createExplosion(platform.position.y, 0x00e676, 18); // Reduced for mobile
 
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
@@ -1066,7 +1221,7 @@ export default class HelixScene extends Phaser.Scene {
     this.scoreContainer.setVisible(false);
 
     // Big Explosion - Minimal for mobile
-    this.createExplosion(yPos, 0x00ff41, 12, true);
+    this.createExplosion(yPos, 0x00e676, 12, true);
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
@@ -1083,7 +1238,7 @@ export default class HelixScene extends Phaser.Scene {
     // Subtle shockwave ring effect - Further reduced for mobile
     const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x00ff41, // Bright green
+      color: 0x00e676, // Bright green
       transparent: true,
       opacity: 0.3, // Lower opacity for subtlety
       side: THREE.DoubleSide,
@@ -1112,6 +1267,10 @@ export default class HelixScene extends Phaser.Scene {
 
     this.tower.remove(platform);
     this.platforms.splice(index, 1);
+    
+    // Spawn a new platform below the lowest one to keep infinite gameplay
+    const newY = this.lowestPlatformY - 4;
+    this.spawnNewPlatform(newY);
   }
 
   checkCollision(platform: THREE.Mesh): "hit" | "gap" | "danger" {
