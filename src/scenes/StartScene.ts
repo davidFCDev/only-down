@@ -21,9 +21,10 @@ export default class StartScene extends Phaser.Scene {
     // Check if user has seen tutorial before
     await this.checkTutorialState();
 
-    // Background image - colorful waves
+    // Background image - colorful waves (reduced intensity)
     const bg = this.add.image(width / 2, height / 2, "startBg");
     bg.setDisplaySize(width, height);
+    bg.setAlpha(0.6); // Reduce intensity so it doesn't stand out too much
 
     // Title with cartoon style
     this.createTitle(width, height);
@@ -174,8 +175,12 @@ export default class StartScene extends Phaser.Scene {
     const titleFontSize = Math.min(90, width * 0.18);
 
     // Calculate approximate position of the "O" in "ONLY DOWN"
-    // "ONLY DOWN" - the O in DOWN is roughly at the center + small offset
-    const oLetterX = width / 2 + titleFontSize * 0.15;
+    // "ONLY DOWN" has 9 characters. The O in DOWN is at position 6 (0-indexed: 5)
+    // Need to offset to the CENTER of the O letter, not its left edge
+    // Each character is roughly 0.55 of fontSize for Fredoka bold
+    const charWidth = titleFontSize * 0.55;
+    // O in DOWN is about 1.62 character widths to the right of center (to hit center of O)
+    const oLetterX = width / 2 + charWidth * 1.62;
     const oLetterY = titleY;
 
     // Button top position
