@@ -103,10 +103,11 @@ export default class HelixScene extends Phaser.Scene {
   create() {
     // No lights needed - using MeshBasicMaterial for flat shading
 
-    // Create Tower - Simple flat material
-    const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 16);
+    // Create Tower - tall enough to never see the end (10000 units = ~2500 platforms)
+    const towerGeo = new THREE.CylinderGeometry(2, 2, 10000, 16);
     const towerMat = new THREE.MeshBasicMaterial({ color: 0x2c3e50 }); // Dark blue-gray
     const cylinder = new THREE.Mesh(towerGeo, towerMat);
+    cylinder.position.y = -4500; // Offset down so most of the cylinder is below Y=0
 
     this.tower = new THREE.Group();
     this.tower.add(cylinder);
@@ -406,12 +407,13 @@ export default class HelixScene extends Phaser.Scene {
     this.platformIdCounter = 0; // Reset ID counter
     this.tower.clear();
 
-    // Barber pole style tower
+    // Barber pole style tower (10000 units tall = ~2500 platforms worth)
     const barberTexture = this.createBarberPoleTexture();
     const towerMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(2, 2, 1000, 16),
+      new THREE.CylinderGeometry(2, 2, 10000, 16),
       new THREE.MeshBasicMaterial({ map: barberTexture })
     );
+    towerMesh.position.y = -4500; // Offset down so most is below Y=0
     this.tower.add(towerMesh);
 
     for (let i = 0; i < platformCount; i++) {
@@ -1546,20 +1548,28 @@ export default class HelixScene extends Phaser.Scene {
 
   async saveHighScoreAndGameOver() {
     const sdk = window.FarcadeSDK;
+    const finalScore = this.score;
 
+    // CRITICAL: Call gameOver FIRST to ensure SDK shows play_again screen
+    // This must happen before any async operations that might hang on iOS
+    if (sdk?.singlePlayer?.actions?.gameOver) {
+      sdk.singlePlayer.actions.gameOver({ score: finalScore });
+      console.log("🎮 GameOver called with score:", finalScore);
+    }
+
+    // Now try to save high score in the background (non-blocking)
     try {
-      // First, get current high score from game state
       let currentHighScore = 0;
       if (sdk?.singlePlayer?.actions?.ready) {
         const gameInfo = await sdk.singlePlayer.actions.ready();
+        const savedHighScore = (gameInfo?.initialGameState?.gameState as any)
+          ?.highScore;
         currentHighScore =
-          gameInfo?.initialGameState?.gameState?.highScore || 0;
+          typeof savedHighScore === "number" ? savedHighScore : 0;
       }
 
-      // Update high score if current score is higher
-      const newHighScore = Math.max(currentHighScore, this.score);
+      const newHighScore = Math.max(currentHighScore, finalScore);
 
-      // Save to game state (preserving hasSeenTutorial)
       if (sdk?.singlePlayer?.actions?.saveGameState) {
         await sdk.singlePlayer.actions.saveGameState({
           gameState: {
@@ -1571,11 +1581,6 @@ export default class HelixScene extends Phaser.Scene {
       }
     } catch (error) {
       console.log("Could not save high score:", error);
-    }
-
-    // Call SDK gameOver
-    if (sdk?.singlePlayer?.actions?.gameOver) {
-      sdk.singlePlayer.actions.gameOver({ score: this.score });
     }
   }
 
