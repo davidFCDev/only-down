@@ -7,6 +7,7 @@ export default class StartScene extends Phaser.Scene {
   private subtitleText!: Phaser.GameObjects.Text;
   private startBtnContainer!: Phaser.GameObjects.Container;
   private tutorialContainer!: Phaser.GameObjects.Container;
+  private bouncingBall!: Phaser.GameObjects.Container;
   private hasSeenTutorial: boolean = false;
 
   constructor() {
@@ -88,11 +89,11 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createMainStartButton(width: number, height: number) {
-    const btnWidth = Math.min(280, width * 0.6);
-    const btnHeight = 70;
-    const cornerRadius = 20;
+    const btnWidth = Math.min(320, width * 0.65);
+    const btnHeight = 80;
+    const cornerRadius = 22;
 
-    this.startBtnContainer = this.add.container(width / 2, height * 0.55);
+    this.startBtnContainer = this.add.container(width / 2, height * 0.58);
     this.startBtnContainer.setAlpha(0);
 
     // Button background - green with black border
@@ -120,12 +121,12 @@ export default class StartScene extends Phaser.Scene {
     // Button text
     const btnText = this.add
       .text(0, 0, "PLAY", {
-        fontSize: "44px",
+        fontSize: "52px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 6,
+        strokeThickness: 7,
       })
       .setOrigin(0.5);
     this.startBtnContainer.add(btnText);
@@ -153,26 +154,107 @@ export default class StartScene extends Phaser.Scene {
       });
     this.startBtnContainer.add(zone);
 
-    // Fade in animation with delay
+    // Simple fade in (no animation)
     this.tweens.add({
       targets: this.startBtnContainer,
       alpha: 1,
-      y: height * 0.5,
-      duration: 800,
+      duration: 400,
       delay: 600,
-      ease: "Back.out",
     });
 
-    // Continuous pulse animation
+    // Create bouncing ball animation after button appears
+    this.time.delayedCall(1000, () => {
+      this.createBouncingBall(width, height);
+    });
+  }
+
+  createBouncingBall(width: number, height: number) {
+    // Get the position of the "O" in "DOWN" from title
+    const titleY = height * 0.18;
+    const titleFontSize = Math.min(90, width * 0.18);
+
+    // Calculate approximate position of the "O" in "ONLY DOWN"
+    // "ONLY DOWN" - the O in DOWN is roughly at the center + small offset
+    const oLetterX = width / 2 + titleFontSize * 0.15;
+    const oLetterY = titleY;
+
+    // Button top position
+    const btnY = height * 0.58;
+    const btnHeight = 80;
+    const buttonTopY = btnY - btnHeight / 2;
+
+    // Ball properties
+    const ballRadius = 22;
+
+    // Create ball container
+    this.bouncingBall = this.add.container(oLetterX, oLetterY);
+    this.bouncingBall.setAlpha(0);
+    this.bouncingBall.setScale(0.3);
+
+    // Ball border (black outline)
+    const ballBorder = this.add.graphics();
+    ballBorder.fillStyle(0x000000, 1);
+    ballBorder.fillCircle(0, 0, ballRadius + 4);
+    this.bouncingBall.add(ballBorder);
+
+    // Ball fill (green like the game ball)
+    const ballFill = this.add.graphics();
+    ballFill.fillStyle(0x2ecc71, 1);
+    ballFill.fillCircle(0, 0, ballRadius);
+    this.bouncingBall.add(ballFill);
+
+    // Highlight
+    const highlight = this.add.graphics();
+    highlight.fillStyle(0xffffff, 0.4);
+    highlight.fillCircle(-8, -8, 8);
+    this.bouncingBall.add(highlight);
+
+    // Animation sequence
+    // 1. Appear from inside the O letter
     this.tweens.add({
-      targets: this.startBtnContainer,
-      scaleX: 1.06,
-      scaleY: 1.06,
-      duration: 1000,
-      ease: "Sine.easeInOut",
+      targets: this.bouncingBall,
+      alpha: 1,
+      scale: 1,
+      duration: 400,
+      ease: "Back.out",
+      onComplete: () => {
+        // 2. Fall down to the button top
+        const bounceY = buttonTopY - ballRadius - 5;
+
+        this.tweens.add({
+          targets: this.bouncingBall,
+          y: bounceY,
+          duration: 600,
+          ease: "Bounce.out",
+          onComplete: () => {
+            // 3. Start continuous bouncing
+            this.startContinuousBounce(bounceY);
+          },
+        });
+      },
+    });
+  }
+
+  startContinuousBounce(baseY: number) {
+    // Continuous bounce animation
+    this.tweens.add({
+      targets: this.bouncingBall,
+      y: baseY - 35,
+      duration: 400,
+      ease: "Sine.easeOut",
       yoyo: true,
       repeat: -1,
-      delay: 1400,
+      onYoyo: () => {
+        // Small squash effect when landing
+        this.tweens.add({
+          targets: this.bouncingBall,
+          scaleX: 1.15,
+          scaleY: 0.85,
+          duration: 80,
+          yoyo: true,
+          ease: "Sine.easeOut",
+        });
+      },
     });
   }
 
@@ -199,20 +281,7 @@ export default class StartScene extends Phaser.Scene {
     overlay.fillRect(0, 0, width, height);
     this.tutorialContainer.add(overlay);
 
-    // Tutorial title
-    const tutorialTitle = this.add
-      .text(width / 2, height * 0.15, "HOW TO PLAY", {
-        fontSize: "48px",
-        color: "#ffd93d",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 8,
-      })
-      .setOrigin(0.5);
-    this.tutorialContainer.add(tutorialTitle);
-
-    // Tutorial points in white
+    // Tutorial points in white - larger text, no title
     const tutorialPoints = [
       "Tap left or right to move",
       "Fall through the gaps",
@@ -220,9 +289,9 @@ export default class StartScene extends Phaser.Scene {
       "Collect power-ups",
     ];
 
-    const startY = height * 0.3;
-    const lineHeight = 70;
-    const fontSize = Math.min(24, width * 0.05);
+    const startY = height * 0.22;
+    const lineHeight = 100;
+    const fontSize = Math.min(38, width * 0.08);
 
     tutorialPoints.forEach((text, index) => {
       const textObj = this.add

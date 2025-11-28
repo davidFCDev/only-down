@@ -216,15 +216,19 @@ export class PreloadScene extends Phaser.Scene {
     const minDisplayTime = 2000;
     const startTime = Date.now();
 
-    // Esperar a que WebFont esté cargado y luego cargar Orbitron
+    // Esperar a que WebFont esté cargado y luego cargar Fredoka
     const ensureFontsLoaded = (): Promise<void> => {
       return new Promise((resolve) => {
         const onWebFontReady = () => {
           const wf = (window as any).WebFont;
           if (!wf || !wf.load) {
+            // Fallback: usar document.fonts API nativa
             if ((document as any).fonts?.ready) {
               (document as any).fonts.ready
-                .then(() => resolve())
+                .then(() => {
+                  console.log("✅ Fuentes cargadas con document.fonts API");
+                  resolve();
+                })
                 .catch(() => resolve());
             } else {
               resolve();
@@ -234,12 +238,14 @@ export class PreloadScene extends Phaser.Scene {
 
           wf.load({
             google: {
-              families: ["Orbitron:400,700"],
+              families: ["Fredoka:700"],
             },
             active: () => {
+              console.log("✅ Fuente Fredoka cargada correctamente");
               resolve();
             },
             inactive: () => {
+              console.warn("⚠️ Fredoka no se pudo cargar con WebFont");
               resolve();
             },
           });
@@ -252,6 +258,18 @@ export class PreloadScene extends Phaser.Scene {
             onWebFontReady();
           }
         }, 50);
+
+        // Timeout de seguridad: si WebFont no carga en 3s, continuar
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          if ((document as any).fonts?.ready) {
+            (document as any).fonts.ready
+              .then(() => resolve())
+              .catch(() => resolve());
+          } else {
+            resolve();
+          }
+        }, 3000);
       });
     };
 
