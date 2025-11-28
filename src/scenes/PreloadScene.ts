@@ -59,7 +59,7 @@ export class PreloadScene extends Phaser.Scene {
     // --- IMAGES ---
     this.load.image(
       "startBg",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/ONLY%20DOWN-Xi5xlIviMcrzpfXM4y85R0RbmzXEQG.webp?SwFv"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX"
     );
   }
 

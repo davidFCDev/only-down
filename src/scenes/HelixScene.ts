@@ -55,6 +55,7 @@ export default class HelixScene extends Phaser.Scene {
   private musicTracks: string[] = ["music1", "music2", "music3"];
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
+  private audioContext: AudioContext | null = null;
 
   constructor() {
     super("HelixScene");
@@ -144,6 +145,17 @@ export default class HelixScene extends Phaser.Scene {
     this.ball = new THREE.Mesh(ballGeo, this.normalMaterial);
     this.ball.position.set(0, 20, 2.5); // Start high up
     this.ball.scale.set(0.1, 0.1, 0.1); // Start tiny
+
+    // Add black outline to ball
+    const ballOutlineGeo = new THREE.SphereGeometry(0.4, 16, 16);
+    const ballOutlineMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      side: THREE.BackSide,
+    });
+    const ballOutline = new THREE.Mesh(ballOutlineGeo, ballOutlineMat);
+    ballOutline.scale.set(1.15, 1.15, 1.15);
+    this.ball.add(ballOutline);
+
     this.threeScene.add(this.ball);
 
     // No point light on ball - flat shading
@@ -221,13 +233,14 @@ export default class HelixScene extends Phaser.Scene {
     canvas.height = 64;
     const context = canvas.getContext("2d")!;
 
-    // Transparent background
-    context.clearRect(0, 0, 64, 64);
+    // White background (will be tinted by material color)
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, 64, 64);
 
-    // Dark dots overlay
-    context.fillStyle = "rgba(0, 0, 0, 0.5)";
-    const dotRadius = 6;
-    const spacing = 16;
+    // Dark dots pattern
+    context.fillStyle = "rgba(0, 0, 0, 0.35)";
+    const dotRadius = 5;
+    const spacing = 14;
 
     for (let x = spacing / 2; x < 64; x += spacing) {
       for (let y = spacing / 2; y < 64; y += spacing) {
@@ -281,6 +294,38 @@ export default class HelixScene extends Phaser.Scene {
     return texture;
   }
 
+  createBarberPoleTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext("2d")!;
+
+    // Dark 2-color scheme - dark grays
+    const colors = ["#2a2a2a", "#1a1a1a"];
+    const stripeWidth = 64;
+
+    // Draw diagonal stripes
+    for (let i = -256; i < 256; i += stripeWidth * colors.length) {
+      colors.forEach((color, idx) => {
+        context.fillStyle = color;
+        context.beginPath();
+        const offset = i + idx * stripeWidth;
+        context.moveTo(offset, 0);
+        context.lineTo(offset + stripeWidth, 0);
+        context.lineTo(offset + stripeWidth + 128, 128);
+        context.lineTo(offset + 128, 128);
+        context.closePath();
+        context.fill();
+      });
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 40); // Repeat along the height of the tower
+    return texture;
+  }
+
   createUI() {
     const width = this.scale.width;
     const height = this.scale.height;
@@ -290,9 +335,11 @@ export default class HelixScene extends Phaser.Scene {
     this.scoreText = this.add
       .text(0, 0, "0", {
         fontSize: "100px",
-        color: "#FFFFFF", // White
-        fontFamily: "Orbitron",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
         fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 12,
       })
       .setOrigin(0.5);
 
@@ -311,10 +358,10 @@ export default class HelixScene extends Phaser.Scene {
       .text(width / 2, height / 2 - 180, "READY", {
         fontSize: "120px",
         color: "#FFFFFF",
-        fontFamily: "Orbitron",
+        fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 4,
+        strokeThickness: 12,
       })
       .setOrigin(0.5)
       .setDepth(200);
@@ -358,12 +405,14 @@ export default class HelixScene extends Phaser.Scene {
     this.lowestPlatformY = 0; // Reset lowest platform tracker
     this.platformIdCounter = 0; // Reset ID counter
     this.tower.clear();
-    this.tower.add(
-      new THREE.Mesh(
-        new THREE.CylinderGeometry(2, 2, 1000, 16),
-        new THREE.MeshBasicMaterial({ color: 0x2c3e50 }) // Dark tower
-      )
+
+    // Barber pole style tower
+    const barberTexture = this.createBarberPoleTexture();
+    const towerMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(2, 2, 1000, 16),
+      new THREE.MeshBasicMaterial({ map: barberTexture })
     );
+    this.tower.add(towerMesh);
 
     for (let i = 0; i < platformCount; i++) {
       const yPos = -2 - i * 4;
@@ -567,9 +616,9 @@ export default class HelixScene extends Phaser.Scene {
                 depth: this.platformThickness + 0.05,
                 bevelEnabled: false,
               });
-              // Flat red - no emissive
+              // Flat red
               const dangerMat = new THREE.MeshBasicMaterial({
-                color: 0xe74c3c, // Coral red (heart color)
+                color: 0xe74c3c,
               });
               const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
               platform.add(dangerMesh);
@@ -593,16 +642,34 @@ export default class HelixScene extends Phaser.Scene {
           const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
           // Flat gold/yellow for power-ups
           const mat = new THREE.MeshBasicMaterial({
-            color: 0x2ecc71, // Green (same as ball)
+            color: 0xffd93d, // Yellow gold
           });
           const cone = new THREE.Mesh(coneGeo, mat);
           cone.rotation.x = Math.PI;
           cone.position.y = -0.4;
+
+          // Add black outline to cone
+          const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+          const outlineMat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            side: THREE.BackSide,
+          });
+          const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
+          coneOutline.scale.set(1.15, 1.1, 1.15);
+          cone.add(coneOutline);
+
           group.add(cone);
 
           const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
           const cyl = new THREE.Mesh(cylGeo, mat);
           cyl.position.y = 0.4;
+
+          // Add black outline to cylinder
+          const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+          const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
+          cylOutline.scale.set(1.2, 1.1, 1.2);
+          cyl.add(cylOutline);
+
           group.add(cyl);
 
           group.position.set(
@@ -861,9 +928,20 @@ export default class HelixScene extends Phaser.Scene {
 
       const group = new THREE.Group();
       const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd93d }); // Yellow gold
       const cone = new THREE.Mesh(coneGeo, mat);
       cone.rotation.x = Math.PI;
+
+      // Add black outline to cone
+      const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+      const outlineMat = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        side: THREE.BackSide,
+      });
+      const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
+      coneOutline.scale.set(1.15, 1.1, 1.15);
+      cone.add(coneOutline);
+
       group.add(cone);
       group.position.set(localX, this.platformThickness + 0.5, localZ);
       group.userData = { baseY: yPos + this.platformThickness + 0.5, time: 0 };
@@ -1029,10 +1107,24 @@ export default class HelixScene extends Phaser.Scene {
 
         // Smooth fade in/out using sine wave
         const opacity = (Math.sin(platform.userData.blinkTime * 0.5) + 1) / 2;
+        const finalOpacity = 0.1 + opacity * 0.9;
 
-        // Set material opacity (0.1 to 1.0 range)
+        // Set material opacity for platform and ALL children (danger zones, outlines)
         const material = platform.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.1 + opacity * 0.9;
+        material.opacity = finalOpacity;
+        material.transparent = true;
+
+        // Apply opacity to all children (danger zones, outline)
+        platform.traverse((child) => {
+          if (child !== platform && (child as THREE.Mesh).material) {
+            const childMat = (child as THREE.Mesh)
+              .material as THREE.MeshBasicMaterial;
+            if (childMat.opacity !== undefined) {
+              childMat.transparent = true;
+              childMat.opacity = finalOpacity;
+            }
+          }
+        });
 
         // Track visibility state for collision
         platform.userData.isCurrentlyVisible = opacity > 0.4;
@@ -1159,7 +1251,8 @@ export default class HelixScene extends Phaser.Scene {
             this.score++;
             this.comboCount++;
             this.scoreText.setText(this.score.toString());
-            this.createExplosion(platform.position.y, 0x2ecc71, 18); // Reduced for mobile
+            this.createExplosion(platform.position.y, 0xffd93d, 18); // Yellow explosion for smash
+            this.playSmashSound(); // Play smash sound
 
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
@@ -1209,8 +1302,92 @@ export default class HelixScene extends Phaser.Scene {
     this.platformsToSmash = 5;
     this.ball.material = this.superMaterial;
 
+    // Play power-up sound
+    this.playPowerUpSound();
+
     // Haptic feedback on power-up collection
     this.triggerHapticFeedback();
+  }
+
+  // Procedural sound for collecting power-up (ascending arpeggio)
+  playPowerUpSound() {
+    if (this.isMuted) return;
+
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+    }
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+
+    // Create ascending notes
+    const frequencies = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+
+    frequencies.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "square";
+      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+
+      gain.gain.setValueAtTime(0, now + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.2);
+    });
+  }
+
+  // Procedural sound for smashing platforms (impact sound)
+  playSmashSound() {
+    if (this.isMuted) return;
+
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+    }
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+
+    // Low frequency impact
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+
+    // Add noise burst for impact texture
+    const bufferSize = ctx.sampleRate * 0.1;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+    }
+
+    const noise = ctx.createBufferSource();
+    const noiseGain = ctx.createGain();
+    noise.buffer = buffer;
+    noiseGain.gain.setValueAtTime(0.1, now);
+
+    noise.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
   }
 
   createGlowTexture() {
@@ -1270,14 +1447,13 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     if (hasShockwave) {
-      // Shockwave Ring - Further reduced for mobile
-      const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
+      // Doodle style ring - thick black outline
+      const ringGeo = new THREE.RingGeometry(1.8, 2.2, 24);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: color,
+        color: 0x000000,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.9,
         side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending,
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.y = yPos;
@@ -1314,14 +1490,13 @@ export default class HelixScene extends Phaser.Scene {
   destroyPlatform(platform: THREE.Mesh, index: number) {
     const yPos = platform.position.y;
 
-    // Subtle shockwave ring effect - Further reduced for mobile
-    const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
+    // Doodle style ring - thick black outline
+    const ringGeo = new THREE.RingGeometry(1.8, 2.2, 24);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x2ecc71, // Bright green
+      color: 0x000000,
       transparent: true,
-      opacity: 0.3, // Lower opacity for subtlety
+      opacity: 0.8,
       side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.position.y = yPos;
@@ -1412,16 +1587,19 @@ export default class HelixScene extends Phaser.Scene {
 
   showComboText() {
     const words = ["AWESOME!", "WICKED!", "SAVAGE!", "INSANE!", "LEGENDARY!"];
-    const word = words[Math.floor(Math.random() * words.length)];
+    const colors = ["#2ecc71", "#e91e8c", "#ffd93d", "#1abc9c", "#e74c3c"];
+    const wordIndex = Math.floor(Math.random() * words.length);
+    const word = words[wordIndex];
+    const color = colors[wordIndex];
 
     const text = this.add
       .text(this.scale.width / 2, this.scale.height / 2 - 100, word, {
-        fontSize: "60px",
-        color: "#00FF41", // Bright green
-        fontFamily: "Orbitron",
+        fontSize: "72px",
+        color: color,
+        fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 6,
+        strokeThickness: 10,
       })
       .setOrigin(0.5)
       .setDepth(150);
