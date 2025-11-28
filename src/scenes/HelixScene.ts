@@ -81,8 +81,8 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    // Rich dark purple-blue background
-    this.threeScene.background = new THREE.Color(0x0f0e17);
+    // Warm yellow/cream background
+    this.threeScene.background = new THREE.Color(0xf5d89a);
 
     const width = rect.width;
     const height = rect.height;
@@ -104,7 +104,7 @@ export default class HelixScene extends Phaser.Scene {
 
     // Create Tower - Simple flat material
     const towerGeo = new THREE.CylinderGeometry(2, 2, 1000, 16);
-    const towerMat = new THREE.MeshBasicMaterial({ color: 0x232136 });
+    const towerMat = new THREE.MeshBasicMaterial({ color: 0x2c3e50 }); // Dark blue-gray
     const cylinder = new THREE.Mesh(towerGeo, towerMat);
 
     this.tower = new THREE.Group();
@@ -113,13 +113,13 @@ export default class HelixScene extends Phaser.Scene {
 
     // No stars - solid background is more performant
 
-    // Materials - Vibrant flat colors
+    // Materials - Vibrant colors
     this.normalMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00e676, // Bright green - very visible
+      color: 0x2ecc71, // Bright green
     });
 
     this.superMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffeb3b, // Bright yellow for super mode
+      color: 0xffd93d, // Golden yellow (stars)
     });
 
     // Striped Material for Moving Platforms - Flat
@@ -193,16 +193,17 @@ export default class HelixScene extends Phaser.Scene {
     canvas.height = 64;
     const context = canvas.getContext("2d")!;
 
-    // Transparent background
-    context.clearRect(0, 0, 64, 64);
+    // White background (will be tinted by material color)
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, 64, 64);
 
-    // Dark stripes overlay
-    context.fillStyle = "rgba(0, 0, 0, 0.4)";
+    // Dark stripes
+    context.fillStyle = "rgba(0, 0, 0, 0.3)";
     context.beginPath();
-    for (let i = -64; i < 64; i += 24) {
+    for (let i = -64; i < 64; i += 16) {
       context.moveTo(i, 0);
-      context.lineTo(i + 8, 0);
-      context.lineTo(i + 72, 64);
+      context.lineTo(i + 5, 0);
+      context.lineTo(i + 69, 64);
       context.lineTo(i + 64, 64);
     }
     context.fill();
@@ -349,8 +350,8 @@ export default class HelixScene extends Phaser.Scene {
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
-    // Colorful platform palette - pastels and vibrant
-    const colors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
+    // Lucha Libre vibrant palette
+    const colors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
 
     this.platforms = [];
     this.powerUps = [];
@@ -360,7 +361,7 @@ export default class HelixScene extends Phaser.Scene {
     this.tower.add(
       new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 1000, 16),
-        new THREE.MeshBasicMaterial({ color: 0x232136 }) // Dark purple
+        new THREE.MeshBasicMaterial({ color: 0x2c3e50 }) // Dark tower
       )
     );
 
@@ -472,7 +473,7 @@ export default class HelixScene extends Phaser.Scene {
       // Select Material - All platforms use same color palette
       const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
       const baseColor = platformColors[i % platformColors.length];
-      
+
       let material;
       if (isBlinking) {
         // Blinking: base color + dots overlay texture
@@ -498,6 +499,16 @@ export default class HelixScene extends Phaser.Scene {
       platform.position.y = yPos;
       const rotationZ = Math.random() * Math.PI * 2;
       platform.rotation.z = rotationZ;
+
+      // Add black outline using a slightly larger mesh behind
+      const outlineGeo = geometry.clone();
+      const outlineMat = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        side: THREE.BackSide,
+      });
+      const outline = new THREE.Mesh(outlineGeo, outlineMat);
+      outline.scale.set(1.03, 1.03, 1.15);
+      platform.add(outline);
 
       // Danger Zones
       const dangerZones: { start: number; size: number }[] = [];
@@ -558,7 +569,7 @@ export default class HelixScene extends Phaser.Scene {
               });
               // Flat red - no emissive
               const dangerMat = new THREE.MeshBasicMaterial({
-                color: 0xff0000, // Pure red
+                color: 0xe74c3c, // Coral red (heart color)
               });
               const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
               platform.add(dangerMesh);
@@ -582,7 +593,7 @@ export default class HelixScene extends Phaser.Scene {
           const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
           // Flat gold/yellow for power-ups
           const mat = new THREE.MeshBasicMaterial({
-            color: 0x00d2d3, // Bright cyan
+            color: 0x2ecc71, // Green (same as ball)
           });
           const cone = new THREE.Mesh(coneGeo, mat);
           cone.rotation.x = Math.PI;
@@ -629,29 +640,31 @@ export default class HelixScene extends Phaser.Scene {
 
       this.tower.add(platform);
       this.platforms.push(platform);
-      
+
       // Track lowest platform position
       if (yPos < this.lowestPlatformY) {
         this.lowestPlatformY = yPos;
       }
     }
-    
+
     this.platformIdCounter = platformCount;
   }
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
+    // Lucha Libre vibrant platform colors
+    const platformColors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
     const innerRadius = 2;
     const outerRadius = 4;
-    
+
     // Increase difficulty based on score
     const difficultyMultiplier = Math.min(this.score / 50, 1.5);
-    
+
     // 1. Generate Gaps
     const numGaps = this.score > 10 && Math.random() > 0.7 ? 2 : 1;
-    const gaps: { start: number; end: number; size: number; center: number }[] = [];
-    
+    const gaps: { start: number; end: number; size: number; center: number }[] =
+      [];
+
     const isOverlapping = (start: number, size: number) => {
       for (const g of gaps) {
         const center = start + size / 2;
@@ -670,7 +683,12 @@ export default class HelixScene extends Phaser.Scene {
         const size = Math.PI / 4 + Math.random() * (Math.PI / 2.5);
         const start = Math.random() * Math.PI * 2;
         if (!isOverlapping(start, size)) {
-          gaps.push({ start, end: start + size, size, center: start + size / 2 });
+          gaps.push({
+            start,
+            end: start + size,
+            size,
+            center: start + size / 2,
+          });
           valid = true;
         }
         attempts++;
@@ -702,25 +720,39 @@ export default class HelixScene extends Phaser.Scene {
     // Construct Shape
     const shape = new THREE.Shape();
     for (const seg of solidSegments) {
-      shape.moveTo(innerRadius * Math.cos(seg.start), innerRadius * Math.sin(seg.start));
-      shape.lineTo(outerRadius * Math.cos(seg.start), outerRadius * Math.sin(seg.start));
+      shape.moveTo(
+        innerRadius * Math.cos(seg.start),
+        innerRadius * Math.sin(seg.start)
+      );
+      shape.lineTo(
+        outerRadius * Math.cos(seg.start),
+        outerRadius * Math.sin(seg.start)
+      );
       shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
-      shape.lineTo(innerRadius * Math.cos(seg.end), innerRadius * Math.sin(seg.end));
+      shape.lineTo(
+        innerRadius * Math.cos(seg.end),
+        innerRadius * Math.sin(seg.end)
+      );
       shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
     }
 
-    const extrudeSettings = { depth: this.platformThickness, bevelEnabled: false };
+    const extrudeSettings = {
+      depth: this.platformThickness,
+      bevelEnabled: false,
+    };
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     geometry.rotateX(-Math.PI / 2);
 
     // Determine platform type
     const isBlinking = Math.random() < 0.08 + difficultyMultiplier * 0.05;
-    const isMoving = !isBlinking && Math.random() < 0.12 + difficultyMultiplier * 0.08;
+    const isMoving =
+      !isBlinking && Math.random() < 0.12 + difficultyMultiplier * 0.08;
     const moveSpeed = isMoving ? 0.005 + Math.random() * 0.01 : 0;
 
     // Select Material - All platforms use same color palette
-    const baseColor = platformColors[this.platformIdCounter % platformColors.length];
-    
+    const baseColor =
+      platformColors[this.platformIdCounter % platformColors.length];
+
     let material;
     if (isBlinking) {
       material = new THREE.MeshBasicMaterial({
@@ -743,28 +775,70 @@ export default class HelixScene extends Phaser.Scene {
     platform.rotation.y = rotationZ;
     platform.position.y = yPos;
 
+    // Add black outline using a slightly larger mesh behind
+    const outlineGeo = geometry.clone();
+    const outlineMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      side: THREE.BackSide,
+    });
+    const outline = new THREE.Mesh(outlineGeo, outlineMat);
+    outline.scale.set(1.03, 1.03, 1.15);
+    platform.add(outline);
+
     // Add danger zones (higher chance at higher scores)
     const dangerZones: { start: number; size: number }[] = [];
-    if (!isBlinking && !isMoving && Math.random() < 0.25 + difficultyMultiplier * 0.15) {
+    if (
+      !isBlinking &&
+      !isMoving &&
+      Math.random() < 0.25 + difficultyMultiplier * 0.15
+    ) {
       for (const seg of solidSegments) {
         if (Math.random() < 0.5) {
           const segmentSize = seg.end - seg.start;
           const maxDangerSize = Math.min(segmentSize * 0.4, Math.PI / 3);
-          const dangerSize = Math.PI / 8 + Math.random() * (maxDangerSize - Math.PI / 8);
-          const dangerStart = seg.start + Math.random() * (segmentSize - dangerSize);
+          const dangerSize =
+            Math.PI / 8 + Math.random() * (maxDangerSize - Math.PI / 8);
+          const dangerStart =
+            seg.start + Math.random() * (segmentSize - dangerSize);
           dangerZones.push({ start: dangerStart, size: dangerSize });
 
           // Create danger visual
           const dangerShape = new THREE.Shape();
-          dangerShape.moveTo(innerRadius * Math.cos(dangerStart), innerRadius * Math.sin(dangerStart));
-          dangerShape.lineTo(outerRadius * Math.cos(dangerStart), outerRadius * Math.sin(dangerStart));
-          dangerShape.absarc(0, 0, outerRadius, dangerStart, dangerStart + dangerSize, false);
-          dangerShape.lineTo(innerRadius * Math.cos(dangerStart + dangerSize), innerRadius * Math.sin(dangerStart + dangerSize));
-          dangerShape.absarc(0, 0, innerRadius, dangerStart + dangerSize, dangerStart, true);
+          dangerShape.moveTo(
+            innerRadius * Math.cos(dangerStart),
+            innerRadius * Math.sin(dangerStart)
+          );
+          dangerShape.lineTo(
+            outerRadius * Math.cos(dangerStart),
+            outerRadius * Math.sin(dangerStart)
+          );
+          dangerShape.absarc(
+            0,
+            0,
+            outerRadius,
+            dangerStart,
+            dangerStart + dangerSize,
+            false
+          );
+          dangerShape.lineTo(
+            innerRadius * Math.cos(dangerStart + dangerSize),
+            innerRadius * Math.sin(dangerStart + dangerSize)
+          );
+          dangerShape.absarc(
+            0,
+            0,
+            innerRadius,
+            dangerStart + dangerSize,
+            dangerStart,
+            true
+          );
 
-          const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, { depth: this.platformThickness + 0.05, bevelEnabled: false });
+          const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, {
+            depth: this.platformThickness + 0.05,
+            bevelEnabled: false,
+          });
           dangerGeo.rotateX(-Math.PI / 2);
-          const dangerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const dangerMat = new THREE.MeshBasicMaterial({ color: 0xe74c3c });
           const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
           dangerMesh.position.y = -0.025;
           platform.add(dangerMesh);
@@ -773,7 +847,12 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     // Add power-ups (less frequent at higher scores)
-    if (!isBlinking && !isMoving && dangerZones.length === 0 && Math.random() < 0.06) {
+    if (
+      !isBlinking &&
+      !isMoving &&
+      dangerZones.length === 0 &&
+      Math.random() < 0.06
+    ) {
       const randomGap = gaps[Math.floor(Math.random() * gaps.length)];
       const gapCenter = randomGap.start + randomGap.size / 2;
       const r = (innerRadius + outerRadius) / 2;
@@ -782,7 +861,7 @@ export default class HelixScene extends Phaser.Scene {
 
       const group = new THREE.Group();
       const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x00d2d3 });
+      const mat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
       const cone = new THREE.Mesh(coneGeo, mat);
       cone.rotation.x = Math.PI;
       group.add(cone);
@@ -1000,7 +1079,7 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile
       if (Math.random() > 0.7) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const trailMat = new THREE.MeshBasicMaterial({ color: 0x00e676 }); // Bright green trail
+        const trailMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }); // Bright green trail
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
@@ -1040,7 +1119,7 @@ export default class HelixScene extends Phaser.Scene {
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
         // Add explosion with shockwave for power-up
-        this.createExplosion(puWorldPos.y, 0x00e676, 15, true); // Reduced for mobile
+        this.createExplosion(puWorldPos.y, 0x2ecc71, 15, true); // Reduced for mobile
       }
     }
 
@@ -1080,7 +1159,7 @@ export default class HelixScene extends Phaser.Scene {
             this.score++;
             this.comboCount++;
             this.scoreText.setText(this.score.toString());
-            this.createExplosion(platform.position.y, 0x00e676, 18); // Reduced for mobile
+            this.createExplosion(platform.position.y, 0x2ecc71, 18); // Reduced for mobile
 
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
@@ -1221,7 +1300,7 @@ export default class HelixScene extends Phaser.Scene {
     this.scoreContainer.setVisible(false);
 
     // Big Explosion - Minimal for mobile
-    this.createExplosion(yPos, 0x00e676, 12, true);
+    this.createExplosion(yPos, 0x2ecc71, 12, true);
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
@@ -1238,7 +1317,7 @@ export default class HelixScene extends Phaser.Scene {
     // Subtle shockwave ring effect - Further reduced for mobile
     const ringGeo = new THREE.RingGeometry(2, 2.05, 16);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x00e676, // Bright green
+      color: 0x2ecc71, // Bright green
       transparent: true,
       opacity: 0.3, // Lower opacity for subtlety
       side: THREE.DoubleSide,
@@ -1267,7 +1346,7 @@ export default class HelixScene extends Phaser.Scene {
 
     this.tower.remove(platform);
     this.platforms.splice(index, 1);
-    
+
     // Spawn a new platform below the lowest one to keep infinite gameplay
     const newY = this.lowestPlatformY - 4;
     this.spawnNewPlatform(newY);
