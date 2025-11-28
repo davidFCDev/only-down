@@ -719,16 +719,18 @@ export default class HelixScene extends Phaser.Scene {
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    // Lucha Libre vibrant platform colors
-    const platformColors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
+    // Platform colors - same as createPlatforms
+    const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
     const innerRadius = 2;
     const outerRadius = 4;
 
-    // Increase difficulty based on score
-    const difficultyMultiplier = Math.min(this.score / 50, 1.5);
+    // Use a virtual "level" based on platformIdCounter to maintain consistent difficulty
+    // This simulates the same i-based difficulty as createPlatforms
+    // Cap at level 80 (same as initial platformCount) for consistent max difficulty
+    const level = Math.min(this.platformIdCounter, 80);
 
-    // 1. Generate Gaps
-    const numGaps = this.score > 10 && Math.random() > 0.7 ? 2 : 1;
+    // 1. Generate Gaps - same logic as createPlatforms
+    const numGaps = level > 10 && Math.random() > 0.7 ? 2 : 1;
     const gaps: { start: number; end: number; size: number; center: number }[] =
       [];
 
@@ -808,13 +810,21 @@ export default class HelixScene extends Phaser.Scene {
       bevelEnabled: false,
     };
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    geometry.rotateX(-Math.PI / 2);
 
-    // Determine platform type
-    const isBlinking = Math.random() < 0.08 + difficultyMultiplier * 0.05;
-    const isMoving =
-      !isBlinking && Math.random() < 0.12 + difficultyMultiplier * 0.08;
-    const moveSpeed = isMoving ? 0.005 + Math.random() * 0.01 : 0;
+    // Determine Platform Type (mutually exclusive) - SAME logic as createPlatforms
+    let isMoving = false;
+    let isBlinking = false;
+    let moveSpeed = 0;
+
+    if (level > 20 && Math.random() < 0.2) {
+      // Blinking platforms (20% chance after level 20)
+      isBlinking = true;
+    } else if (level > 10 && Math.random() < 0.3) {
+      // Rotating platforms (30% chance after level 10)
+      isMoving = true;
+      moveSpeed =
+        (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
+    }
 
     // Select Material - All platforms use same color palette
     const baseColor =
@@ -838,8 +848,10 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     const platform = new THREE.Mesh(geometry, material);
+    // Use same rotation system as createPlatforms: rotation.x for laying flat, rotation.z for orientation
+    platform.rotation.x = -Math.PI / 2;
     const rotationZ = Math.random() * Math.PI * 2;
-    platform.rotation.y = rotationZ;
+    platform.rotation.z = rotationZ;
     platform.position.y = yPos;
 
     // Add black outline using a slightly larger mesh behind
@@ -852,101 +864,135 @@ export default class HelixScene extends Phaser.Scene {
     outline.scale.set(1.03, 1.03, 1.15);
     platform.add(outline);
 
-    // Add danger zones (higher chance at higher scores)
+    // Danger Zones - SAME logic as createPlatforms
     const dangerZones: { start: number; size: number }[] = [];
-    if (
-      !isBlinking &&
-      !isMoving &&
-      Math.random() < 0.25 + difficultyMultiplier * 0.15
-    ) {
-      for (const seg of solidSegments) {
-        if (Math.random() < 0.5) {
-          const segmentSize = seg.end - seg.start;
-          const maxDangerSize = Math.min(segmentSize * 0.4, Math.PI / 3);
-          const dangerSize =
-            Math.PI / 8 + Math.random() * (maxDangerSize - Math.PI / 8);
-          const dangerStart =
-            seg.start + Math.random() * (segmentSize - dangerSize);
-          dangerZones.push({ start: dangerStart, size: dangerSize });
+    if (level > 0) {
+      let minZones = 0;
+      let maxZones = 1;
+      if (level > 10) {
+        minZones = 0;
+        maxZones = 2;
+      }
+      if (level > 25) {
+        minZones = 1;
+        maxZones = 2;
+      }
+      if (level > 50) {
+        minZones = 1;
+        maxZones = 3;
+      }
+      if (level > 75) {
+        minZones = 2;
+        maxZones = 3;
+      }
+      const numZones =
+        minZones + Math.floor(Math.random() * (maxZones - minZones + 1));
+      const zoneSize = Math.PI / 5;
 
-          // Create danger visual
-          const dangerShape = new THREE.Shape();
-          dangerShape.moveTo(
-            innerRadius * Math.cos(dangerStart),
-            innerRadius * Math.sin(dangerStart)
-          );
-          dangerShape.lineTo(
-            outerRadius * Math.cos(dangerStart),
-            outerRadius * Math.sin(dangerStart)
-          );
-          dangerShape.absarc(
-            0,
-            0,
-            outerRadius,
-            dangerStart,
-            dangerStart + dangerSize,
-            false
-          );
-          dangerShape.lineTo(
-            innerRadius * Math.cos(dangerStart + dangerSize),
-            innerRadius * Math.sin(dangerStart + dangerSize)
-          );
-          dangerShape.absarc(
-            0,
-            0,
-            innerRadius,
-            dangerStart + dangerSize,
-            dangerStart,
-            true
-          );
+      for (let z = 0; z < numZones; z++) {
+        if (solidSegments.length === 0) continue;
+        const segIndex = Math.floor(Math.random() * solidSegments.length);
+        const seg = solidSegments[segIndex];
+        const segLength = seg.end - seg.start;
+        if (segLength > zoneSize + 0.2) {
+          const offset = Math.random() * (segLength - zoneSize);
+          const zoneStart = seg.start + offset;
+          let overlap = false;
+          for (const dz of dangerZones) {
+            if (Math.abs(dz.start - zoneStart) < zoneSize + 0.1) overlap = true;
+          }
 
-          const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, {
-            depth: this.platformThickness + 0.05,
-            bevelEnabled: false,
-          });
-          dangerGeo.rotateX(-Math.PI / 2);
-          const dangerMat = new THREE.MeshBasicMaterial({ color: 0xe74c3c });
-          const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
-          dangerMesh.position.y = -0.025;
-          platform.add(dangerMesh);
+          if (!overlap) {
+            dangerZones.push({ start: zoneStart, size: zoneSize });
+            const dangerShape = new THREE.Shape();
+            const dEnd = zoneStart + zoneSize;
+            dangerShape.moveTo(
+              innerRadius * Math.cos(zoneStart),
+              innerRadius * Math.sin(zoneStart)
+            );
+            dangerShape.lineTo(
+              outerRadius * Math.cos(zoneStart),
+              outerRadius * Math.sin(zoneStart)
+            );
+            dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
+            dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
+            const dangerGeo = new THREE.ExtrudeGeometry(dangerShape, {
+              depth: this.platformThickness + 0.05,
+              bevelEnabled: false,
+            });
+            const dangerMat = new THREE.MeshBasicMaterial({
+              color: 0xe74c3c,
+            });
+            const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
+            platform.add(dangerMesh);
+          }
         }
       }
     }
 
-    // Add power-ups (less frequent at higher scores)
-    if (
-      !isBlinking &&
-      !isMoving &&
-      dangerZones.length === 0 &&
-      Math.random() < 0.06
-    ) {
-      const randomGap = gaps[Math.floor(Math.random() * gaps.length)];
-      const gapCenter = randomGap.start + randomGap.size / 2;
-      const r = (innerRadius + outerRadius) / 2;
-      const localX = r * Math.cos(gapCenter);
-      const localZ = r * Math.sin(gapCenter);
+    // Power Ups - SAME logic as createPlatforms
+    if (level > 5 && Math.random() < 0.05) {
+      if (solidSegments.length > 0) {
+        const seg =
+          solidSegments[Math.floor(Math.random() * solidSegments.length)];
+        const angle = seg.start + Math.random() * (seg.end - seg.start);
+        const radius = 3;
 
-      const group = new THREE.Group();
-      const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xffd93d }); // Yellow gold
-      const cone = new THREE.Mesh(coneGeo, mat);
-      cone.rotation.x = Math.PI;
+        const worldAngle = angle + rotationZ;
+        const betweenY = yPos - 2;
 
-      // Add black outline to cone
-      const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-      const outlineMat = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        side: THREE.BackSide,
-      });
-      const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
-      coneOutline.scale.set(1.15, 1.1, 1.15);
-      cone.add(coneOutline);
+        const group = new THREE.Group();
+        const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0xffd93d, // Yellow gold
+        });
+        const cone = new THREE.Mesh(coneGeo, mat);
+        cone.rotation.x = Math.PI;
+        cone.position.y = -0.4;
 
-      group.add(cone);
-      group.position.set(localX, this.platformThickness + 0.5, localZ);
-      group.userData = { baseY: yPos + this.platformThickness + 0.5, time: 0 };
-      this.tower.add(group);
-      this.powerUps.push(group);
+        // Add black outline to cone
+        const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+        const outlineMat = new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          side: THREE.BackSide,
+        });
+        const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
+        coneOutline.scale.set(1.15, 1.1, 1.15);
+        cone.add(coneOutline);
+
+        group.add(cone);
+
+        const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+        const cyl = new THREE.Mesh(cylGeo, mat);
+        cyl.position.y = 0.4;
+
+        // Add black outline to cylinder
+        const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+        const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
+        cylOutline.scale.set(1.2, 1.1, 1.2);
+        cyl.add(cylOutline);
+
+        group.add(cyl);
+
+        group.position.set(
+          Math.cos(worldAngle) * radius,
+          betweenY,
+          Math.sin(worldAngle) * radius
+        );
+
+        group.scale.set(1.2, 1.2, 1.2);
+
+        group.userData = {
+          isPowerUp: true,
+          rotationSpeed: 0.05,
+          bobSpeed: 0.05,
+          time: Math.random() * 100,
+          baseY: betweenY,
+        };
+
+        this.tower.add(group);
+        this.powerUps.push(group);
+      }
     }
 
     platform.userData = {
@@ -1012,6 +1058,12 @@ export default class HelixScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (!this.isGameActive) return;
 
+    // Frame-independent delta multiplier (normalized to 60 FPS)
+    // At 60 FPS: delta ≈ 16.67ms, so deltaMultiplier ≈ 1.0
+    // At 30 FPS: delta ≈ 33.33ms, so deltaMultiplier ≈ 2.0
+    const targetDelta = 1000 / 60; // 16.67ms for 60 FPS
+    const deltaMultiplier = Math.min(delta / targetDelta, 3); // Cap at 3x to prevent huge jumps
+
     if (this.isGameStarting) {
       this.startTimer += delta / 1000;
 
@@ -1076,25 +1128,26 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Keyboard Rotation
+    // Keyboard Rotation (frame-independent)
+    const rotationSpeed = 0.05 * deltaMultiplier;
     if (this.cursors.left.isDown || this.keys.a.isDown) {
-      this.tower.rotation.y -= 0.05;
+      this.tower.rotation.y -= rotationSpeed;
     } else if (this.cursors.right.isDown || this.keys.d.isDown) {
-      this.tower.rotation.y += 0.05;
+      this.tower.rotation.y += rotationSpeed;
     }
 
-    // Touch Rotation - tap and hold left/right side of screen
+    // Touch Rotation - tap and hold left/right side of screen (frame-independent)
     const touchSide = (this as any).touchSide;
     if (touchSide === "left") {
-      this.tower.rotation.y -= 0.05;
+      this.tower.rotation.y -= rotationSpeed;
     } else if (touchSide === "right") {
-      this.tower.rotation.y += 0.05;
+      this.tower.rotation.y += rotationSpeed;
     }
 
-    // Update Platforms (Movement & Blinking)
+    // Update Platforms (Movement & Blinking) - frame-independent
     for (const platform of this.platforms) {
       if (platform.userData.isMoving) {
-        platform.rotation.z += platform.userData.moveSpeed;
+        platform.rotation.z += platform.userData.moveSpeed * deltaMultiplier;
         // Keep rotationOffset in sync [0, 2PI]
         let rot = platform.rotation.z % (Math.PI * 2);
         if (rot < 0) rot += Math.PI * 2;
@@ -1102,8 +1155,8 @@ export default class HelixScene extends Phaser.Scene {
       }
 
       if (platform.userData.isBlinking) {
-        // Update blink time
-        platform.userData.blinkTime += 0.03;
+        // Update blink time (frame-independent)
+        platform.userData.blinkTime += 0.03 * deltaMultiplier;
 
         // Smooth fade in/out using sine wave
         const opacity = (Math.sin(platform.userData.blinkTime * 0.5) + 1) / 2;
@@ -1131,31 +1184,36 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Update Power Ups
+    // Update Power Ups (frame-independent)
     for (const pu of this.powerUps) {
-      pu.rotation.y += 0.05; // Rotate around Y
-      pu.userData.time += 0.1;
+      pu.rotation.y += 0.05 * deltaMultiplier; // Rotate around Y
+      pu.userData.time += 0.1 * deltaMultiplier;
       pu.position.y = pu.userData.baseY + Math.sin(pu.userData.time) * 0.2;
     }
 
-    // Update Particles
+    // Update Particles (frame-independent)
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i] as any;
-      p.life -= 0.02;
+      p.life -= 0.02 * deltaMultiplier;
 
       if (p.isShockwave) {
-        // Expand ring
-        p.mesh.scale.multiplyScalar(1.05);
+        // Expand ring (frame-independent)
+        const expandFactor = 1 + 0.05 * deltaMultiplier;
+        p.mesh.scale.multiplyScalar(expandFactor);
         (p.mesh.material as THREE.MeshBasicMaterial).opacity = p.life;
       } else {
-        // Normal particle
-        p.mesh.position.add(p.velocity);
+        // Normal particle (frame-independent)
+        const scaledVelocity = p.velocity
+          .clone()
+          .multiplyScalar(deltaMultiplier);
+        p.mesh.position.add(scaledVelocity);
         // Fade out
         if (p.mesh.material.opacity !== undefined) {
           p.mesh.material.opacity = p.life;
         }
-        // Shrink slightly
-        p.mesh.scale.multiplyScalar(0.98);
+        // Shrink slightly (frame-independent)
+        const shrinkFactor = Math.pow(0.98, deltaMultiplier);
+        p.mesh.scale.multiplyScalar(shrinkFactor);
       }
 
       if (p.life <= 0) {
@@ -1164,12 +1222,12 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Physics
+    // Physics (frame-independent)
     if (this.isSuperSmash) {
-      this.ballVelocity = -0.8;
+      this.ballVelocity = -0.8; // Fixed velocity for super smash (not affected by delta)
 
-      // Trail Effect - Reduced frequency for mobile
-      if (Math.random() > 0.7) {
+      // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
+      if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         const trailMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }); // Bright green trail
         const trail = new THREE.Mesh(trailGeo, trailMat);
@@ -1183,10 +1241,10 @@ export default class HelixScene extends Phaser.Scene {
         });
       }
     } else {
-      this.ballVelocity += this.gravity;
+      this.ballVelocity += this.gravity * deltaMultiplier;
     }
 
-    const nextY = this.ball.position.y + this.ballVelocity;
+    const nextY = this.ball.position.y + this.ballVelocity * deltaMultiplier;
 
     // Collision Detection
     let collided = false;
@@ -1286,12 +1344,13 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     if (!collided) {
-      this.ball.position.y += this.ballVelocity;
+      this.ball.position.y += this.ballVelocity * deltaMultiplier;
     }
 
-    // Camera follow - Balanced view
+    // Camera follow - Balanced view (frame-independent)
     const targetY = this.ball.position.y + 4;
-    this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
+    const cameraLerp = 1 - Math.pow(0.9, deltaMultiplier); // Smooth interpolation
+    this.camera.position.y += (targetY - this.camera.position.y) * cameraLerp;
     this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
     this.threeRenderer.render(this.threeScene, this.camera);
@@ -1481,9 +1540,42 @@ export default class HelixScene extends Phaser.Scene {
     // Haptic feedback on death
     this.triggerHapticFeedback();
 
+    // Save high score to game state and call SDK gameOver
+    this.saveHighScoreAndGameOver();
+  }
+
+  async saveHighScoreAndGameOver() {
+    const sdk = window.FarcadeSDK;
+
+    try {
+      // First, get current high score from game state
+      let currentHighScore = 0;
+      if (sdk?.singlePlayer?.actions?.ready) {
+        const gameInfo = await sdk.singlePlayer.actions.ready();
+        currentHighScore =
+          gameInfo?.initialGameState?.gameState?.highScore || 0;
+      }
+
+      // Update high score if current score is higher
+      const newHighScore = Math.max(currentHighScore, this.score);
+
+      // Save to game state (preserving hasSeenTutorial)
+      if (sdk?.singlePlayer?.actions?.saveGameState) {
+        await sdk.singlePlayer.actions.saveGameState({
+          gameState: {
+            hasSeenTutorial: true,
+            highScore: newHighScore,
+          },
+        });
+        console.log("💾 High Score saved:", newHighScore);
+      }
+    } catch (error) {
+      console.log("Could not save high score:", error);
+    }
+
     // Call SDK gameOver
-    if (window.FarcadeSDK?.singlePlayer?.actions?.gameOver) {
-      window.FarcadeSDK.singlePlayer.actions.gameOver({ score: this.score });
+    if (sdk?.singlePlayer?.actions?.gameOver) {
+      sdk.singlePlayer.actions.gameOver({ score: this.score });
     }
   }
 
