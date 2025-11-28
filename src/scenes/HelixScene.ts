@@ -83,9 +83,10 @@ export default class HelixScene extends Phaser.Scene {
 
     const width = rect.width;
     const height = rect.height;
-    this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    this.camera.position.set(0, 5, 10);
-    this.camera.lookAt(0, -2, 0);
+    // Balanced FOV (68) for visibility and mobile performance
+    this.camera = new THREE.PerspectiveCamera(68, width / height, 0.1, 1000);
+    this.camera.position.set(0, 5, 11);
+    this.camera.lookAt(0, -1, 0);
 
     this.threeRenderer = new THREE.WebGLRenderer({
       canvas: this.threeCanvas,
@@ -150,17 +151,15 @@ export default class HelixScene extends Phaser.Scene {
       metalness: 0.1,
     });
 
-    // Grid Material for Blinking Platforms - Brighter for mobile visibility
-    const gridTexture = this.createGridTexture();
+    // Dots Material for Blinking Platforms - Simple texture with transparency
+    const dotsTexture = this.createDotsTexture();
     this.blinkingMaterial = new THREE.MeshStandardMaterial({
-      map: gridTexture,
+      map: dotsTexture,
       color: 0xffffff,
       transparent: true,
       opacity: 1.0,
-      roughness: 0.2,
+      roughness: 0.4,
       metalness: 0.1,
-      emissive: 0x00ff41,
-      emissiveIntensity: 1.0,
     });
 
     // Create Platforms
@@ -176,9 +175,9 @@ export default class HelixScene extends Phaser.Scene {
     const ballLight = new THREE.PointLight(0x00ff41, 2, 10); // Bright green light
     this.ball.add(ballLight);
 
-    // Camera Start
-    this.camera.position.set(0, 5, 10);
-    this.camera.lookAt(0, -2, 0);
+    // Camera Start - Balanced angle
+    this.camera.position.set(0, 5, 11);
+    this.camera.lookAt(0, -1, 0);
 
     // Audio Init
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
@@ -194,11 +193,15 @@ export default class HelixScene extends Phaser.Scene {
       d: Phaser.Input.Keyboard.KeyCodes.D,
     }) as any;
 
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      if (pointer.isDown) {
-        const deltaX = pointer.position.x - pointer.prevPosition.x;
-        this.tower.rotation.y += deltaX * 0.005;
-      }
+    // Touch controls: tap left half = rotate left, tap right half = rotate right
+    // No drag needed - just hold to rotate continuously
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      (this as any).touchSide =
+        pointer.x < this.scale.width / 2 ? "left" : "right";
+    });
+
+    this.input.on("pointerup", () => {
+      (this as any).touchSide = null;
     });
 
     this.scale.on("resize", this.resize, this);
@@ -237,6 +240,36 @@ export default class HelixScene extends Phaser.Scene {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(2, 1);
+    return texture;
+  }
+
+  createDotsTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d")!;
+
+    // Background (Black)
+    context.fillStyle = "#000000";
+    context.fillRect(0, 0, 64, 64);
+
+    // Green dots pattern
+    context.fillStyle = "#00FF41";
+    const dotRadius = 4;
+    const spacing = 16;
+
+    for (let x = spacing / 2; x < 64; x += spacing) {
+      for (let y = spacing / 2; y < 64; y += spacing) {
+        context.beginPath();
+        context.arc(x, y, dotRadius, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3, 3);
     return texture;
   }
 
@@ -304,11 +337,13 @@ export default class HelixScene extends Phaser.Scene {
     this.startOverlay.setDepth(199);
 
     this.startText = this.add
-      .text(width / 2, height / 2 - 200, "READY", {
-        fontSize: "80px",
+      .text(width / 2, height / 2 - 180, "READY", {
+        fontSize: "120px",
         color: "#FFFFFF",
         fontFamily: "Orbitron",
         fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
       })
       .setOrigin(0.5)
       .setDepth(200);
@@ -651,8 +686,8 @@ export default class HelixScene extends Phaser.Scene {
     this.ballVelocity = 0;
     this.ball.position.set(0, 20, 2.5);
     this.ball.scale.set(0.1, 0.1, 0.1);
-    this.camera.position.set(0, 5, 10);
-    this.camera.lookAt(0, -2, 0);
+    this.camera.position.set(0, 5, 11);
+    this.camera.lookAt(0, -1, 0);
 
     for (const p of this.particles) {
       this.threeScene.remove(p.mesh);
@@ -710,10 +745,10 @@ export default class HelixScene extends Phaser.Scene {
           this.startOverlay.setAlpha(1 - timeInGo / stepTime);
         }
 
-        // Camera Follow
+        // Camera Follow - Balanced view
         const targetY = this.ball.position.y + 4;
         this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
-        this.camera.lookAt(0, this.camera.position.y - 8, 0);
+        this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
         this.threeRenderer.render(this.threeScene, this.camera);
         return;
@@ -736,6 +771,14 @@ export default class HelixScene extends Phaser.Scene {
       this.tower.rotation.y += 0.05;
     }
 
+    // Touch Rotation - tap and hold left/right side of screen
+    const touchSide = (this as any).touchSide;
+    if (touchSide === "left") {
+      this.tower.rotation.y -= 0.05;
+    } else if (touchSide === "right") {
+      this.tower.rotation.y += 0.05;
+    }
+
     // Update Platforms (Movement & Blinking)
     for (const platform of this.platforms) {
       if (platform.userData.isMoving) {
@@ -748,17 +791,17 @@ export default class HelixScene extends Phaser.Scene {
 
       if (platform.userData.isBlinking) {
         // Update blink time
-        platform.userData.blinkTime += 0.05;
+        platform.userData.blinkTime += 0.03;
 
-        // Sine wave for smooth fade in/out (period of ~3 seconds)
+        // Smooth fade in/out using sine wave
         const opacity = (Math.sin(platform.userData.blinkTime * 0.5) + 1) / 2;
 
-        // Set material opacity (0.1 to 1.0 range, stays invisible longer)
+        // Set material opacity (0.1 to 1.0 range)
         const material = platform.material as THREE.MeshStandardMaterial;
         material.opacity = 0.1 + opacity * 0.9;
 
-        // Also pulse the emissive intensity
-        material.emissiveIntensity = 0.1 + opacity * 0.4;
+        // Track visibility state for collision
+        platform.userData.isCurrentlyVisible = opacity > 0.4;
       }
     }
 
@@ -851,12 +894,10 @@ export default class HelixScene extends Phaser.Scene {
 
       if (Math.abs(platform.position.y - this.ball.position.y) > 5) continue;
 
-      // Check blinking platforms - destroy if passing through while invisible
+      // Check blinking platforms - pass through when invisible
       if (platform.userData.isBlinking) {
-        const material = platform.material as THREE.MeshStandardMaterial;
-        if (material.opacity < 0.6) {
-          // Platform is invisible
-          // Check if ball is passing through
+        if (!platform.userData.isCurrentlyVisible) {
+          // Platform is invisible - ball passes through
           const platformY = platform.position.y;
           const topSurfaceY = platformY + this.platformThickness;
 
@@ -921,9 +962,10 @@ export default class HelixScene extends Phaser.Scene {
       this.ball.position.y += this.ballVelocity;
     }
 
+    // Camera follow - Balanced view
     const targetY = this.ball.position.y + 4;
     this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
-    this.camera.lookAt(0, this.camera.position.y - 8, 0);
+    this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
     this.threeRenderer.render(this.threeScene, this.camera);
   }
