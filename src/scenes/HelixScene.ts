@@ -1370,7 +1370,7 @@ export default class HelixScene extends Phaser.Scene {
     this.triggerHapticFeedback();
   }
 
-  // Procedural sound for collecting power-up (ascending arpeggio)
+  // Procedural sound for collecting power-up (cyberpunk dimensional portal)
   playPowerUpSound() {
     if (this.isMuted) return;
 
@@ -1382,26 +1382,69 @@ export default class HelixScene extends Phaser.Scene {
     const ctx = this.audioContext;
     const now = ctx.currentTime;
 
-    // Create ascending notes
-    const frequencies = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    // 1. Dimensional sweep - descending then ascending frequency
+    const sweepOsc = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    sweepOsc.type = "sawtooth";
+    sweepOsc.frequency.setValueAtTime(2000, now);
+    sweepOsc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+    sweepOsc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+    sweepGain.gain.setValueAtTime(0.12, now);
+    sweepGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    sweepOsc.connect(sweepGain);
+    sweepGain.connect(ctx.destination);
+    sweepOsc.start(now);
+    sweepOsc.stop(now + 0.4);
 
-    frequencies.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    // 2. Sub bass thump (portal opening)
+    const bassOsc = ctx.createOscillator();
+    const bassGain = ctx.createGain();
+    bassOsc.type = "sine";
+    bassOsc.frequency.setValueAtTime(80, now);
+    bassOsc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+    bassGain.gain.setValueAtTime(0.25, now);
+    bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    bassOsc.connect(bassGain);
+    bassGain.connect(ctx.destination);
+    bassOsc.start(now);
+    bassOsc.stop(now + 0.3);
 
-      osc.type = "square";
-      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+    // 3. High shimmer (dimensional sparkle)
+    const shimmerOsc = ctx.createOscillator();
+    const shimmerGain = ctx.createGain();
+    shimmerOsc.type = "sine";
+    shimmerOsc.frequency.setValueAtTime(1200, now + 0.05);
+    shimmerOsc.frequency.setValueAtTime(1800, now + 0.1);
+    shimmerOsc.frequency.setValueAtTime(2400, now + 0.15);
+    shimmerGain.gain.setValueAtTime(0, now);
+    shimmerGain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(ctx.destination);
+    shimmerOsc.start(now);
+    shimmerOsc.stop(now + 0.35);
 
-      gain.gain.setValueAtTime(0, now + i * 0.08);
-      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.08 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.15);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now + i * 0.08);
-      osc.stop(now + i * 0.08 + 0.2);
-    });
+    // 4. Noise burst (dimensional distortion)
+    const bufferSize = ctx.sampleRate * 0.15;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+    }
+    const noiseSource = ctx.createBufferSource();
+    const noiseFilter = ctx.createBiquadFilter();
+    const noiseGain = ctx.createGain();
+    noiseSource.buffer = noiseBuffer;
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.setValueAtTime(3000, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(500, now + 0.15);
+    noiseFilter.Q.value = 5;
+    noiseGain.gain.setValueAtTime(0.15, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noiseSource.start(now);
   }
 
   // Procedural sound for smashing platforms (impact sound)
@@ -1552,8 +1595,8 @@ export default class HelixScene extends Phaser.Scene {
 
     // CRITICAL: Call gameOver FIRST to ensure SDK shows play_again screen
     // This must happen before any async operations that might hang on iOS
-    if (sdk?.singlePlayer?.actions?.gameOver) {
-      sdk.singlePlayer.actions.gameOver({ score: finalScore });
+    if ((sdk?.singlePlayer?.actions as any)?.gameOver) {
+      (sdk.singlePlayer.actions as any).gameOver({ score: finalScore });
       console.log("🎮 GameOver called with score:", finalScore);
     }
 
