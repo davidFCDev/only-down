@@ -42,7 +42,7 @@ export default class StartScene extends Phaser.Scene {
     try {
       const sdk = window.FarcadeSDK;
       if (sdk?.singlePlayer?.actions?.ready) {
-        const gameInfo = await sdk.singlePlayer.actions.ready();
+        const gameInfo: any = await sdk.singlePlayer.actions.ready();
         console.log("📊 SDK gameInfo:", JSON.stringify(gameInfo, null, 2));
 
         if (gameInfo?.initialGameState?.gameState?.hasSeenTutorial) {
@@ -114,7 +114,7 @@ export default class StartScene extends Phaser.Scene {
 
   getRank(score: number): { name: string; color: string } {
     // Rank thresholds and names
-    if (score >= 1000) return { name: "Remixer", color: "#ffd93d" }; // Gold
+    if (score >= 1000) return { name: "Remixer", color: "#b7ff00" }; // Neon Green
     if (score >= 500) return { name: "Gravity Master", color: "#e91e8c" }; // Magenta
     if (score >= 300) return { name: "Free Faller", color: "#1abc9c" }; // Teal
     if (score >= 150) return { name: "Platform Breaker", color: "#2ecc71" }; // Green

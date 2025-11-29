@@ -9,6 +9,7 @@ export default class HelixScene extends Phaser.Scene {
   private threeRenderer!: THREE.WebGLRenderer;
   private tower!: THREE.Group;
   private ball!: THREE.Mesh;
+  private ballAura!: THREE.Sprite;
 
   // Power Ups
   private powerUps: THREE.Object3D[] = [];
@@ -16,6 +17,7 @@ export default class HelixScene extends Phaser.Scene {
   private platformsToSmash: number = 0;
   private normalMaterial!: THREE.MeshBasicMaterial;
   private superMaterial!: THREE.MeshBasicMaterial;
+  private remixerMaterial!: THREE.MeshBasicMaterial; // New Remixer Material
   private stripedMaterial!: THREE.MeshBasicMaterial;
   private blinkingMaterial!: THREE.MeshBasicMaterial;
 
@@ -120,6 +122,10 @@ export default class HelixScene extends Phaser.Scene {
       color: 0x2ecc71, // Bright green
     });
 
+    this.remixerMaterial = new THREE.MeshBasicMaterial({
+      color: 0xb7ff00, // Neon Green (Remixer)
+    });
+
     this.superMaterial = new THREE.MeshBasicMaterial({
       color: 0xffd93d, // Golden yellow (stars)
     });
@@ -143,7 +149,7 @@ export default class HelixScene extends Phaser.Scene {
 
     // Create Ball - Reduced segments for mobile
     const ballGeo = new THREE.SphereGeometry(0.4, 16, 16);
-    this.ball = new THREE.Mesh(ballGeo, this.normalMaterial);
+    this.ball = new THREE.Mesh(ballGeo, this.remixerMaterial); // Use Remixer material by default for testing
     this.ball.position.set(0, 20, 2.5); // Start high up
     this.ball.scale.set(0.1, 0.1, 0.1); // Start tiny
 
@@ -156,6 +162,20 @@ export default class HelixScene extends Phaser.Scene {
     const ballOutline = new THREE.Mesh(ballOutlineGeo, ballOutlineMat);
     ballOutline.scale.set(1.15, 1.15, 1.15);
     this.ball.add(ballOutline);
+
+    // Add Aura (Glow)
+    const auraTexture = this.createGlowTexture();
+    const auraMaterial = new THREE.SpriteMaterial({
+      map: auraTexture,
+      color: 0xb7ff00, // Remixer neon green
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.ballAura = new THREE.Sprite(auraMaterial);
+    this.ballAura.scale.set(2.5, 2.5, 1);
+    this.ball.add(this.ballAura);
 
     this.threeScene.add(this.ball);
 
@@ -1041,7 +1061,7 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.isSuperSmash = false;
     this.platformsToSmash = 0;
-    this.ball.material = this.normalMaterial;
+    this.ball.material = this.remixerMaterial; // Use Remixer material
 
     this.ballVelocity = 0;
     this.ball.position.set(0, 20, 2.5);
@@ -1231,7 +1251,7 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const trailMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }); // Bright green trail
+        const trailMat = new THREE.MeshBasicMaterial({ color: 0xb7ff00 }); // Remixer neon green trail
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
@@ -1271,7 +1291,7 @@ export default class HelixScene extends Phaser.Scene {
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
         // Add explosion with shockwave for power-up
-        this.createExplosion(puWorldPos.y, 0x2ecc71, 15, true); // Reduced for mobile
+        this.createExplosion(puWorldPos.y, 0xb7ff00, 15, true); // Remixer color
       }
     }
 
@@ -1317,7 +1337,7 @@ export default class HelixScene extends Phaser.Scene {
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
               this.isSuperSmash = false;
-              this.ball.material = this.normalMaterial;
+              this.ball.material = this.remixerMaterial; // Reset to Remixer material
               this.ballVelocity = this.jumpStrength;
               this.resolveCombo();
             }
@@ -1354,6 +1374,12 @@ export default class HelixScene extends Phaser.Scene {
     const cameraLerp = 1 - Math.pow(0.9, deltaMultiplier); // Smooth interpolation
     this.camera.position.y += (targetY - this.camera.position.y) * cameraLerp;
     this.camera.lookAt(0, this.camera.position.y - 6, 0);
+
+    // Aura Pulse Animation
+    if (this.ballAura) {
+      const scale = 2.5 + Math.sin(time / 200) * 0.3;
+      this.ballAura.scale.set(scale, scale, 1);
+    }
 
     this.threeRenderer.render(this.threeScene, this.camera);
   }
@@ -1580,7 +1606,7 @@ export default class HelixScene extends Phaser.Scene {
     this.scoreContainer.setVisible(false);
 
     // Big Explosion - Minimal for mobile
-    this.createExplosion(yPos, 0x2ecc71, 12, true);
+    this.createExplosion(yPos, 0xb7ff00, 12, true); // Remixer color
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
