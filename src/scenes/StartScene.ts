@@ -115,11 +115,10 @@ export default class StartScene extends Phaser.Scene {
   getRank(score: number): { name: string; color: string } {
     // Rank thresholds and names
     if (score >= 1000) return { name: "Remixer", color: "#b7ff00" }; // Neon Green
-    if (score >= 500) return { name: "Gravity Master", color: "#e91e8c" }; // Magenta
-    if (score >= 300) return { name: "Free Faller", color: "#1abc9c" }; // Teal
-    if (score >= 150) return { name: "Platform Breaker", color: "#2ecc71" }; // Green
-    if (score >= 100) return { name: "Descender", color: "#3498db" }; // Blue
-    if (score >= 50) return { name: "Noob", color: "#95a5a6" }; // Gray
+    if (score >= 750) return { name: "Legend", color: "#ff9f43" }; // Orange
+    if (score >= 500) return { name: "Master", color: "#e91e8c" }; // Magenta
+    if (score >= 250) return { name: "Pro", color: "#3498db" }; // Blue
+    if (score >= 50) return { name: "Noob", color: "#2ecc71" }; // Green
     return { name: "Unranked", color: "#7f8c8d" }; // Dark gray
   }
 
@@ -328,7 +327,7 @@ export default class StartScene extends Phaser.Scene {
     if (!this.hasSeenTutorial) {
       this.showTutorialModal();
     } else {
-      this.scene.start("HelixScene");
+      this.scene.start("HelixScene", { highScore: this.highScore });
     }
   }
 
@@ -443,7 +442,7 @@ export default class StartScene extends Phaser.Scene {
           alpha: 0,
           duration: 300,
           onComplete: () => {
-            this.scene.start("HelixScene");
+            this.scene.start("HelixScene", { highScore: this.highScore });
           },
         });
       });

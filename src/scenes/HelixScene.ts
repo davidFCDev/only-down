@@ -17,7 +17,9 @@ export default class HelixScene extends Phaser.Scene {
   private platformsToSmash: number = 0;
   private normalMaterial!: THREE.MeshBasicMaterial;
   private superMaterial!: THREE.MeshBasicMaterial;
-  private remixerMaterial!: THREE.MeshBasicMaterial; // New Remixer Material
+  private remixerMaterial!: THREE.MeshBasicMaterial;
+  private legendMaterial!: THREE.MeshBasicMaterial;
+  private masterMaterial!: THREE.MeshBasicMaterial; // New Master Material
   private stripedMaterial!: THREE.MeshBasicMaterial;
   private blinkingMaterial!: THREE.MeshBasicMaterial;
 
@@ -126,6 +128,16 @@ export default class HelixScene extends Phaser.Scene {
       color: 0xb7ff00, // Neon Green (Remixer)
     });
 
+    // Legend Material - Multicolor Waves
+    const legendTexture = this.createLegendTexture();
+    this.legendMaterial = new THREE.MeshBasicMaterial({
+      map: legendTexture,
+    });
+
+    this.masterMaterial = new THREE.MeshBasicMaterial({
+      color: 0xe91e8c, // Magenta (Master)
+    });
+
     this.superMaterial = new THREE.MeshBasicMaterial({
       color: 0xffd93d, // Golden yellow (stars)
     });
@@ -176,6 +188,7 @@ export default class HelixScene extends Phaser.Scene {
     this.ballAura = new THREE.Sprite(auraMaterial);
     this.ballAura.scale.set(2.5, 2.5, 1);
     this.ball.add(this.ballAura);
+    this.ballAura.visible = true; // Enable Aura for Remixer testing
 
     this.threeScene.add(this.ball);
 
@@ -1251,7 +1264,10 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const trailMat = new THREE.MeshBasicMaterial({ color: 0xb7ff00 }); // Remixer neon green trail
+        // Random color from Legend palette
+        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+        const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        const trailMat = new THREE.MeshBasicMaterial({ color: randomColor });
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
@@ -1291,7 +1307,10 @@ export default class HelixScene extends Phaser.Scene {
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
         // Add explosion with shockwave for power-up
-        this.createExplosion(puWorldPos.y, 0xb7ff00, 15, true); // Remixer color
+        // Random color from Legend palette
+        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+        const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        this.createExplosion(puWorldPos.y, randomColor, 15, true);
       }
     }
 
@@ -1368,6 +1387,10 @@ export default class HelixScene extends Phaser.Scene {
     if (!collided) {
       this.ball.position.y += this.ballVelocity * deltaMultiplier;
     }
+
+    // Rotate ball to show off texture
+    this.ball.rotation.x -= 0.05 * deltaMultiplier;
+    this.ball.rotation.y += 0.02 * deltaMultiplier;
 
     // Camera follow - Balanced view (frame-independent)
     const targetY = this.ball.position.y + 4;
@@ -1536,6 +1559,29 @@ export default class HelixScene extends Phaser.Scene {
     return texture;
   }
 
+  createLegendTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext("2d")!;
+
+    // Create horizontal bands (like latitude lines on a globe)
+    const baseColors = ["#ff9f43", "#e91e8c", "#00d2d3", "#feca57"];
+    const numBands = 12; // More bands = thinner lines
+    const bandHeight = 512 / numBands;
+
+    for (let i = 0; i < numBands; i++) {
+      const color = baseColors[i % baseColors.length];
+      context.fillStyle = color;
+      context.fillRect(0, i * bandHeight, 512, bandHeight);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+  }
+
   createExplosion(
     yPos: number,
     color: number,
@@ -1606,7 +1652,10 @@ export default class HelixScene extends Phaser.Scene {
     this.scoreContainer.setVisible(false);
 
     // Big Explosion - Minimal for mobile
-    this.createExplosion(yPos, 0xb7ff00, 12, true); // Remixer color
+    // Random color from Legend palette
+    const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+    const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+    this.createExplosion(yPos, randomColor, 12, true);
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
