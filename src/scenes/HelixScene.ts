@@ -268,12 +268,6 @@ export default class HelixScene extends Phaser.Scene {
     // Dark stripes
     context.fillStyle = "rgba(0, 0, 0, 0.3)";
     context.beginPath();
-    for (let i = -64; i < 64; i += 16) {
-      context.moveTo(i, 0);
-      context.lineTo(i + 5, 0);
-      context.lineTo(i + 69, 64);
-      context.lineTo(i + 64, 64);
-    }
     context.fill();
 
     const texture = new THREE.CanvasTexture(canvas);
