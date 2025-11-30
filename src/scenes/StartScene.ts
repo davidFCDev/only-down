@@ -116,7 +116,7 @@ export default class StartScene extends Phaser.Scene {
     // Rank thresholds and names
     if (score >= 1000) return { name: "Remixer", color: "#b7ff00" }; // Neon Green
     if (score >= 750) return { name: "Legend", color: "#ff9f43" }; // Orange
-    if (score >= 500) return { name: "Master", color: "#e91e8c" }; // Magenta
+    if (score >= 500) return { name: "Gravity Master", color: "#e91e8c" }; // Magenta
     if (score >= 250) return { name: "Pro", color: "#3498db" }; // Blue
     if (score >= 50) return { name: "Noob", color: "#2ecc71" }; // Green
     return { name: "Unranked", color: "#7f8c8d" }; // Dark gray

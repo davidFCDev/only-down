@@ -44,6 +44,7 @@ export default class HelixScene extends Phaser.Scene {
     velocity: THREE.Vector3;
     life: number;
   }[] = [];
+  private electricSparks: THREE.Line[] = []; // Electric sparks for Remixer
   private platformThickness: number = 0.8;
   private lowestPlatformY: number = 0;
   private platformIdCounter: number = 0;
@@ -1264,10 +1265,21 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        // Random color from Legend palette
-        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-        const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
-        const trailMat = new THREE.MeshBasicMaterial({ color: randomColor });
+        
+        // Get color based on current ball material
+        let trailColor = 0x2ecc71; // Default green
+        
+        if (this.ball.material === this.remixerMaterial) {
+          trailColor = 0xb7ff00; // Remixer neon green
+        } else if (this.ball.material === this.masterMaterial) {
+          trailColor = 0xe91e8c; // Master magenta
+        } else if (this.ball.material === this.legendMaterial) {
+          // Random color from Legend palette
+          const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+          trailColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        }
+        
+        const trailMat = new THREE.MeshBasicMaterial({ color: trailColor });
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
@@ -1306,11 +1318,21 @@ export default class HelixScene extends Phaser.Scene {
         this.activateSuperSmash();
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
-        // Add explosion with shockwave for power-up
-        // Random color from Legend palette
-        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-        const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
-        this.createExplosion(puWorldPos.y, randomColor, 15, true);
+        
+        // Add explosion with shockwave for power-up - match ball color
+        let explosionColor = 0x2ecc71; // Default green
+        
+        if (this.ball.material === this.remixerMaterial) {
+          explosionColor = 0xb7ff00; // Remixer neon green
+        } else if (this.ball.material === this.masterMaterial) {
+          explosionColor = 0xe91e8c; // Master magenta
+        } else if (this.ball.material === this.legendMaterial) {
+          // Random color from Legend palette
+          const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+          explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        }
+        
+        this.createExplosion(puWorldPos.y, explosionColor, 15, true);
       }
     }
 
@@ -1402,6 +1424,23 @@ export default class HelixScene extends Phaser.Scene {
     if (this.ballAura) {
       const scale = 2.5 + Math.sin(time / 200) * 0.3;
       this.ballAura.scale.set(scale, scale, 1);
+    }
+
+    // Electric Sparks for Remixer (only when using remixerMaterial)
+    if (this.ball.material === this.remixerMaterial && Math.random() > 0.85) {
+      this.createElectricSpark();
+    }
+
+    // Update and remove old sparks
+    for (let i = this.electricSparks.length - 1; i >= 0; i--) {
+      const spark = this.electricSparks[i];
+      const material = spark.material as THREE.LineBasicMaterial;
+      material.opacity -= 0.05 * deltaMultiplier;
+      
+      if (material.opacity <= 0) {
+        this.threeScene.remove(spark);
+        this.electricSparks.splice(i, 1);
+      }
     }
 
     this.threeRenderer.render(this.threeScene, this.camera);
@@ -1559,6 +1598,47 @@ export default class HelixScene extends Phaser.Scene {
     return texture;
   }
 
+  createElectricSpark() {
+    // Create a jagged line from ball surface to nearby point
+    const points: THREE.Vector3[] = [];
+    const numSegments = 3 + Math.floor(Math.random() * 3);
+    
+    // Random starting point on ball surface
+    const angle1 = Math.random() * Math.PI * 2;
+    const angle2 = Math.random() * Math.PI;
+    const startRadius = 0.5;
+    
+    const startX = this.ball.position.x + Math.sin(angle2) * Math.cos(angle1) * startRadius;
+    const startY = this.ball.position.y + Math.cos(angle2) * startRadius;
+    const startZ = this.ball.position.z + Math.sin(angle2) * Math.sin(angle1) * startRadius;
+    
+    points.push(new THREE.Vector3(startX, startY, startZ));
+    
+    // Create jagged path
+    let currentX = startX;
+    let currentY = startY;
+    let currentZ = startZ;
+    
+    for (let i = 0; i < numSegments; i++) {
+      currentX += (Math.random() - 0.5) * 0.3;
+      currentY += (Math.random() - 0.5) * 0.3;
+      currentZ += (Math.random() - 0.5) * 0.3;
+      points.push(new THREE.Vector3(currentX, currentY, currentZ));
+    }
+    
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: 0xb7ff00,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 2,
+    });
+    
+    const spark = new THREE.Line(geometry, material);
+    this.threeScene.add(spark);
+    this.electricSparks.push(spark);
+  }
+
   createLegendTexture() {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -1651,11 +1731,20 @@ export default class HelixScene extends Phaser.Scene {
 
     this.scoreContainer.setVisible(false);
 
-    // Big Explosion - Minimal for mobile
-    // Random color from Legend palette
-    const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-    const randomColor = legendColors[Math.floor(Math.random() * legendColors.length)];
-    this.createExplosion(yPos, randomColor, 12, true);
+    // Big Explosion - match ball color
+    let explosionColor = 0x2ecc71; // Default green
+    
+    if (this.ball.material === this.remixerMaterial) {
+      explosionColor = 0xb7ff00; // Remixer neon green
+    } else if (this.ball.material === this.masterMaterial) {
+      explosionColor = 0xe91e8c; // Master magenta
+    } else if (this.ball.material === this.legendMaterial) {
+      // Random color from Legend palette
+      const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+      explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+    }
+    
+    this.createExplosion(yPos, explosionColor, 12, true);
 
     // Haptic feedback on death
     this.triggerHapticFeedback();
