@@ -1289,8 +1289,8 @@ export default class HelixScene extends Phaser.Scene {
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         
-        // Get color based on original ball material (not super material during power-up)
-        const materialToCheck = this.isSuperSmash ? this.originalMaterial : this.ball.material;
+        // Get color based on current ball material
+        const materialToCheck = this.ball.material;
         let trailColor = 0x2ecc71; // Default green
         
         if (materialToCheck === this.remixerMaterial) {
@@ -1418,8 +1418,6 @@ export default class HelixScene extends Phaser.Scene {
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
               this.isSuperSmash = false;
-              // Restore original material instead of hardcoded one
-              this.ball.material = this.originalMaterial;
               this.ballVelocity = this.jumpStrength;
               this.resolveCombo();
             }
@@ -1530,9 +1528,6 @@ export default class HelixScene extends Phaser.Scene {
   activateSuperSmash() {
     this.isSuperSmash = true;
     this.platformsToSmash = 5;
-    // Store original material before changing to super
-    this.originalMaterial = this.ball.material as THREE.Material;
-    this.ball.material = this.superMaterial;
 
     // Play power-up sound
     this.playPowerUpSound();
