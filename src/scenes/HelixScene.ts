@@ -19,9 +19,12 @@ export default class HelixScene extends Phaser.Scene {
   private superMaterial!: THREE.MeshBasicMaterial;
   private remixerMaterial!: THREE.MeshBasicMaterial;
   private legendMaterial!: THREE.MeshBasicMaterial;
-  private masterMaterial!: THREE.MeshBasicMaterial; // New Master Material
+  private masterMaterial!: THREE.MeshBasicMaterial;
+  private proMaterial!: THREE.MeshBasicMaterial; // New Pro Material
+  private noobMaterial!: THREE.MeshBasicMaterial; // New Noob Material
   private stripedMaterial!: THREE.MeshBasicMaterial;
   private blinkingMaterial!: THREE.MeshBasicMaterial;
+  private originalMaterial!: THREE.Material; // Store material before power-up
 
   // Game State & Physics
   private platforms: THREE.Mesh[] = [];
@@ -61,12 +64,16 @@ export default class HelixScene extends Phaser.Scene {
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
   private audioContext: AudioContext | null = null;
+  private testRank: string = "Remixer"; // For development testing
 
   constructor() {
     super("HelixScene");
   }
 
-  init() {
+  init(data?: { testRank?: string }) {
+    if (data?.testRank) {
+      this.testRank = data.testRank;
+    }
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
     const rect = phaserCanvas.getBoundingClientRect();
@@ -135,8 +142,21 @@ export default class HelixScene extends Phaser.Scene {
       map: legendTexture,
     });
 
+    // Gravity Master Material - Two-tone fire (red-orange/yellow)
+    const masterTexture = this.createGravityMasterTexture();
     this.masterMaterial = new THREE.MeshBasicMaterial({
-      color: 0xe91e8c, // Magenta (Master)
+      map: masterTexture,
+    });
+
+    // Pro Material - Polka Dots
+    const proTexture = this.createProTexture();
+    this.proMaterial = new THREE.MeshBasicMaterial({
+      map: proTexture,
+    });
+
+    // Noob Material - Same as normal green
+    this.noobMaterial = new THREE.MeshBasicMaterial({
+      color: 0x2ecc71, // Green (Noob)
     });
 
     this.superMaterial = new THREE.MeshBasicMaterial({
@@ -193,13 +213,14 @@ export default class HelixScene extends Phaser.Scene {
 
     this.threeScene.add(this.ball);
 
+    // Apply ball style based on test rank
+    this.applyBallStyle(this.testRank);
+
     // No point light on ball - flat shading
 
     // Camera Start - Balanced angle
     this.camera.position.set(0, 5, 11);
     this.camera.lookAt(0, -1, 0);
-
-    // Audio Init
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
     this.jumpSound = this.sound.add("jump", { volume: 0.3 }); // Low volume so music predominates
 
@@ -1075,7 +1096,9 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.isSuperSmash = false;
     this.platformsToSmash = 0;
-    this.ball.material = this.remixerMaterial; // Use Remixer material
+    
+    // Apply ball style based on test rank
+    this.applyBallStyle(this.testRank);
 
     this.ballVelocity = 0;
     this.ball.position.set(0, 20, 2.5);
@@ -1266,17 +1289,26 @@ export default class HelixScene extends Phaser.Scene {
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         
-        // Get color based on current ball material
+        // Get color based on original ball material (not super material during power-up)
+        const materialToCheck = this.isSuperSmash ? this.originalMaterial : this.ball.material;
         let trailColor = 0x2ecc71; // Default green
         
-        if (this.ball.material === this.remixerMaterial) {
+        if (materialToCheck === this.remixerMaterial) {
           trailColor = 0xb7ff00; // Remixer neon green
-        } else if (this.ball.material === this.masterMaterial) {
-          trailColor = 0xe91e8c; // Master magenta
-        } else if (this.ball.material === this.legendMaterial) {
+        } else if (materialToCheck === this.masterMaterial) {
+          // Random color from Gravity Master palette (two-tone)
+          const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
+          trailColor = masterColors[Math.floor(Math.random() * masterColors.length)];
+        } else if (materialToCheck === this.legendMaterial) {
           // Random color from Legend palette
           const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
           trailColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        } else if (materialToCheck === this.proMaterial) {
+          // Random color from Pro palette
+          const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
+          trailColor = proColors[Math.floor(Math.random() * proColors.length)];
+        } else if (materialToCheck === this.noobMaterial) {
+          trailColor = 0x2ecc71; // Noob green
         }
         
         const trailMat = new THREE.MeshBasicMaterial({ color: trailColor });
@@ -1325,11 +1357,19 @@ export default class HelixScene extends Phaser.Scene {
         if (this.ball.material === this.remixerMaterial) {
           explosionColor = 0xb7ff00; // Remixer neon green
         } else if (this.ball.material === this.masterMaterial) {
-          explosionColor = 0xe91e8c; // Master magenta
+          // Random color from Gravity Master palette (two-tone)
+          const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
+          explosionColor = masterColors[Math.floor(Math.random() * masterColors.length)];
         } else if (this.ball.material === this.legendMaterial) {
           // Random color from Legend palette
           const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
           explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+        } else if (this.ball.material === this.proMaterial) {
+          // Random color from Pro palette
+          const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
+          explosionColor = proColors[Math.floor(Math.random() * proColors.length)];
+        } else if (this.ball.material === this.noobMaterial) {
+          explosionColor = 0x2ecc71; // Noob green
         }
         
         this.createExplosion(puWorldPos.y, explosionColor, 15, true);
@@ -1378,7 +1418,8 @@ export default class HelixScene extends Phaser.Scene {
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
               this.isSuperSmash = false;
-              this.ball.material = this.remixerMaterial; // Reset to Remixer material
+              // Restore original material instead of hardcoded one
+              this.ball.material = this.originalMaterial;
               this.ballVelocity = this.jumpStrength;
               this.resolveCombo();
             }
@@ -1431,6 +1472,11 @@ export default class HelixScene extends Phaser.Scene {
       this.createElectricSpark();
     }
 
+    // Fire Trail for Gravity Master (only when using masterMaterial)
+    if (this.ball.material === this.masterMaterial && Math.random() > 0.7) {
+      this.createFireTrail();
+    }
+
     // Update and remove old sparks
     for (let i = this.electricSparks.length - 1; i >= 0; i--) {
       const spark = this.electricSparks[i];
@@ -1446,9 +1492,46 @@ export default class HelixScene extends Phaser.Scene {
     this.threeRenderer.render(this.threeScene, this.camera);
   }
 
+  applyBallStyle(rank: string) {
+    // Set material based on rank
+    switch (rank) {
+      case "Remixer":
+        this.ball.material = this.remixerMaterial;
+        this.ballAura.visible = true;
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xb7ff00);
+        break;
+      case "Legend":
+        this.ball.material = this.legendMaterial;
+        this.ballAura.visible = false;
+        break;
+      case "Gravity Master":
+        this.ball.material = this.masterMaterial;
+        this.ballAura.visible = true;
+        // Fire-like aura - red-orange
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff6b35);
+        break;
+      case "Pro":
+        this.ball.material = this.proMaterial;
+        this.ballAura.visible = false;
+        break;
+      case "Noob":
+        this.ball.material = this.noobMaterial;
+        this.ballAura.visible = true;
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0x2ecc71);
+        break;
+      case "Unranked":
+      default:
+        this.ball.material = this.normalMaterial;
+        this.ballAura.visible = false;
+        break;
+    }
+  }
+
   activateSuperSmash() {
     this.isSuperSmash = true;
     this.platformsToSmash = 5;
+    // Store original material before changing to super
+    this.originalMaterial = this.ball.material as THREE.Material;
     this.ball.material = this.superMaterial;
 
     // Play power-up sound
@@ -1639,6 +1722,93 @@ export default class HelixScene extends Phaser.Scene {
     this.electricSparks.push(spark);
   }
 
+  createFireTrail() {
+    // Create small fire particles behind the ball
+    const texture = this.createGlowTexture();
+    const colors = [0xff6b35, 0xffd93d, 0xff4500]; // Red-orange, Yellow, Orange-red
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      color: color,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    const sprite = new THREE.Sprite(material);
+    sprite.position.copy(this.ball.position);
+    sprite.position.y += (Math.random() - 0.5) * 0.3;
+    sprite.position.x += (Math.random() - 0.5) * 0.3;
+    sprite.position.z += (Math.random() - 0.5) * 0.3;
+    
+    const scale = 0.3 + Math.random() * 0.2;
+    sprite.scale.set(scale, scale, 1);
+
+    this.threeScene.add(sprite);
+    this.particles.push({
+      mesh: sprite,
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.05,
+        0.1 + Math.random() * 0.1,
+        (Math.random() - 0.5) * 0.05
+      ),
+      life: 0.6,
+    });
+  }
+
+  createGravityMasterTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext("2d")!;
+
+    // Split in half - top and bottom
+    // Top half - Red-Orange
+    context.fillStyle = "#ff6b35";
+    context.fillRect(0, 0, 512, 256);
+
+    // Bottom half - Yellow
+    context.fillStyle = "#ffd93d";
+    context.fillRect(0, 256, 512, 256);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+  }
+
+  createProTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext("2d")!;
+
+    // Background - Blue
+    context.fillStyle = "#3498db";
+    context.fillRect(0, 0, 512, 512);
+
+    // Polka dots - various colors
+    const dotColors = ["#e91e8c", "#ffd93d", "#00d2d3", "#ff9f43"];
+    const dotRadius = 25;
+    const spacing = 80;
+
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 7; col++) {
+        const x = col * spacing + (row % 2) * (spacing / 2);
+        const y = row * spacing;
+        const colorIndex = (row + col) % dotColors.length;
+        
+        context.beginPath();
+        context.fillStyle = dotColors[colorIndex];
+        context.arc(x, y, dotRadius, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+  }
+
   createLegendTexture() {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -1737,11 +1907,19 @@ export default class HelixScene extends Phaser.Scene {
     if (this.ball.material === this.remixerMaterial) {
       explosionColor = 0xb7ff00; // Remixer neon green
     } else if (this.ball.material === this.masterMaterial) {
-      explosionColor = 0xe91e8c; // Master magenta
+      // Random color from Gravity Master palette (two-tone)
+      const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
+      explosionColor = masterColors[Math.floor(Math.random() * masterColors.length)];
     } else if (this.ball.material === this.legendMaterial) {
       // Random color from Legend palette
       const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
       explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+    } else if (this.ball.material === this.proMaterial) {
+      // Random color from Pro palette
+      const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
+      explosionColor = proColors[Math.floor(Math.random() * proColors.length)];
+    } else if (this.ball.material === this.noobMaterial) {
+      explosionColor = 0x2ecc71; // Noob green
     }
     
     this.createExplosion(yPos, explosionColor, 12, true);

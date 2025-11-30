@@ -11,6 +11,12 @@ export default class StartScene extends Phaser.Scene {
   private bouncingBall!: Phaser.GameObjects.Container;
   private hasSeenTutorial: boolean = false;
   private highScore: number = 0;
+  
+  // Development controls
+  private testRank: string = "Remixer";
+  private ranks: string[] = ["Unranked", "Noob", "Pro", "Gravity Master", "Legend", "Remixer"];
+  private devControlsContainer!: Phaser.GameObjects.Container;
+  private rankDisplayText!: Phaser.GameObjects.Text;
 
   constructor() {
     super("StartScene");
@@ -36,6 +42,9 @@ export default class StartScene extends Phaser.Scene {
 
     // Start button directly
     this.createMainStartButton(width, height);
+    
+    // Development controls for rank testing
+    this.createDevControls(width, height);
   }
 
   async checkTutorialState() {
@@ -327,7 +336,7 @@ export default class StartScene extends Phaser.Scene {
     if (!this.hasSeenTutorial) {
       this.showTutorialModal();
     } else {
-      this.scene.start("HelixScene", { highScore: this.highScore });
+      this.scene.start("HelixScene", { testRank: this.testRank });
     }
   }
 
@@ -442,7 +451,7 @@ export default class StartScene extends Phaser.Scene {
           alpha: 0,
           duration: 300,
           onComplete: () => {
-            this.scene.start("HelixScene", { highScore: this.highScore });
+            this.scene.start("HelixScene", { testRank: this.testRank });
           },
         });
       });
@@ -466,5 +475,65 @@ export default class StartScene extends Phaser.Scene {
       duration: 400,
       ease: "Power2",
     });
+  }
+
+  createDevControls(width: number, height: number) {
+    this.devControlsContainer = this.add.container(width / 2, height - 60);
+    this.devControlsContainer.setDepth(200);
+
+    // Background panel
+    const panelWidth = Math.min(400, width * 0.9);
+    const panelHeight = 50;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x000000, 0.8);
+    panel.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 10);
+    this.devControlsContainer.add(panel);
+
+    // Rank display text
+    this.rankDisplayText = this.add
+      .text(0, 0, `Test Rank: ${this.testRank}`, {
+        fontSize: "20px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.devControlsContainer.add(this.rankDisplayText);
+
+    // Previous button
+    const prevBtn = this.add
+      .text(-panelWidth / 2 + 40, 0, "◀", {
+        fontSize: "24px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        const currentIndex = this.ranks.indexOf(this.testRank);
+        const newIndex = (currentIndex - 1 + this.ranks.length) % this.ranks.length;
+        this.testRank = this.ranks[newIndex];
+        this.rankDisplayText.setText(`Test Rank: ${this.testRank}`);
+      });
+    this.devControlsContainer.add(prevBtn);
+
+    // Next button
+    const nextBtn = this.add
+      .text(panelWidth / 2 - 40, 0, "▶", {
+        fontSize: "24px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        const currentIndex = this.ranks.indexOf(this.testRank);
+        const newIndex = (currentIndex + 1) % this.ranks.length;
+        this.testRank = this.ranks[newIndex];
+        this.rankDisplayText.setText(`Test Rank: ${this.testRank}`);
+      });
+    this.devControlsContainer.add(nextBtn);
   }
 }
