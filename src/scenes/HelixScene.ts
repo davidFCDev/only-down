@@ -1090,7 +1090,7 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.isSuperSmash = false;
     this.platformsToSmash = 0;
-    
+
     // Apply ball style based on test rank
     this.applyBallStyle(this.testRank);
 
@@ -1282,29 +1282,31 @@ export default class HelixScene extends Phaser.Scene {
       // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
       if (Math.random() > 0.7 / deltaMultiplier) {
         const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        
+
         // Get color based on current ball material
         const materialToCheck = this.ball.material;
         let trailColor = 0x2ecc71; // Default green
-        
+
         if (materialToCheck === this.remixerMaterial) {
           trailColor = 0xb7ff00; // Remixer neon green
         } else if (materialToCheck === this.masterMaterial) {
           // Random color from Gravity Master palette (two-tone)
           const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
-          trailColor = masterColors[Math.floor(Math.random() * masterColors.length)];
+          trailColor =
+            masterColors[Math.floor(Math.random() * masterColors.length)];
         } else if (materialToCheck === this.legendMaterial) {
           // Random color from Legend palette
           const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-          trailColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+          trailColor =
+            legendColors[Math.floor(Math.random() * legendColors.length)];
         } else if (materialToCheck === this.proMaterial) {
-          // Random color from Pro palette
-          const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
+          // Pro colors - white and red
+          const proColors = [0xffffff, 0xff2222];
           trailColor = proColors[Math.floor(Math.random() * proColors.length)];
         } else if (materialToCheck === this.noobMaterial) {
           trailColor = 0x2ecc71; // Noob green
         }
-        
+
         const trailMat = new THREE.MeshBasicMaterial({ color: trailColor });
         const trail = new THREE.Mesh(trailGeo, trailMat);
         trail.position.copy(this.ball.position);
@@ -1344,28 +1346,31 @@ export default class HelixScene extends Phaser.Scene {
         this.activateSuperSmash();
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
-        
+
         // Add explosion with shockwave for power-up - match ball color
         let explosionColor = 0x2ecc71; // Default green
-        
+
         if (this.ball.material === this.remixerMaterial) {
           explosionColor = 0xb7ff00; // Remixer neon green
         } else if (this.ball.material === this.masterMaterial) {
           // Random color from Gravity Master palette (two-tone)
           const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
-          explosionColor = masterColors[Math.floor(Math.random() * masterColors.length)];
+          explosionColor =
+            masterColors[Math.floor(Math.random() * masterColors.length)];
         } else if (this.ball.material === this.legendMaterial) {
           // Random color from Legend palette
           const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-          explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+          explosionColor =
+            legendColors[Math.floor(Math.random() * legendColors.length)];
         } else if (this.ball.material === this.proMaterial) {
-          // Random color from Pro palette
-          const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
-          explosionColor = proColors[Math.floor(Math.random() * proColors.length)];
+          // Pro colors - white and red
+          const proColors = [0xffffff, 0xff2222];
+          explosionColor =
+            proColors[Math.floor(Math.random() * proColors.length)];
         } else if (this.ball.material === this.noobMaterial) {
           explosionColor = 0x2ecc71; // Noob green
         }
-        
+
         this.createExplosion(puWorldPos.y, explosionColor, 15, true);
       }
     }
@@ -1474,7 +1479,7 @@ export default class HelixScene extends Phaser.Scene {
       const spark = this.electricSparks[i];
       const material = spark.material as THREE.LineBasicMaterial;
       material.opacity -= 0.05 * deltaMultiplier;
-      
+
       if (material.opacity <= 0) {
         this.threeScene.remove(spark);
         this.electricSparks.splice(i, 1);
@@ -1504,7 +1509,8 @@ export default class HelixScene extends Phaser.Scene {
         break;
       case "Pro":
         this.ball.material = this.proMaterial;
-        this.ballAura.visible = false;
+        this.ballAura.visible = true;
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff2222); // Red aura
         break;
       case "Noob":
         this.ball.material = this.noobMaterial;
@@ -1589,7 +1595,8 @@ export default class HelixScene extends Phaser.Scene {
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const noiseData = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+      noiseData[i] =
+        (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
     }
     const noiseSource = ctx.createBufferSource();
     const noiseFilter = ctx.createBiquadFilter();
@@ -1674,30 +1681,32 @@ export default class HelixScene extends Phaser.Scene {
     // Create a jagged line from ball surface to nearby point
     const points: THREE.Vector3[] = [];
     const numSegments = 3 + Math.floor(Math.random() * 3);
-    
+
     // Random starting point on ball surface
     const angle1 = Math.random() * Math.PI * 2;
     const angle2 = Math.random() * Math.PI;
     const startRadius = 0.5;
-    
-    const startX = this.ball.position.x + Math.sin(angle2) * Math.cos(angle1) * startRadius;
+
+    const startX =
+      this.ball.position.x + Math.sin(angle2) * Math.cos(angle1) * startRadius;
     const startY = this.ball.position.y + Math.cos(angle2) * startRadius;
-    const startZ = this.ball.position.z + Math.sin(angle2) * Math.sin(angle1) * startRadius;
-    
+    const startZ =
+      this.ball.position.z + Math.sin(angle2) * Math.sin(angle1) * startRadius;
+
     points.push(new THREE.Vector3(startX, startY, startZ));
-    
+
     // Create jagged path
     let currentX = startX;
     let currentY = startY;
     let currentZ = startZ;
-    
+
     for (let i = 0; i < numSegments; i++) {
       currentX += (Math.random() - 0.5) * 0.3;
       currentY += (Math.random() - 0.5) * 0.3;
       currentZ += (Math.random() - 0.5) * 0.3;
       points.push(new THREE.Vector3(currentX, currentY, currentZ));
     }
-    
+
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
       color: 0xb7ff00,
@@ -1705,7 +1714,7 @@ export default class HelixScene extends Phaser.Scene {
       opacity: 0.8,
       linewidth: 2,
     });
-    
+
     const spark = new THREE.Line(geometry, material);
     this.threeScene.add(spark);
     this.electricSparks.push(spark);
@@ -1716,7 +1725,7 @@ export default class HelixScene extends Phaser.Scene {
     const texture = this.createGlowTexture();
     const colors = [0xff6b35, 0xffd93d, 0xff4500]; // Red-orange, Yellow, Orange-red
     const color = colors[Math.floor(Math.random() * colors.length)];
-    
+
     const material = new THREE.SpriteMaterial({
       map: texture,
       color: color,
@@ -1731,7 +1740,7 @@ export default class HelixScene extends Phaser.Scene {
     sprite.position.y += (Math.random() - 0.5) * 0.3;
     sprite.position.x += (Math.random() - 0.5) * 0.3;
     sprite.position.z += (Math.random() - 0.5) * 0.3;
-    
+
     const scale = 0.3 + Math.random() * 0.2;
     sprite.scale.set(scale, scale, 1);
 
@@ -1772,23 +1781,22 @@ export default class HelixScene extends Phaser.Scene {
     canvas.height = 512;
     const context = canvas.getContext("2d")!;
 
-    // Background - Blue
-    context.fillStyle = "#3498db";
+    // Background - White
+    context.fillStyle = "#ffffff";
     context.fillRect(0, 0, 512, 512);
 
-    // Polka dots - various colors
-    const dotColors = ["#e91e8c", "#ffd93d", "#00d2d3", "#ff9f43"];
-    const dotRadius = 25;
-    const spacing = 80;
+    // Polka dots - Red only
+    const dotColor = "#ff2222";
+    const dotRadius = 30;
+    const spacing = 85;
 
     for (let row = 0; row < 7; row++) {
       for (let col = 0; col < 7; col++) {
         const x = col * spacing + (row % 2) * (spacing / 2);
         const y = row * spacing;
-        const colorIndex = (row + col) % dotColors.length;
-        
+
         context.beginPath();
-        context.fillStyle = dotColors[colorIndex];
+        context.fillStyle = dotColor;
         context.arc(x, y, dotRadius, 0, Math.PI * 2);
         context.fill();
       }
@@ -1892,25 +1900,27 @@ export default class HelixScene extends Phaser.Scene {
 
     // Big Explosion - match ball color
     let explosionColor = 0x2ecc71; // Default green
-    
+
     if (this.ball.material === this.remixerMaterial) {
       explosionColor = 0xb7ff00; // Remixer neon green
     } else if (this.ball.material === this.masterMaterial) {
       // Random color from Gravity Master palette (two-tone)
       const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
-      explosionColor = masterColors[Math.floor(Math.random() * masterColors.length)];
+      explosionColor =
+        masterColors[Math.floor(Math.random() * masterColors.length)];
     } else if (this.ball.material === this.legendMaterial) {
       // Random color from Legend palette
       const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-      explosionColor = legendColors[Math.floor(Math.random() * legendColors.length)];
+      explosionColor =
+        legendColors[Math.floor(Math.random() * legendColors.length)];
     } else if (this.ball.material === this.proMaterial) {
-      // Random color from Pro palette
-      const proColors = [0xe91e8c, 0xffd93d, 0x00d2d3, 0xff9f43];
+      // Pro colors - white and red
+      const proColors = [0xffffff, 0xff2222];
       explosionColor = proColors[Math.floor(Math.random() * proColors.length)];
     } else if (this.ball.material === this.noobMaterial) {
       explosionColor = 0x2ecc71; // Noob green
     }
-    
+
     this.createExplosion(yPos, explosionColor, 12, true);
 
     // Haptic feedback on death
