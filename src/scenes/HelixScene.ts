@@ -65,14 +65,18 @@ export default class HelixScene extends Phaser.Scene {
   private isMuted: boolean = false;
   private audioContext: AudioContext | null = null;
   private testRank: string = "Remixer"; // For development testing
+  private selectedBallStyle: string = "unranked"; // User selected ball style
 
   constructor() {
     super("HelixScene");
   }
 
-  init(data?: { testRank?: string }) {
+  init(data?: { testRank?: string; ballStyle?: string }) {
     if (data?.testRank) {
       this.testRank = data.testRank;
+    }
+    if (data?.ballStyle) {
+      this.selectedBallStyle = data.ballStyle;
     }
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -1490,39 +1494,56 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   applyBallStyle(rank: string) {
-    // Set material based on rank
-    switch (rank) {
-      case "Remixer":
+    // Use selected ball style if available, otherwise fall back to rank
+    const styleToApply =
+      this.selectedBallStyle || this.getBallStyleFromRank(rank);
+
+    // Set material based on ball style
+    switch (styleToApply) {
+      case "remixer":
         this.ball.material = this.remixerMaterial;
         this.ballAura.visible = true;
         (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xb7ff00);
         break;
-      case "Legend":
+      case "legend":
         this.ball.material = this.legendMaterial;
-        this.ballAura.visible = false;
+        this.ballAura.visible = true;
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff9f43);
         break;
-      case "Gravity Master":
+      case "master":
         this.ball.material = this.masterMaterial;
         this.ballAura.visible = true;
-        // Fire-like aura - red-orange
         (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff6b35);
         break;
-      case "Pro":
+      case "pro":
         this.ball.material = this.proMaterial;
         this.ballAura.visible = true;
-        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff2222); // Red aura
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0xff2222);
         break;
-      case "Noob":
+      case "noob":
         this.ball.material = this.noobMaterial;
         this.ballAura.visible = true;
         (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0x2ecc71);
         break;
-      case "Unranked":
+      case "unranked":
       default:
         this.ball.material = this.normalMaterial;
         this.ballAura.visible = false;
         break;
     }
+  }
+
+  getBallStyleFromRank(rank: string): string {
+    // Map rank names to ball style keys
+    const rankToStyle: { [key: string]: string } = {
+      Remixer: "remixer",
+      Legend: "legend",
+      "Gravity Master": "master",
+      Pro: "pro",
+      Noob: "noob",
+      Unranked: "unranked",
+    };
+    return rankToStyle[rank] || "unranked";
   }
 
   activateSuperSmash() {

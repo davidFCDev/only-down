@@ -1,20 +1,83 @@
 // Use global Phaser loaded via CDN
 const Phaser = (window as any).Phaser;
 
+// Ball styles configuration
+const BALL_STYLES: {
+  [key: string]: {
+    name: string;
+    requiredRank: string;
+    colors: { base: number; dots?: number[]; aura?: number };
+  };
+} = {
+  unranked: {
+    name: "Basic",
+    requiredRank: "Unranked",
+    colors: { base: 0x7f8c8d },
+  },
+  noob: {
+    name: "Noob",
+    requiredRank: "Noob",
+    colors: { base: 0x2ecc71, aura: 0x2ecc71 },
+  },
+  pro: {
+    name: "Pro",
+    requiredRank: "Pro",
+    colors: { base: 0xffffff, dots: [0xff2222], aura: 0xff2222 },
+  },
+  master: {
+    name: "Master",
+    requiredRank: "Gravity Master",
+    colors: { base: 0xff6b35, dots: [0xffd93d], aura: 0xff6b35 },
+  },
+  legend: {
+    name: "Legend",
+    requiredRank: "Legend",
+    colors: {
+      base: 0xff9f43,
+      dots: [0xe91e8c, 0x00d2d3, 0xfeca57],
+      aura: 0xff9f43,
+    },
+  },
+  remixer: {
+    name: "Remixer",
+    requiredRank: "Remixer",
+    colors: { base: 0xb7ff00, aura: 0xb7ff00 },
+  },
+};
+
+const RANK_ORDER = [
+  "Unranked",
+  "Noob",
+  "Pro",
+  "Gravity Master",
+  "Legend",
+  "Remixer",
+];
+
 export default class StartScene extends Phaser.Scene {
   private titleContainer!: Phaser.GameObjects.Container;
   private titleText!: Phaser.GameObjects.Text;
   private subtitleText!: Phaser.GameObjects.Text;
   private rankText!: Phaser.GameObjects.Text;
   private startBtnContainer!: Phaser.GameObjects.Container;
+  private ballSelectBtnContainer!: Phaser.GameObjects.Container;
+  private ballSelectModalContainer!: Phaser.GameObjects.Container;
   private tutorialContainer!: Phaser.GameObjects.Container;
   private bouncingBall!: Phaser.GameObjects.Container;
   private hasSeenTutorial: boolean = false;
   private highScore: number = 0;
-  
+  private selectedBallStyle: string = "unranked";
+
   // Development controls
   private testRank: string = "Remixer";
-  private ranks: string[] = ["Unranked", "Noob", "Pro", "Gravity Master", "Legend", "Remixer"];
+  private ranks: string[] = [
+    "Unranked",
+    "Noob",
+    "Pro",
+    "Gravity Master",
+    "Legend",
+    "Remixer",
+  ];
   private devControlsContainer!: Phaser.GameObjects.Container;
   private rankDisplayText!: Phaser.GameObjects.Text;
 
@@ -42,9 +105,9 @@ export default class StartScene extends Phaser.Scene {
 
     // Start button directly
     this.createMainStartButton(width, height);
-    
-    // Development controls for rank testing
-    this.createDevControls(width, height);
+
+    // Development controls for rank testing - HIDDEN
+    // this.createDevControls(width, height);
   }
 
   async checkTutorialState() {
@@ -58,6 +121,12 @@ export default class StartScene extends Phaser.Scene {
           this.hasSeenTutorial = true;
         }
 
+        // Get selected ball style
+        if (gameInfo?.initialGameState?.gameState?.selectedBallStyle) {
+          this.selectedBallStyle =
+            gameInfo.initialGameState.gameState.selectedBallStyle;
+        }
+
         // Get high score for rank system - check multiple possible locations
         if (typeof gameInfo?.highScore === "number") {
           this.highScore = gameInfo.highScore;
@@ -69,6 +138,7 @@ export default class StartScene extends Phaser.Scene {
           this.highScore = gameInfo.initialGameState.gameState.highScore;
         }
         console.log("🏆 High Score loaded:", this.highScore);
+        console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
       }
     } catch (error) {
       console.log("Could not load game state:", error);
@@ -79,17 +149,57 @@ export default class StartScene extends Phaser.Scene {
     try {
       const sdk = window.FarcadeSDK;
       if (sdk?.singlePlayer?.actions?.saveGameState) {
-        // Preserve high score when saving tutorial state
+        // Preserve high score and ball style when saving tutorial state
         await sdk.singlePlayer.actions.saveGameState({
           gameState: {
             hasSeenTutorial: true,
             highScore: this.highScore,
+            selectedBallStyle: this.selectedBallStyle,
           },
         });
       }
     } catch (error) {
       console.log("Could not save game state:", error);
     }
+  }
+
+  async saveBallStyle(style: string) {
+    this.selectedBallStyle = style;
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.singlePlayer?.actions?.saveGameState) {
+        await sdk.singlePlayer.actions.saveGameState({
+          gameState: {
+            hasSeenTutorial: this.hasSeenTutorial,
+            highScore: this.highScore,
+            selectedBallStyle: style,
+          },
+        });
+        console.log("⚽ Ball style saved:", style);
+      }
+    } catch (error) {
+      console.log("Could not save ball style:", error);
+    }
+  }
+
+  getUnlockedBallStyles(): string[] {
+    // DEV MODE: Unlock all ball styles for testing
+    const devMode = true;
+    if (devMode) {
+      return Object.keys(BALL_STYLES);
+    }
+
+    const playerRank = this.getRank(this.highScore).name;
+    const playerRankIndex = RANK_ORDER.indexOf(playerRank);
+
+    const unlockedStyles: string[] = [];
+    for (const [styleKey, style] of Object.entries(BALL_STYLES)) {
+      const requiredRankIndex = RANK_ORDER.indexOf(style.requiredRank);
+      if (requiredRankIndex <= playerRankIndex) {
+        unlockedStyles.push(styleKey);
+      }
+    }
+    return unlockedStyles;
   }
 
   createTitle(width: number, height: number) {
@@ -231,9 +341,444 @@ export default class StartScene extends Phaser.Scene {
       delay: 600,
     });
 
+    // Create ball select button
+    this.createBallSelectButton(width, height);
+
     // Create bouncing ball animation after button appears
     this.time.delayedCall(1000, () => {
       this.createBouncingBall(width, height);
+    });
+  }
+
+  createBallSelectButton(width: number, height: number) {
+    const btnWidth = Math.min(320, width * 0.65);
+    const btnHeight = 80;
+    const cornerRadius = 22;
+
+    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.72);
+    this.ballSelectBtnContainer.setAlpha(0);
+
+    // Button background - magenta with black border
+    const btnBg = this.add.graphics();
+    // Black border
+    btnBg.fillStyle(0x000000, 1);
+    btnBg.fillRoundedRect(
+      -btnWidth / 2 - 5,
+      -btnHeight / 2 - 5,
+      btnWidth + 10,
+      btnHeight + 10,
+      cornerRadius + 2
+    );
+    // Magenta fill
+    btnBg.fillStyle(0xe91e8c, 1);
+    btnBg.fillRoundedRect(
+      -btnWidth / 2,
+      -btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      cornerRadius
+    );
+    this.ballSelectBtnContainer.add(btnBg);
+
+    // Button text
+    const btnText = this.add
+      .text(0, 0, "BALLS", {
+        fontSize: "52px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 7,
+      })
+      .setOrigin(0.5);
+    this.ballSelectBtnContainer.add(btnText);
+
+    // Interactive zone
+    const zone = this.add
+      .zone(0, 0, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.ballSelectBtnContainer,
+          scale: 1.08,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: this.ballSelectBtnContainer,
+          scale: 1,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        this.showBallSelectModal();
+      });
+    this.ballSelectBtnContainer.add(zone);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: this.ballSelectBtnContainer,
+      alpha: 1,
+      duration: 400,
+      delay: 800,
+    });
+  }
+
+  showBallSelectModal() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    this.ballSelectModalContainer = this.add.container(0, 0);
+    this.ballSelectModalContainer.setAlpha(0);
+    this.ballSelectModalContainer.setDepth(100);
+
+    // Dark overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.95);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, width, height),
+      Phaser.Geom.Rectangle.Contains
+    );
+    this.ballSelectModalContainer.add(overlay);
+
+    // Modal title
+    const titleFontSize = Math.min(42, width * 0.09);
+    const title = this.add
+      .text(width / 2, height * 0.12, "SELECT BALL", {
+        fontSize: `${titleFontSize}px`,
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 8,
+      })
+      .setOrigin(0.5);
+    this.ballSelectModalContainer.add(title);
+
+    // Get unlocked styles
+    const unlockedStyles = this.getUnlockedBallStyles();
+    const allStyles = Object.keys(BALL_STYLES);
+
+    // Ball grid - better spacing
+    const gridCols = 3;
+    const ballSize = Math.min(80, width * 0.2);
+    const spacingX = Math.min(120, width * 0.3);
+    const spacingY = Math.min(140, height * 0.22);
+    const startX = width / 2 - spacingX;
+    const startY = height * 0.3;
+
+    allStyles.forEach((styleKey, index) => {
+      const col = index % gridCols;
+      const row = Math.floor(index / gridCols);
+      const x = startX + col * spacingX;
+      const y = startY + row * spacingY;
+
+      const isUnlocked = unlockedStyles.includes(styleKey);
+      const isSelected = this.selectedBallStyle === styleKey;
+      const style = BALL_STYLES[styleKey];
+
+      // Ball container for this option
+      const ballContainer = this.add.container(x, y);
+      this.ballSelectModalContainer.add(ballContainer);
+
+      // Selection highlight (if selected)
+      if (isSelected) {
+        const selectHighlight = this.add.graphics();
+        selectHighlight.lineStyle(4, 0xffd93d, 1);
+        selectHighlight.strokeCircle(0, 0, ballSize / 2 + 10);
+        ballContainer.add(selectHighlight);
+      }
+
+      // Ball background (black border)
+      const ballBorder = this.add.graphics();
+      ballBorder.fillStyle(0x000000, 1);
+      ballBorder.fillCircle(0, 0, ballSize / 2 + 4);
+      ballContainer.add(ballBorder);
+
+      // Ball fill - replicate exact game ball styles
+      const ballFill = this.add.graphics();
+      if (isUnlocked) {
+        // Draw ball based on style key to match game exactly
+        this.drawBallStyle(ballFill, styleKey, ballSize / 2);
+
+        // Add aura glow if present
+        if (style.colors.aura) {
+          const aura = this.add.graphics();
+          aura.fillStyle(style.colors.aura, 0.3);
+          aura.fillCircle(0, 0, ballSize / 2 + 12);
+          ballContainer.addAt(aura, 0);
+        }
+      } else {
+        // Locked - gray with lock icon
+        ballFill.fillStyle(0x555555, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+
+        // Lock icon (simple representation)
+        const lockIcon = this.add
+          .text(0, 0, "🔒", {
+            fontSize: "24px",
+          })
+          .setOrigin(0.5);
+        ballContainer.add(lockIcon);
+      }
+      ballContainer.add(ballFill);
+
+      // Ball name
+      const nameText = this.add
+        .text(0, ballSize / 2 + 18, style.name, {
+          fontSize: "16px",
+          color: isUnlocked ? "#FFFFFF" : "#888888",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5);
+      ballContainer.add(nameText);
+
+      // Required rank (if locked)
+      if (!isUnlocked) {
+        const rankReq = this.add
+          .text(0, ballSize / 2 + 36, style.requiredRank, {
+            fontSize: "12px",
+            color: "#ff6b6b",
+            fontFamily: "Fredoka",
+            stroke: "#000000",
+            strokeThickness: 2,
+          })
+          .setOrigin(0.5);
+        ballContainer.add(rankReq);
+      }
+
+      // Interactive zone (only for unlocked)
+      if (isUnlocked) {
+        const zone = this.add
+          .zone(0, 0, ballSize + 20, ballSize + 40)
+          .setInteractive({ useHandCursor: true })
+          .on("pointerover", () => {
+            this.tweens.add({
+              targets: ballContainer,
+              scale: 1.1,
+              duration: 100,
+            });
+          })
+          .on("pointerout", () => {
+            this.tweens.add({
+              targets: ballContainer,
+              scale: 1,
+              duration: 100,
+            });
+          })
+          .on("pointerdown", async () => {
+            await this.saveBallStyle(styleKey);
+            this.closeBallSelectModal();
+            // Recreate button to update icon
+            this.ballSelectBtnContainer.destroy();
+            this.createBallSelectButton(width, height);
+            this.ballSelectBtnContainer.setAlpha(1);
+          });
+        ballContainer.add(zone);
+      }
+    });
+
+    // Close button
+    const closeBtnY = height * 0.88;
+    const closeBtnWidth = Math.min(180, width * 0.4);
+    const closeBtnHeight = 50;
+    const closeCornerRadius = 14;
+
+    const closeContainer = this.add.container(width / 2, closeBtnY);
+    this.ballSelectModalContainer.add(closeContainer);
+
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0x000000, 1);
+    closeBg.fillRoundedRect(
+      -closeBtnWidth / 2 - 3,
+      -closeBtnHeight / 2 - 3,
+      closeBtnWidth + 6,
+      closeBtnHeight + 6,
+      closeCornerRadius + 2
+    );
+    closeBg.fillStyle(0x7f8c8d, 1);
+    closeBg.fillRoundedRect(
+      -closeBtnWidth / 2,
+      -closeBtnHeight / 2,
+      closeBtnWidth,
+      closeBtnHeight,
+      closeCornerRadius
+    );
+    closeContainer.add(closeBg);
+
+    const closeText = this.add
+      .text(0, 0, "CLOSE", {
+        fontSize: "26px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    closeContainer.add(closeText);
+
+    const closeZone = this.add
+      .zone(0, 0, closeBtnWidth, closeBtnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: closeContainer,
+          scale: 1.08,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: closeContainer,
+          scale: 1,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        this.closeBallSelectModal();
+      });
+    closeContainer.add(closeZone);
+
+    // Fade in
+    this.tweens.add({
+      targets: this.ballSelectModalContainer,
+      alpha: 1,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  drawBallStyle(
+    graphics: Phaser.GameObjects.Graphics,
+    styleKey: string,
+    radius: number
+  ) {
+    // Draw ball styles to match the game exactly
+    switch (styleKey) {
+      case "unranked":
+        // Simple gray ball (no aura in game)
+        graphics.fillStyle(0x7f8c8d, 1);
+        graphics.fillCircle(0, 0, radius);
+        break;
+
+      case "noob":
+        // Green solid ball
+        graphics.fillStyle(0x2ecc71, 1);
+        graphics.fillCircle(0, 0, radius);
+        // Small highlight
+        graphics.fillStyle(0xffffff, 0.4);
+        graphics.fillCircle(-radius * 0.3, -radius * 0.3, radius * 0.25);
+        break;
+
+      case "pro":
+        // White with red polka dots
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillCircle(0, 0, radius);
+        // Red dots
+        const proDotRadius = radius * 0.18;
+        const proDotPositions = [
+          { x: -radius * 0.35, y: -radius * 0.35 },
+          { x: radius * 0.35, y: -radius * 0.3 },
+          { x: -radius * 0.3, y: radius * 0.35 },
+          { x: radius * 0.4, y: radius * 0.3 },
+          { x: 0, y: -radius * 0.5 },
+          { x: 0, y: radius * 0.5 },
+        ];
+        proDotPositions.forEach((pos) => {
+          graphics.fillStyle(0xff2222, 1);
+          graphics.fillCircle(pos.x, pos.y, proDotRadius);
+        });
+        break;
+
+      case "master":
+        // Two-tone: top half orange, bottom half yellow (Gravity Master)
+        // Top half - orange
+        graphics.fillStyle(0xff6b35, 1);
+        graphics.slice(
+          0,
+          0,
+          radius,
+          Phaser.Math.DegToRad(180),
+          Phaser.Math.DegToRad(360),
+          false
+        );
+        graphics.fillPath();
+        // Bottom half - yellow
+        graphics.fillStyle(0xffd93d, 1);
+        graphics.slice(
+          0,
+          0,
+          radius,
+          Phaser.Math.DegToRad(0),
+          Phaser.Math.DegToRad(180),
+          false
+        );
+        graphics.fillPath();
+        break;
+
+      case "legend":
+        // Horizontal color bands (multicolor waves)
+        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+        const numBands = 6;
+        const bandHeight = (radius * 2) / numBands;
+        for (let i = 0; i < numBands; i++) {
+          const color = legendColors[i % legendColors.length];
+          graphics.fillStyle(color, 1);
+          const y = -radius + i * bandHeight;
+          graphics.fillRect(-radius, y, radius * 2, bandHeight);
+        }
+        // Clip to circle shape by drawing circle on top with mask effect
+        // Since Phaser doesn't have easy masking, we'll use a different approach
+        // Draw colored circle segments instead
+        graphics.clear();
+        const segments = 8;
+        const segmentAngle = (Math.PI * 2) / segments;
+        for (let i = 0; i < segments; i++) {
+          const color = legendColors[i % legendColors.length];
+          graphics.fillStyle(color, 1);
+          graphics.slice(
+            0,
+            0,
+            radius,
+            i * segmentAngle,
+            (i + 1) * segmentAngle,
+            false
+          );
+          graphics.fillPath();
+        }
+        break;
+
+      case "remixer":
+        // Neon green solid ball
+        graphics.fillStyle(0xb7ff00, 1);
+        graphics.fillCircle(0, 0, radius);
+        // Bright highlight
+        graphics.fillStyle(0xffffff, 0.5);
+        graphics.fillCircle(-radius * 0.3, -radius * 0.3, radius * 0.25);
+        break;
+
+      default:
+        // Fallback green
+        graphics.fillStyle(0x2ecc71, 1);
+        graphics.fillCircle(0, 0, radius);
+        break;
+    }
+  }
+
+  closeBallSelectModal() {
+    this.tweens.add({
+      targets: this.ballSelectModalContainer,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => {
+        this.ballSelectModalContainer.destroy();
+      },
     });
   }
 
@@ -336,7 +881,10 @@ export default class StartScene extends Phaser.Scene {
     if (!this.hasSeenTutorial) {
       this.showTutorialModal();
     } else {
-      this.scene.start("HelixScene", { testRank: this.testRank });
+      this.scene.start("HelixScene", {
+        testRank: this.testRank,
+        ballStyle: this.selectedBallStyle,
+      });
     }
   }
 
@@ -451,7 +999,10 @@ export default class StartScene extends Phaser.Scene {
           alpha: 0,
           duration: 300,
           onComplete: () => {
-            this.scene.start("HelixScene", { testRank: this.testRank });
+            this.scene.start("HelixScene", {
+              testRank: this.testRank,
+              ballStyle: this.selectedBallStyle,
+            });
           },
         });
       });
@@ -486,7 +1037,13 @@ export default class StartScene extends Phaser.Scene {
     const panelHeight = 50;
     const panel = this.add.graphics();
     panel.fillStyle(0x000000, 0.8);
-    panel.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 10);
+    panel.fillRoundedRect(
+      -panelWidth / 2,
+      -panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      10
+    );
     this.devControlsContainer.add(panel);
 
     // Rank display text
@@ -512,7 +1069,8 @@ export default class StartScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => {
         const currentIndex = this.ranks.indexOf(this.testRank);
-        const newIndex = (currentIndex - 1 + this.ranks.length) % this.ranks.length;
+        const newIndex =
+          (currentIndex - 1 + this.ranks.length) % this.ranks.length;
         this.testRank = this.ranks[newIndex];
         this.rankDisplayText.setText(`Test Rank: ${this.testRank}`);
       });
