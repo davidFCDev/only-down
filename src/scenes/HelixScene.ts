@@ -61,6 +61,8 @@ export default class HelixScene extends Phaser.Scene {
   private jumpSound!: Phaser.Sound.BaseSound;
   private currentMusic!: Phaser.Sound.BaseSound;
   private musicTracks: string[] = ["music1", "music2", "music3"];
+  private premiumMusicTracks: string[] = ["unlock1", "unlock2"]; // Unlocked at score >= 500
+  private playerHighScore: number = 0; // Player's high score for premium content
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
   private audioContext: AudioContext | null = null;
@@ -71,12 +73,15 @@ export default class HelixScene extends Phaser.Scene {
     super("HelixScene");
   }
 
-  init(data?: { testRank?: string; ballStyle?: string }) {
+  init(data?: { testRank?: string; ballStyle?: string; highScore?: number }) {
     if (data?.testRank) {
       this.testRank = data.testRank;
     }
     if (data?.ballStyle) {
       this.selectedBallStyle = data.ballStyle;
+    }
+    if (typeof data?.highScore === "number") {
+      this.playerHighScore = data.highScore;
     }
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -1073,8 +1078,10 @@ export default class HelixScene extends Phaser.Scene {
     if (this.currentMusic) {
       this.currentMusic.stop();
     }
+    // Get available tracks based on player's high score
+    const availableTracks = this.getAvailableMusicTracks();
     const randomTrack =
-      this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
+      availableTracks[Math.floor(Math.random() * availableTracks.length)];
     this.currentMusic = this.sound.add(randomTrack, { volume: 0, loop: true });
     this.currentMusic.play();
     // Beep will be played in update loop
@@ -1544,6 +1551,16 @@ export default class HelixScene extends Phaser.Scene {
       Unranked: "unranked",
     };
     return rankToStyle[rank] || "unranked";
+  }
+
+  getAvailableMusicTracks(): string[] {
+    // Premium tracks are unlocked at score >= 500 (Gravity Master rank)
+    if (this.playerHighScore >= 500) {
+      // Combine base tracks with premium tracks
+      return [...this.musicTracks, ...this.premiumMusicTracks];
+    }
+    // Only base tracks
+    return this.musicTracks;
   }
 
   activateSuperSmash() {

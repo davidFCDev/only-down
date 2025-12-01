@@ -1004,6 +1004,7 @@ export default class StartScene extends Phaser.Scene {
       this.scene.start("HelixScene", {
         testRank: this.testRank,
         ballStyle: this.selectedBallStyle,
+        highScore: this.highScore,
       });
     }
   }
@@ -1122,6 +1123,7 @@ export default class StartScene extends Phaser.Scene {
             this.scene.start("HelixScene", {
               testRank: this.testRank,
               ballStyle: this.selectedBallStyle,
+              highScore: this.highScore,
             });
           },
         });
