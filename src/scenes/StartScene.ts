@@ -12,12 +12,12 @@ const BALL_STYLES: {
   unranked: {
     name: "Basic",
     requiredRank: "Unranked",
-    colors: { base: 0x7f8c8d },
+    colors: { base: 0x2ecc71 }, // Green like the game
   },
   noob: {
     name: "Noob",
     requiredRank: "Noob",
-    colors: { base: 0x2ecc71, aura: 0x2ecc71 },
+    colors: { base: 0x00d2d3, aura: 0x00d2d3 }, // Cyan
   },
   pro: {
     name: "Pro",
@@ -64,6 +64,8 @@ export default class StartScene extends Phaser.Scene {
   private ballSelectModalContainer!: Phaser.GameObjects.Container;
   private tutorialContainer!: Phaser.GameObjects.Container;
   private bouncingBall!: Phaser.GameObjects.Container;
+  private bouncingBallGraphics!: Phaser.GameObjects.Graphics;
+  private bouncingBallImage: Phaser.GameObjects.Image | null = null;
   private hasSeenTutorial: boolean = false;
   private highScore: number = 0;
   private selectedBallStyle: string = "unranked";
@@ -463,11 +465,11 @@ export default class StartScene extends Phaser.Scene {
 
     // Ball grid - better spacing
     const gridCols = 3;
-    const ballSize = Math.min(80, width * 0.2);
-    const spacingX = Math.min(120, width * 0.3);
-    const spacingY = Math.min(140, height * 0.22);
+    const ballSize = Math.min(75, width * 0.18);
+    const spacingX = Math.min(130, width * 0.32);
+    const spacingY = Math.min(160, height * 0.24);
     const startX = width / 2 - spacingX;
-    const startY = height * 0.3;
+    const startY = height * 0.32;
 
     allStyles.forEach((styleKey, index) => {
       const col = index % gridCols;
@@ -501,7 +503,7 @@ export default class StartScene extends Phaser.Scene {
       const ballFill = this.add.graphics();
       if (isUnlocked) {
         // Draw ball based on style key to match game exactly
-        this.drawBallStyle(ballFill, styleKey, ballSize / 2);
+        this.drawBallStyle(ballFill, styleKey, ballSize / 2, ballContainer);
 
         // Add aura glow if present
         if (style.colors.aura) {
@@ -527,13 +529,13 @@ export default class StartScene extends Phaser.Scene {
 
       // Ball name
       const nameText = this.add
-        .text(0, ballSize / 2 + 18, style.name, {
-          fontSize: "16px",
+        .text(0, ballSize / 2 + 28, style.name, {
+          fontSize: "20px",
           color: isUnlocked ? "#FFFFFF" : "#888888",
           fontFamily: "Fredoka",
           fontStyle: "bold",
           stroke: "#000000",
-          strokeThickness: 3,
+          strokeThickness: 4,
         })
         .setOrigin(0.5);
       ballContainer.add(nameText);
@@ -541,7 +543,7 @@ export default class StartScene extends Phaser.Scene {
       // Required rank (if locked)
       if (!isUnlocked) {
         const rankReq = this.add
-          .text(0, ballSize / 2 + 36, style.requiredRank, {
+          .text(0, ballSize / 2 + 48, style.requiredRank, {
             fontSize: "12px",
             color: "#ff6b6b",
             fontFamily: "Fredoka",
@@ -578,6 +580,8 @@ export default class StartScene extends Phaser.Scene {
             this.ballSelectBtnContainer.destroy();
             this.createBallSelectButton(width, height);
             this.ballSelectBtnContainer.setAlpha(1);
+            // Update bouncing ball style
+            this.updateBouncingBallStyle();
           });
         ballContainer.add(zone);
       }
@@ -657,19 +661,20 @@ export default class StartScene extends Phaser.Scene {
   drawBallStyle(
     graphics: Phaser.GameObjects.Graphics,
     styleKey: string,
-    radius: number
+    radius: number,
+    container?: Phaser.GameObjects.Container
   ) {
     // Draw ball styles to match the game exactly
     switch (styleKey) {
       case "unranked":
-        // Simple gray ball (no aura in game)
-        graphics.fillStyle(0x7f8c8d, 1);
+        // Green ball (same as game Basic/Unranked)
+        graphics.fillStyle(0x2ecc71, 1);
         graphics.fillCircle(0, 0, radius);
         break;
 
       case "noob":
-        // Green solid ball
-        graphics.fillStyle(0x2ecc71, 1);
+        // Cyan solid ball
+        graphics.fillStyle(0x00d2d3, 1);
         graphics.fillCircle(0, 0, radius);
         // Small highlight
         graphics.fillStyle(0xffffff, 0.4);
@@ -677,23 +682,79 @@ export default class StartScene extends Phaser.Scene {
         break;
 
       case "pro":
-        // White with red polka dots
-        graphics.fillStyle(0xffffff, 1);
-        graphics.fillCircle(0, 0, radius);
-        // Red dots
-        const proDotRadius = radius * 0.18;
-        const proDotPositions = [
-          { x: -radius * 0.35, y: -radius * 0.35 },
-          { x: radius * 0.35, y: -radius * 0.3 },
-          { x: -radius * 0.3, y: radius * 0.35 },
-          { x: radius * 0.4, y: radius * 0.3 },
-          { x: 0, y: -radius * 0.5 },
-          { x: 0, y: radius * 0.5 },
-        ];
-        proDotPositions.forEach((pos) => {
-          graphics.fillStyle(0xff2222, 1);
-          graphics.fillCircle(pos.x, pos.y, proDotRadius);
-        });
+        // White with red polka dots - using canvas texture like the 3D game
+        // Create a temporary canvas to generate the polka dot pattern
+        const proCanvas = document.createElement("canvas");
+        const proSize = radius * 4; // Higher resolution
+        proCanvas.width = proSize;
+        proCanvas.height = proSize;
+        const proCtx = proCanvas.getContext("2d")!;
+
+        // White background
+        proCtx.fillStyle = "#ffffff";
+        proCtx.beginPath();
+        proCtx.arc(proSize / 2, proSize / 2, proSize / 2, 0, Math.PI * 2);
+        proCtx.fill();
+
+        // Clip to circle
+        proCtx.save();
+        proCtx.beginPath();
+        proCtx.arc(proSize / 2, proSize / 2, proSize / 2, 0, Math.PI * 2);
+        proCtx.clip();
+
+        // Red polka dots in grid pattern with offset (same as game texture)
+        const proDotColor = "#ff2222";
+        const proDotRadius = proSize * 0.08;
+        const proSpacing = proSize * 0.25;
+
+        for (let row = -1; row < 6; row++) {
+          for (let col = -1; col < 6; col++) {
+            const x = col * proSpacing + (row % 2) * (proSpacing / 2);
+            const y = row * proSpacing + proSpacing * 0.3;
+
+            proCtx.beginPath();
+            proCtx.fillStyle = proDotColor;
+            proCtx.arc(x, y, proDotRadius, 0, Math.PI * 2);
+            proCtx.fill();
+          }
+        }
+
+        proCtx.restore();
+
+        // Add subtle 3D shading
+        const proGradient = proCtx.createRadialGradient(
+          proSize * 0.35,
+          proSize * 0.35,
+          0,
+          proSize / 2,
+          proSize / 2,
+          proSize / 2
+        );
+        proGradient.addColorStop(0, "rgba(255, 255, 255, 0.3)");
+        proGradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+        proGradient.addColorStop(1, "rgba(0, 0, 0, 0.15)");
+
+        proCtx.beginPath();
+        proCtx.arc(proSize / 2, proSize / 2, proSize / 2, 0, Math.PI * 2);
+        proCtx.fillStyle = proGradient;
+        proCtx.fill();
+
+        // Create Phaser texture from canvas and draw it
+        const proTextureKey = "proBall_" + Date.now();
+        this.textures.addCanvas(proTextureKey, proCanvas);
+
+        // Draw the texture as an image centered at 0,0
+        const proImage = this.add.image(0, 0, proTextureKey);
+        proImage.setDisplaySize(radius * 2, radius * 2);
+        // Add to container (passed as param or parent)
+        const targetContainer = container || graphics.parentContainer;
+        if (targetContainer) {
+          targetContainer.add(proImage);
+          // Store reference if this is the bouncing ball
+          if (targetContainer === this.bouncingBall) {
+            this.bouncingBallImage = proImage;
+          }
+        }
         break;
 
       case "master":
@@ -815,17 +876,14 @@ export default class StartScene extends Phaser.Scene {
     ballBorder.fillCircle(0, 0, ballRadius + 4);
     this.bouncingBall.add(ballBorder);
 
-    // Ball fill (green like the game ball)
-    const ballFill = this.add.graphics();
-    ballFill.fillStyle(0x2ecc71, 1);
-    ballFill.fillCircle(0, 0, ballRadius);
-    this.bouncingBall.add(ballFill);
-
-    // Highlight
-    const highlight = this.add.graphics();
-    highlight.fillStyle(0xffffff, 0.4);
-    highlight.fillCircle(-8, -8, 8);
-    this.bouncingBall.add(highlight);
+    // Draw the selected ball style using the same method as the selector
+    this.bouncingBallGraphics = this.add.graphics();
+    this.drawBallStyle(
+      this.bouncingBallGraphics,
+      this.selectedBallStyle,
+      ballRadius
+    );
+    this.bouncingBall.add(this.bouncingBallGraphics);
 
     // Animation sequence
     // 1. Appear from inside the O letter
@@ -851,6 +909,26 @@ export default class StartScene extends Phaser.Scene {
         });
       },
     });
+  }
+
+  updateBouncingBallStyle() {
+    // Update the bouncing ball graphics to match the selected style
+    if (this.bouncingBallGraphics) {
+      this.bouncingBallGraphics.clear();
+
+      // Remove previous Pro image if exists
+      if (this.bouncingBallImage) {
+        this.bouncingBallImage.destroy();
+        this.bouncingBallImage = null;
+      }
+
+      this.drawBallStyle(
+        this.bouncingBallGraphics,
+        this.selectedBallStyle,
+        22,
+        this.bouncingBall
+      );
+    }
   }
 
   startContinuousBounce(baseY: number) {

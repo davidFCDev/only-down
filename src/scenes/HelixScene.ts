@@ -158,9 +158,9 @@ export default class HelixScene extends Phaser.Scene {
       map: proTexture,
     });
 
-    // Noob Material - Same as normal green
+    // Noob Material - Cyan color
     this.noobMaterial = new THREE.MeshBasicMaterial({
-      color: 0x2ecc71, // Green (Noob)
+      color: 0x00d2d3, // Cyan (Noob)
     });
 
     this.superMaterial = new THREE.MeshBasicMaterial({
@@ -1308,7 +1308,7 @@ export default class HelixScene extends Phaser.Scene {
           const proColors = [0xffffff, 0xff2222];
           trailColor = proColors[Math.floor(Math.random() * proColors.length)];
         } else if (materialToCheck === this.noobMaterial) {
-          trailColor = 0x2ecc71; // Noob green
+          trailColor = 0x00d2d3; // Noob cyan
         }
 
         const trailMat = new THREE.MeshBasicMaterial({ color: trailColor });
@@ -1372,7 +1372,7 @@ export default class HelixScene extends Phaser.Scene {
           explosionColor =
             proColors[Math.floor(Math.random() * proColors.length)];
         } else if (this.ball.material === this.noobMaterial) {
-          explosionColor = 0x2ecc71; // Noob green
+          explosionColor = 0x00d2d3; // Noob cyan
         }
 
         this.createExplosion(puWorldPos.y, explosionColor, 15, true);
@@ -1523,7 +1523,7 @@ export default class HelixScene extends Phaser.Scene {
       case "noob":
         this.ball.material = this.noobMaterial;
         this.ballAura.visible = true;
-        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0x2ecc71);
+        (this.ballAura.material as THREE.SpriteMaterial).color.setHex(0x00d2d3);
         break;
       case "unranked":
       default:
