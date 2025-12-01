@@ -186,7 +186,7 @@ export default class StartScene extends Phaser.Scene {
 
   getUnlockedBallStyles(): string[] {
     // DEV MODE: Unlock all ball styles for testing
-    const devMode = true;
+    const devMode = false;
     if (devMode) {
       return Object.keys(BALL_STYLES);
     }
@@ -235,12 +235,31 @@ export default class StartScene extends Phaser.Scene {
 
   getRank(score: number): { name: string; color: string } {
     // Rank thresholds and names
+    // All ranks yellow except Remixer which is neon green
     if (score >= 1000) return { name: "Remixer", color: "#b7ff00" }; // Neon Green
-    if (score >= 750) return { name: "Legend", color: "#ff9f43" }; // Orange
-    if (score >= 500) return { name: "Gravity Master", color: "#e91e8c" }; // Magenta
-    if (score >= 250) return { name: "Pro", color: "#3498db" }; // Blue
-    if (score >= 50) return { name: "Noob", color: "#2ecc71" }; // Green
-    return { name: "Unranked", color: "#7f8c8d" }; // Dark gray
+    if (score >= 750) return { name: "Legend", color: "#ffd93d" }; // Yellow
+    if (score >= 500) return { name: "Gravity Master", color: "#ffd93d" }; // Yellow
+    if (score >= 250) return { name: "Pro", color: "#ffd93d" }; // Yellow
+    if (score >= 50) return { name: "Noob", color: "#ffd93d" }; // Yellow
+    return { name: "Unranked", color: "#ffd93d" }; // Yellow
+  }
+
+  getScoreForRank(rankName: string): number {
+    // Returns the minimum score required for each rank
+    switch (rankName) {
+      case "Remixer":
+        return 1000;
+      case "Legend":
+        return 750;
+      case "Gravity Master":
+        return 500;
+      case "Pro":
+        return 250;
+      case "Noob":
+        return 50;
+      default:
+        return 0;
+    }
   }
 
   createRankDisplay(width: number, height: number) {
@@ -466,10 +485,10 @@ export default class StartScene extends Phaser.Scene {
     // Ball grid - better spacing
     const gridCols = 3;
     const ballSize = Math.min(75, width * 0.18);
-    const spacingX = Math.min(130, width * 0.32);
-    const spacingY = Math.min(160, height * 0.24);
+    const spacingX = Math.min(145, width * 0.36);
+    const spacingY = Math.min(175, height * 0.27);
     const startX = width / 2 - spacingX;
-    const startY = height * 0.32;
+    const startY = height * 0.3;
 
     allStyles.forEach((styleKey, index) => {
       const col = index % gridCols;
@@ -485,24 +504,23 @@ export default class StartScene extends Phaser.Scene {
       const ballContainer = this.add.container(x, y);
       this.ballSelectModalContainer.add(ballContainer);
 
-      // Selection highlight (if selected)
-      if (isSelected) {
-        const selectHighlight = this.add.graphics();
-        selectHighlight.lineStyle(4, 0xffd93d, 1);
-        selectHighlight.strokeCircle(0, 0, ballSize / 2 + 10);
-        ballContainer.add(selectHighlight);
-      }
-
-      // Ball background (black border)
-      const ballBorder = this.add.graphics();
-      ballBorder.fillStyle(0x000000, 1);
-      ballBorder.fillCircle(0, 0, ballSize / 2 + 4);
-      ballContainer.add(ballBorder);
-
-      // Ball fill - replicate exact game ball styles
-      const ballFill = this.add.graphics();
       if (isUnlocked) {
-        // Draw ball based on style key to match game exactly
+        // Selection highlight (if selected)
+        if (isSelected) {
+          const selectHighlight = this.add.graphics();
+          selectHighlight.lineStyle(4, 0xffd93d, 1);
+          selectHighlight.strokeCircle(0, 0, ballSize / 2 + 10);
+          ballContainer.add(selectHighlight);
+        }
+
+        // Ball background (black border)
+        const ballBorder = this.add.graphics();
+        ballBorder.fillStyle(0x000000, 1);
+        ballBorder.fillCircle(0, 0, ballSize / 2 + 4);
+        ballContainer.add(ballBorder);
+
+        // Ball fill - replicate exact game ball styles
+        const ballFill = this.add.graphics();
         this.drawBallStyle(ballFill, styleKey, ballSize / 2, ballContainer);
 
         // Add aura glow if present
@@ -512,50 +530,22 @@ export default class StartScene extends Phaser.Scene {
           aura.fillCircle(0, 0, ballSize / 2 + 12);
           ballContainer.addAt(aura, 0);
         }
-      } else {
-        // Locked - gray with lock icon
-        ballFill.fillStyle(0x555555, 1);
-        ballFill.fillCircle(0, 0, ballSize / 2);
+        ballContainer.add(ballFill);
 
-        // Lock icon (simple representation)
-        const lockIcon = this.add
-          .text(0, 0, "🔒", {
-            fontSize: "24px",
-          })
-          .setOrigin(0.5);
-        ballContainer.add(lockIcon);
-      }
-      ballContainer.add(ballFill);
-
-      // Ball name
-      const nameText = this.add
-        .text(0, ballSize / 2 + 28, style.name, {
-          fontSize: "20px",
-          color: isUnlocked ? "#FFFFFF" : "#888888",
-          fontFamily: "Fredoka",
-          fontStyle: "bold",
-          stroke: "#000000",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5);
-      ballContainer.add(nameText);
-
-      // Required rank (if locked)
-      if (!isUnlocked) {
-        const rankReq = this.add
-          .text(0, ballSize / 2 + 48, style.requiredRank, {
-            fontSize: "12px",
-            color: "#ff6b6b",
+        // Ball name below
+        const nameText = this.add
+          .text(0, ballSize / 2 + 28, style.name, {
+            fontSize: "20px",
+            color: "#FFFFFF",
             fontFamily: "Fredoka",
+            fontStyle: "bold",
             stroke: "#000000",
-            strokeThickness: 2,
+            strokeThickness: 4,
           })
           .setOrigin(0.5);
-        ballContainer.add(rankReq);
-      }
+        ballContainer.add(nameText);
 
-      // Interactive zone (only for unlocked)
-      if (isUnlocked) {
+        // Interactive zone
         const zone = this.add
           .zone(0, 0, ballSize + 20, ballSize + 40)
           .setInteractive({ useHandCursor: true })
@@ -584,6 +574,58 @@ export default class StartScene extends Phaser.Scene {
             this.updateBouncingBallStyle();
           });
         ballContainer.add(zone);
+      } else {
+        // Locked - show placeholder ball with score requirement
+        // Get score requirement based on rank
+        const scoreRequired = this.getScoreForRank(style.requiredRank);
+
+        // Gray placeholder ball (no style, just silhouette)
+        const placeholderBorder = this.add.graphics();
+        placeholderBorder.fillStyle(0x000000, 1);
+        placeholderBorder.fillCircle(0, 0, ballSize / 2 + 4);
+        ballContainer.add(placeholderBorder);
+
+        const placeholderBall = this.add.graphics();
+        placeholderBall.fillStyle(0x444444, 1);
+        placeholderBall.fillCircle(0, 0, ballSize / 2);
+        ballContainer.add(placeholderBall);
+
+        // Question mark or lock on the ball
+        const lockIcon = this.add
+          .text(0, 0, "?", {
+            fontSize: "32px",
+            color: "#666666",
+            fontFamily: "Fredoka",
+            fontStyle: "bold",
+          })
+          .setOrigin(0.5);
+        ballContainer.add(lockIcon);
+
+        // Score requirement text (above ball)
+        const scoreText = this.add
+          .text(0, -ballSize / 2 - 18, `${scoreRequired} pts`, {
+            fontSize: "16px",
+            color: "#ffd93d",
+            fontFamily: "Fredoka",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 3,
+          })
+          .setOrigin(0.5);
+        ballContainer.add(scoreText);
+
+        // Ball name below
+        const nameText = this.add
+          .text(0, ballSize / 2 + 28, style.name, {
+            fontSize: "20px",
+            color: "#888888",
+            fontFamily: "Fredoka",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 4,
+          })
+          .setOrigin(0.5);
+        ballContainer.add(nameText);
       }
     });
 
