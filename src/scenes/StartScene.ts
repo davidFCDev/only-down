@@ -886,6 +886,8 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createBouncingBall(width: number, height: number) {
+    console.log("🎱 Creating bouncing ball with style:", this.selectedBallStyle);
+    
     // Get the position of the "O" in "DOWN" from title
     const titleY = height * 0.18;
     const titleFontSize = Math.min(90, width * 0.18);
@@ -920,12 +922,14 @@ export default class StartScene extends Phaser.Scene {
 
     // Draw the selected ball style using the same method as the selector
     this.bouncingBallGraphics = this.add.graphics();
+    this.bouncingBall.add(this.bouncingBallGraphics);
+    // Pass container to ensure Pro ball image is added correctly
     this.drawBallStyle(
       this.bouncingBallGraphics,
       this.selectedBallStyle,
-      ballRadius
+      ballRadius,
+      this.bouncingBall
     );
-    this.bouncingBall.add(this.bouncingBallGraphics);
 
     // Animation sequence
     // 1. Appear from inside the O letter

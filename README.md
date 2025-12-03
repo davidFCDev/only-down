@@ -2,7 +2,7 @@
 
 A fast-paced arcade game where you guide a ball through an endless helix tower, smashing platforms and chasing high scores!
 
-> *"The only way is down... but how far can you go?"*
+> _"The only way is down... but how far can you go?"_
 
 ## 🎮 Gameplay
 
@@ -14,14 +14,14 @@ A fast-paced arcade game where you guide a ball through an endless helix tower, 
 
 ## 🏆 Rank System
 
-| Rank | Score Required | Unlocks |
-|------|---------------|---------|
-| Unranked | 0 | Basic Ball |
-| Noob | 50 | Cyan Ball |
-| Pro | 250 | Polka Dot Ball |
-| Gravity Master | 500 | Master Ball + Premium Music |
-| Legend | 750 | Rainbow Ball |
-| Remixer | 1000 | Neon Green Ball |
+| Rank           | Score Required | Unlocks                     |
+| -------------- | -------------- | --------------------------- |
+| Unranked       | 0              | Basic Ball                  |
+| Noob           | 50             | Cyan Ball                   |
+| Pro            | 250            | Polka Dot Ball              |
+| Gravity Master | 500            | Master Ball + Premium Music |
+| Legend         | 750            | Rainbow Ball                |
+| Remixer        | 1000           | Neon Green Ball             |
 
 ## ✨ Features
 
@@ -64,4 +64,4 @@ npm run preview  # Preview production build
 
 ---
 
-*Made with 💚 by Hellbound Studios™*
+_Made with 💚 by Hellbound Studios™_
