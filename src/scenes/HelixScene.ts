@@ -356,33 +356,38 @@ export default class HelixScene extends Phaser.Scene {
 
   createBarberPoleTexture() {
     const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 128;
+    const size = 128;
+    canvas.width = size;
+    canvas.height = size;
     const context = canvas.getContext("2d")!;
 
-    // Dark 2-color scheme - dark grays
-    const colors = ["#2a2a2a", "#1a1a1a"];
-    const stripeWidth = 64;
+    // Dark 2-color scheme
+    const color1 = "#2a2a2a";
+    const color2 = "#1a1a1a";
 
-    // Draw diagonal stripes
-    for (let i = -256; i < 256; i += stripeWidth * colors.length) {
-      colors.forEach((color, idx) => {
-        context.fillStyle = color;
-        context.beginPath();
-        const offset = i + idx * stripeWidth;
-        context.moveTo(offset, 0);
-        context.lineTo(offset + stripeWidth, 0);
-        context.lineTo(offset + stripeWidth + 128, 128);
-        context.lineTo(offset + 128, 128);
-        context.closePath();
-        context.fill();
-      });
+    // Fill background
+    context.fillStyle = color1;
+    context.fillRect(0, 0, size, size);
+
+    // Draw diagonal stripes - tileable pattern
+    context.fillStyle = color2;
+    const stripeWidth = size / 2;
+
+    // Draw stripes that tile seamlessly
+    for (let i = -size; i < size * 2; i += stripeWidth * 2) {
+      context.beginPath();
+      context.moveTo(i, 0);
+      context.lineTo(i + stripeWidth, 0);
+      context.lineTo(i + stripeWidth + size, size);
+      context.lineTo(i + size, size);
+      context.closePath();
+      context.fill();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 40); // Repeat along the height of the tower
+    texture.repeat.set(1, 50);
     return texture;
   }
 

@@ -886,8 +886,11 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createBouncingBall(width: number, height: number) {
-    console.log("🎱 Creating bouncing ball with style:", this.selectedBallStyle);
-    
+    console.log(
+      "🎱 Creating bouncing ball with style:",
+      this.selectedBallStyle
+    );
+
     // Get the position of the "O" in "DOWN" from title
     const titleY = height * 0.18;
     const titleFontSize = Math.min(90, width * 0.18);
@@ -1017,6 +1020,16 @@ export default class StartScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
+    // Disable background buttons
+    this.startBtnContainer.disableInteractive();
+    this.ballSelectBtnContainer.disableInteractive();
+    this.startBtnContainer.each((child: any) => {
+      if (child.disableInteractive) child.disableInteractive();
+    });
+    this.ballSelectBtnContainer.each((child: any) => {
+      if (child.disableInteractive) child.disableInteractive();
+    });
+
     this.tutorialContainer = this.add.container(0, 0);
     this.tutorialContainer.setAlpha(0);
     this.tutorialContainer.setDepth(100);
@@ -1027,54 +1040,56 @@ export default class StartScene extends Phaser.Scene {
     overlay.fillRect(0, 0, width, height);
     this.tutorialContainer.add(overlay);
 
-    // Tutorial points in white - larger text, no title
+    // Tutorial points with arrows
     const tutorialPoints = [
-      "Tap left or right to move",
+      "Tap left or right to rotate",
       "Fall through the gaps",
-      "Avoid the red zones!",
+      "Avoid the striped zones!",
       "Collect power-ups",
     ];
 
-    const startY = height * 0.22;
-    const lineHeight = 100;
-    const fontSize = Math.min(38, width * 0.08);
+    const centerX = width / 2;
+    const startY = height * 0.28;
+    const lineHeight = 75;
+    const fontSize = 32;
 
     tutorialPoints.forEach((text, index) => {
-      const textObj = this.add
-        .text(width / 2, startY + index * lineHeight, text, {
+      const yPos = startY + index * lineHeight;
+
+      const pointText = this.add
+        .text(centerX, yPos, `>  ${text}`, {
           fontSize: `${fontSize}px`,
           color: "#FFFFFF",
           fontFamily: "Fredoka",
           fontStyle: "bold",
           stroke: "#000000",
-          strokeThickness: 5,
-          align: "center",
+          strokeThickness: 4,
         })
         .setOrigin(0.5);
-      this.tutorialContainer.add(textObj);
+      this.tutorialContainer.add(pointText);
     });
 
-    // "GO!" button
-    const btnY = startY + tutorialPoints.length * lineHeight + 60;
-    const btnWidth = Math.min(240, width * 0.5);
-    const btnHeight = 65;
-    const cornerRadius = 18;
+    // GO button - same style as PLAY button
+    const btnY = startY + tutorialPoints.length * lineHeight + 70;
+    const btnWidth = 220;
+    const btnHeight = 80;
+    const cornerRadius = 22;
 
-    const btnContainer = this.add.container(width / 2, btnY);
+    const btnContainer = this.add.container(centerX, btnY);
     this.tutorialContainer.add(btnContainer);
 
     const btnBg = this.add.graphics();
-    // Black border
+    // Black border (slightly larger)
     btnBg.fillStyle(0x000000, 1);
     btnBg.fillRoundedRect(
-      -btnWidth / 2 - 4,
-      -btnHeight / 2 - 4,
-      btnWidth + 8,
-      btnHeight + 8,
+      -btnWidth / 2 - 5,
+      -btnHeight / 2 - 5,
+      btnWidth + 10,
+      btnHeight + 10,
       cornerRadius + 2
     );
-    // Magenta fill
-    btnBg.fillStyle(0xe91e8c, 1);
+    // Green fill
+    btnBg.fillStyle(0x2ecc71, 1);
     btnBg.fillRoundedRect(
       -btnWidth / 2,
       -btnHeight / 2,
@@ -1086,12 +1101,12 @@ export default class StartScene extends Phaser.Scene {
 
     const btnText = this.add
       .text(0, 0, "GO!", {
-        fontSize: "40px",
+        fontSize: "52px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 6,
+        strokeThickness: 7,
       })
       .setOrigin(0.5);
     btnContainer.add(btnText);
@@ -1100,25 +1115,15 @@ export default class StartScene extends Phaser.Scene {
       .zone(0, 0, btnWidth, btnHeight)
       .setInteractive({ useHandCursor: true })
       .on("pointerover", () => {
-        this.tweens.add({
-          targets: btnContainer,
-          scale: 1.08,
-          duration: 100,
-        });
+        this.tweens.add({ targets: btnContainer, scale: 1.05, duration: 100 });
       })
       .on("pointerout", () => {
-        this.tweens.add({
-          targets: btnContainer,
-          scale: 1,
-          duration: 100,
-        });
+        this.tweens.add({ targets: btnContainer, scale: 1, duration: 100 });
       })
       .on("pointerdown", async () => {
-        // Save that user has seen tutorial
         await this.saveTutorialSeen();
         this.hasSeenTutorial = true;
 
-        // Fade out and start game
         this.tweens.add({
           targets: this.tutorialContainer,
           alpha: 0,
@@ -1134,18 +1139,7 @@ export default class StartScene extends Phaser.Scene {
       });
     btnContainer.add(btnZone);
 
-    // Pulse animation for GO button
-    this.tweens.add({
-      targets: btnContainer,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 800,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      repeat: -1,
-    });
-
-    // Fade in the tutorial
+    // Fade in
     this.tweens.add({
       targets: this.tutorialContainer,
       alpha: 1,
