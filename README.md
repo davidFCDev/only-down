@@ -1,59 +1,67 @@
-# antigravity-test
+# 🎱 Only Down
 
-A Phaser game built with the Remix framework.
+A fast-paced arcade game where you guide a ball through an endless helix tower, smashing platforms and chasing high scores!
 
-## 🎮 Development
+> *"The only way is down... but how far can you go?"*
+
+## 🎮 Gameplay
+
+- **Tap/Click** left or right to rotate the helix
+- **Smash** through colored platforms to score points
+- **Avoid** the striped danger zones or it's game over!
+- **Collect power-ups** to activate Super Smash mode
+- **Unlock ball styles** as you climb the ranks
+
+## 🏆 Rank System
+
+| Rank | Score Required | Unlocks |
+|------|---------------|---------|
+| Unranked | 0 | Basic Ball |
+| Noob | 50 | Cyan Ball |
+| Pro | 250 | Polka Dot Ball |
+| Gravity Master | 500 | Master Ball + Premium Music |
+| Legend | 750 | Rainbow Ball |
+| Remixer | 1000 | Neon Green Ball |
+
+## ✨ Features
+
+- 🎵 Dynamic soundtrack with unlockable premium tracks
+- 🎨 6 unique ball styles to collect
+- ⚡ Power-up system with Super Smash mode
+- 📱 Mobile-friendly with touch controls
+- 🏅 Persistent progress via Farcade SDK
+- 🌟 Particle effects and visual feedback
+
+## 🛠️ Development
 
 ```bash
-npm dev
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run preview  # Preview production build
 ```
-
-Opens the development server with:
-- Live reload
-- Development dashboard
-- Mobile testing via QR code
-- Performance monitoring
-
-## 🏗️ Building
-
-```bash
-npm build
-```
-
-Creates a production-ready single HTML file in the `dist` directory.
-
-## 👁️ Preview
-
-```bash
-npm preview
-```
-
-Preview the production build locally before deploying.
 
 ## 📁 Project Structure
 
 ```
 ├── src/
-│   ├── main.ts          # Game entry point
-│   ├── scenes/          # Your game scenes
-│   ├── config/          # Game settings
-│   └── utils/           # Helper functions
-├── index.html           # Entry point
-└── package.json         # Dependencies
+│   ├── main.ts              # Game entry point
+│   ├── scenes/
+│   │   ├── PreloadScene.ts  # Asset loading & branding
+│   │   ├── StartScene.ts    # Main menu & ball selector
+│   │   └── HelixScene.ts    # Core gameplay
+│   └── config/
+│       └── GameSettings.ts  # Game configuration
+└── dist/
+    └── index.html           # Production build
 ```
 
-**That's it!** All build tools, dev server, and configs are managed by `@insidethesim/remix-dev`.
-Just focus on building your game in the `src/` directory.
+## 🎨 Tech Stack
 
-## 🎓 Learn More
+- **Phaser 3** - 2D Game Framework
+- **Three.js** - 3D Helix Rendering
+- **TypeScript** - Type Safety
+- **Farcade SDK** - Leaderboards & Persistence
 
-- [Phaser Documentation](https://photonstorm.github.io/phaser3-docs/)
-- [Remix Dev Framework](https://github.com/insidethesim/remix-dev)
+---
 
-## 🔄 Updating
-
-Get the latest features and fixes:
-
-```bash
-npm update @insidethesim/remix-dev
-```
+*Made with 💚 by Hellbound Studios™*

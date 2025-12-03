@@ -66,6 +66,7 @@ export default class HelixScene extends Phaser.Scene {
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
   private audioContext: AudioContext | null = null;
+  private masterGain: GainNode | null = null; // Master gain for procedural audio mute control
   private testRank: string = "Remixer"; // For development testing
   private selectedBallStyle: string = "unranked"; // User selected ball style
 
@@ -1581,9 +1582,13 @@ export default class HelixScene extends Phaser.Scene {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
+      // Create master gain node for mute control
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
     }
 
     const ctx = this.audioContext;
+    const masterOut = this.masterGain!;
     const now = ctx.currentTime;
 
     // 1. Dimensional sweep - descending then ascending frequency
@@ -1596,7 +1601,7 @@ export default class HelixScene extends Phaser.Scene {
     sweepGain.gain.setValueAtTime(0.12, now);
     sweepGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
     sweepOsc.connect(sweepGain);
-    sweepGain.connect(ctx.destination);
+    sweepGain.connect(masterOut);
     sweepOsc.start(now);
     sweepOsc.stop(now + 0.4);
 
@@ -1609,7 +1614,7 @@ export default class HelixScene extends Phaser.Scene {
     bassGain.gain.setValueAtTime(0.25, now);
     bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
     bassOsc.connect(bassGain);
-    bassGain.connect(ctx.destination);
+    bassGain.connect(masterOut);
     bassOsc.start(now);
     bassOsc.stop(now + 0.3);
 
@@ -1624,7 +1629,7 @@ export default class HelixScene extends Phaser.Scene {
     shimmerGain.gain.linearRampToValueAtTime(0.08, now + 0.05);
     shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
     shimmerOsc.connect(shimmerGain);
-    shimmerGain.connect(ctx.destination);
+    shimmerGain.connect(masterOut);
     shimmerOsc.start(now);
     shimmerOsc.stop(now + 0.35);
 
@@ -1648,7 +1653,7 @@ export default class HelixScene extends Phaser.Scene {
     noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
     noiseSource.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(masterOut);
     noiseSource.start(now);
   }
 
@@ -1659,9 +1664,13 @@ export default class HelixScene extends Phaser.Scene {
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
+      // Create master gain node for mute control if not exists
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
     }
 
     const ctx = this.audioContext;
+    const masterOut = this.masterGain!;
     const now = ctx.currentTime;
 
     // Low frequency impact
@@ -1676,7 +1685,7 @@ export default class HelixScene extends Phaser.Scene {
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut);
 
     osc.start(now);
     osc.stop(now + 0.2);
@@ -1695,7 +1704,7 @@ export default class HelixScene extends Phaser.Scene {
     noiseGain.gain.setValueAtTime(0.1, now);
 
     noise.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(masterOut);
     noise.start(now);
   }
 
@@ -2150,6 +2159,10 @@ export default class HelixScene extends Phaser.Scene {
     sdk.on("toggle_mute", (data: any) => {
       this.isMuted = data.isMuted;
       this.sound.mute = this.isMuted;
+      // Also mute procedural audio via masterGain
+      if (this.masterGain) {
+        this.masterGain.gain.value = this.isMuted ? 0 : 1;
+      }
     });
   }
 
