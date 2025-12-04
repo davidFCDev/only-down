@@ -1506,6 +1506,32 @@ export default class HelixScene extends Phaser.Scene {
     this.threeRenderer.render(this.threeScene, this.camera);
   }
 
+  private initAudioContext(): AudioContext | null {
+    if (this.audioContext) return this.audioContext;
+
+    // Try to use Phaser's audio context first (it's already unlocked)
+    const phaserSound = this.sound as Phaser.Sound.WebAudioSoundManager;
+    if (phaserSound && phaserSound.context) {
+      this.audioContext = phaserSound.context;
+    } else {
+      // Fallback
+      try {
+        this.audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+      } catch (e) {
+        console.warn("AudioContext not supported");
+        return null;
+      }
+    }
+
+    if (!this.masterGain && this.audioContext) {
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
+    }
+
+    return this.audioContext;
+  }
+
   applyBallStyle(rank: string) {
     // Use selected ball style if available, otherwise fall back to rank
     const styleToApply =
@@ -1584,15 +1610,9 @@ export default class HelixScene extends Phaser.Scene {
   playPowerUpSound() {
     if (this.isMuted) return;
 
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      // Create master gain node for mute control
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
-    }
+    const ctx = this.initAudioContext();
+    if (!ctx || !this.masterGain) return;
 
-    const ctx = this.audioContext;
     const masterOut = this.masterGain!;
     const now = ctx.currentTime;
 
@@ -1666,15 +1686,9 @@ export default class HelixScene extends Phaser.Scene {
   playSmashSound() {
     if (this.isMuted) return;
 
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      // Create master gain node for mute control if not exists
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
-    }
+    const ctx = this.initAudioContext();
+    if (!ctx || !this.masterGain) return;
 
-    const ctx = this.audioContext;
     const masterOut = this.masterGain!;
     const now = ctx.currentTime;
 
