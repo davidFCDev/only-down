@@ -350,7 +350,6 @@ export default class StartScene extends Phaser.Scene {
         });
       })
       .on("pointerdown", () => {
-        this.unlockAudio();
         this.startGame();
       });
     this.startBtnContainer.add(zone);
@@ -1122,7 +1121,6 @@ export default class StartScene extends Phaser.Scene {
         this.tweens.add({ targets: btnContainer, scale: 1, duration: 100 });
       })
       .on("pointerdown", async () => {
-        this.unlockAudio();
         await this.saveTutorialSeen();
         this.hasSeenTutorial = true;
 
@@ -1215,22 +1213,5 @@ export default class StartScene extends Phaser.Scene {
         this.rankDisplayText.setText(`Test Rank: ${this.testRank}`);
       });
     this.devControlsContainer.add(nextBtn);
-  }
-
-  unlockAudio() {
-    try {
-      const soundManager = this.sound as Phaser.Sound.WebAudioSoundManager;
-      if (
-        soundManager &&
-        soundManager.context &&
-        soundManager.context.state === "suspended"
-      ) {
-        soundManager.context.resume().then(() => {
-          console.log("🔊 Audio context resumed explicitly");
-        });
-      }
-    } catch (e) {
-      console.warn("Audio unlock failed:", e);
-    }
   }
 }
