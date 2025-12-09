@@ -130,16 +130,33 @@ export default class StartScene extends Phaser.Scene {
         }
 
         // Get high score for rank system - check multiple possible locations
+        // Priority: SDK's official highScore > gameState.highScore
+        // Use the MAXIMUM of all sources to ensure unlocks are preserved
+        let sdkHighScore = 0;
+        let gameStateHighScore = 0;
+
         if (typeof gameInfo?.highScore === "number") {
-          this.highScore = gameInfo.highScore;
+          sdkHighScore = gameInfo.highScore;
         } else if (typeof gameInfo?.initialGameState?.highScore === "number") {
-          this.highScore = gameInfo.initialGameState.highScore;
-        } else if (
+          sdkHighScore = gameInfo.initialGameState.highScore;
+        }
+
+        if (
           typeof gameInfo?.initialGameState?.gameState?.highScore === "number"
         ) {
-          this.highScore = gameInfo.initialGameState.gameState.highScore;
+          gameStateHighScore = gameInfo.initialGameState.gameState.highScore;
         }
-        console.log("🏆 High Score loaded:", this.highScore);
+
+        // Use the maximum to ensure unlocks are never lost
+        this.highScore = Math.max(sdkHighScore, gameStateHighScore);
+        console.log(
+          "🏆 High Score loaded - SDK:",
+          sdkHighScore,
+          "GameState:",
+          gameStateHighScore,
+          "Using:",
+          this.highScore
+        );
         console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
       }
     } catch (error) {

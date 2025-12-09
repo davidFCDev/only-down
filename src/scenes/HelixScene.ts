@@ -2017,13 +2017,30 @@ export default class HelixScene extends Phaser.Scene {
       const newHighScore = Math.max(currentHighScore, finalScore);
 
       if (sdk?.singlePlayer?.actions?.saveGameState) {
+        // Get current ball style to preserve it
+        let currentBallStyle = "unranked";
+        try {
+          const gameInfo = await sdk.singlePlayer.actions.ready();
+          currentBallStyle =
+            (gameInfo?.initialGameState?.gameState as any)?.selectedBallStyle ||
+            "unranked";
+        } catch (e) {
+          // Ignore
+        }
+
         await sdk.singlePlayer.actions.saveGameState({
           gameState: {
             hasSeenTutorial: true,
             highScore: newHighScore,
+            selectedBallStyle: currentBallStyle,
           },
         });
-        console.log("💾 High Score saved:", newHighScore);
+        console.log(
+          "💾 High Score saved:",
+          newHighScore,
+          "Ball style preserved:",
+          currentBallStyle
+        );
       }
     } catch (error) {
       console.log("Could not save high score:", error);
