@@ -475,9 +475,9 @@ export default class HelixScene extends Phaser.Scene {
 
     console.log("🏗️ createPlatforms - isChaosMode:", this.isChaosMode);
 
-    // Neon palette for Chaos mode, Lucha Libre vibrant palette for normal
+    // Cyberpunk palette for Chaos mode (green, purple, yellow), normal palette otherwise
     const colors = this.isChaosMode 
-      ? [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00, 0xff6b00] // Cyan, Magenta, Neon Green, Yellow, Orange
+      ? [0x00ff00, 0xff00ff, 0xffff00] // Neon Green, Purple, Yellow
       : [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c]; // Original colors
 
     this.platforms = [];
@@ -810,9 +810,9 @@ export default class HelixScene extends Phaser.Scene {
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    // Platform colors - neon for Chaos mode, original for normal
+    // Platform colors - cyberpunk for Chaos mode (green, purple, yellow)
     const platformColors = this.isChaosMode
-      ? [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00, 0xff6b00] // Neon colors
+      ? [0x00ff00, 0xff00ff, 0xffff00] // Neon Green, Purple, Yellow
       : [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3]; // Original colors
     const innerRadius = 2;
     const outerRadius = 4;
