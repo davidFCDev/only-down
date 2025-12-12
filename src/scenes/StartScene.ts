@@ -69,6 +69,8 @@ export default class StartScene extends Phaser.Scene {
   private hasSeenTutorial: boolean = false;
   private highScore: number = 0;
   private selectedBallStyle: string = "unranked";
+  private isChaosMode: boolean = false;
+  private chaosBtnContainer!: Phaser.GameObjects.Container;
 
   // Development controls
   private testRank: string = "Remixer";
@@ -88,11 +90,13 @@ export default class StartScene extends Phaser.Scene {
   }
 
   async create() {
+    console.log("🚀 StartScene create() iniciado");
     const width = this.scale.width;
     const height = this.scale.height;
 
     // Check if user has seen tutorial before
     await this.checkTutorialState();
+    console.log("✅ checkTutorialState completado");
 
     // Background image - colorful waves (reduced intensity)
     const bg = this.add.image(width / 2, height / 2, "startBg");
@@ -101,12 +105,15 @@ export default class StartScene extends Phaser.Scene {
 
     // Title with cartoon style
     this.createTitle(width, height);
+    console.log("✅ createTitle completado");
 
     // Show rank below title
     this.createRankDisplay(width, height);
+    console.log("✅ createRankDisplay completado");
 
     // Start button directly
     this.createMainStartButton(width, height);
+    console.log("✅ createMainStartButton completado");
 
     // Development controls for rank testing - HIDDEN
     // this.createDevControls(width, height);
@@ -115,8 +122,29 @@ export default class StartScene extends Phaser.Scene {
   async checkTutorialState() {
     try {
       const sdk = window.FarcadeSDK;
-      if (sdk?.singlePlayer?.actions?.ready) {
-        const gameInfo: any = await sdk.singlePlayer.actions.ready();
+
+      // Try to get game state without blocking - SDK now auto-calls ready()
+      // Use getGameState if available, otherwise try ready() with short timeout
+      let gameInfo: any = null;
+
+      if (sdk?.singlePlayer?.actions) {
+        // Try the new way first (getGameState or similar)
+        if ((sdk.singlePlayer.actions as any).getGameState) {
+          gameInfo = await (sdk.singlePlayer.actions as any).getGameState();
+        } else if (sdk.singlePlayer.actions.ready) {
+          // Fallback to ready() with a very short timeout (500ms)
+          const timeoutPromise = new Promise((resolve) =>
+            setTimeout(() => resolve(null), 500)
+          );
+
+          gameInfo = await Promise.race([
+            sdk.singlePlayer.actions.ready(),
+            timeoutPromise,
+          ]);
+        }
+      }
+
+      if (gameInfo) {
         console.log("📊 SDK gameInfo:", JSON.stringify(gameInfo, null, 2));
 
         if (gameInfo?.initialGameState?.gameState?.hasSeenTutorial) {
@@ -129,9 +157,7 @@ export default class StartScene extends Phaser.Scene {
             gameInfo.initialGameState.gameState.selectedBallStyle;
         }
 
-        // Get high score for rank system - check multiple possible locations
-        // Priority: SDK's official highScore > gameState.highScore
-        // Use the MAXIMUM of all sources to ensure unlocks are preserved
+        // Get high score for rank system
         let sdkHighScore = 0;
         let gameStateHighScore = 0;
 
@@ -147,7 +173,6 @@ export default class StartScene extends Phaser.Scene {
           gameStateHighScore = gameInfo.initialGameState.gameState.highScore;
         }
 
-        // Use the maximum to ensure unlocks are never lost
         this.highScore = Math.max(sdkHighScore, gameStateHighScore);
         console.log(
           "🏆 High Score loaded - SDK:",
@@ -158,6 +183,8 @@ export default class StartScene extends Phaser.Scene {
           this.highScore
         );
         console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
+      } else {
+        console.log("📊 SDK not available or timed out, using defaults");
       }
     } catch (error) {
       console.log("Could not load game state:", error);
@@ -382,6 +409,9 @@ export default class StartScene extends Phaser.Scene {
     // Create ball select button
     this.createBallSelectButton(width, height);
 
+    // Create chaos mode button
+    this.createChaosModeButton(width, height);
+
     // Create bouncing ball animation after button appears
     this.time.delayedCall(1000, () => {
       this.createBouncingBall(width, height);
@@ -461,6 +491,96 @@ export default class StartScene extends Phaser.Scene {
       duration: 400,
       delay: 800,
     });
+  }
+
+  createChaosModeButton(width: number, height: number) {
+    const btnWidth = Math.min(320, width * 0.65);
+    const btnHeight = 80;
+    const cornerRadius = 22;
+
+    this.chaosBtnContainer = this.add.container(width / 2, height * 0.86);
+    this.chaosBtnContainer.setAlpha(0);
+
+    // Button background - orange/fire with black border
+    const btnBg = this.add.graphics();
+    // Black border
+    btnBg.fillStyle(0x000000, 1);
+    btnBg.fillRoundedRect(
+      -btnWidth / 2 - 5,
+      -btnHeight / 2 - 5,
+      btnWidth + 10,
+      btnHeight + 10,
+      cornerRadius + 2
+    );
+    // Orange/fire fill
+    btnBg.fillStyle(0xff6b35, 1);
+    btnBg.fillRoundedRect(
+      -btnWidth / 2,
+      -btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      cornerRadius
+    );
+    this.chaosBtnContainer.add(btnBg);
+
+    // Button text
+    const btnText = this.add
+      .text(0, 0, "CHAOS MODE", {
+        fontSize: "42px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 7,
+      })
+      .setOrigin(0.5);
+    this.chaosBtnContainer.add(btnText);
+
+    // Interactive zone
+    const zone = this.add
+      .zone(0, 0, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.chaosBtnContainer,
+          scale: 1.08,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: this.chaosBtnContainer,
+          scale: 1,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        this.startChaosMode();
+      });
+    this.chaosBtnContainer.add(zone);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: this.chaosBtnContainer,
+      alpha: 1,
+      duration: 400,
+      delay: 1000,
+    });
+  }
+
+  startChaosMode() {
+    this.isChaosMode = true;
+    // If first time, show tutorial modal, otherwise go directly to chaos mode
+    if (!this.hasSeenTutorial) {
+      this.showTutorialModal();
+    } else {
+      this.scene.start("HelixScene", {
+        testRank: this.testRank,
+        ballStyle: this.selectedBallStyle,
+        highScore: this.highScore,
+        chaosMode: true,
+      });
+    }
   }
 
   showBallSelectModal() {
@@ -1021,6 +1141,7 @@ export default class StartScene extends Phaser.Scene {
   }
 
   startGame() {
+    this.isChaosMode = false;
     // If first time, show tutorial modal
     if (!this.hasSeenTutorial) {
       this.showTutorialModal();
@@ -1029,6 +1150,7 @@ export default class StartScene extends Phaser.Scene {
         testRank: this.testRank,
         ballStyle: this.selectedBallStyle,
         highScore: this.highScore,
+        chaosMode: false,
       });
     }
   }
@@ -1040,10 +1162,14 @@ export default class StartScene extends Phaser.Scene {
     // Disable background buttons
     this.startBtnContainer.disableInteractive();
     this.ballSelectBtnContainer.disableInteractive();
+    this.chaosBtnContainer.disableInteractive();
     this.startBtnContainer.each((child: any) => {
       if (child.disableInteractive) child.disableInteractive();
     });
     this.ballSelectBtnContainer.each((child: any) => {
+      if (child.disableInteractive) child.disableInteractive();
+    });
+    this.chaosBtnContainer.each((child: any) => {
       if (child.disableInteractive) child.disableInteractive();
     });
 
@@ -1150,6 +1276,7 @@ export default class StartScene extends Phaser.Scene {
               testRank: this.testRank,
               ballStyle: this.selectedBallStyle,
               highScore: this.highScore,
+              chaosMode: this.isChaosMode,
             });
           },
         });

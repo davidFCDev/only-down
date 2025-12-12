@@ -69,12 +69,18 @@ export default class HelixScene extends Phaser.Scene {
   private masterGain: GainNode | null = null; // Master gain for procedural audio mute control
   private testRank: string = "Remixer"; // For development testing
   private selectedBallStyle: string = "unranked"; // User selected ball style
+  private isChaosMode: boolean = false; // Chaos mode flag
 
   constructor() {
     super("HelixScene");
   }
 
-  init(data?: { testRank?: string; ballStyle?: string; highScore?: number }) {
+  init(data?: {
+    testRank?: string;
+    ballStyle?: string;
+    highScore?: number;
+    chaosMode?: boolean;
+  }) {
     if (data?.testRank) {
       this.testRank = data.testRank;
     }
@@ -83,6 +89,9 @@ export default class HelixScene extends Phaser.Scene {
     }
     if (typeof data?.highScore === "number") {
       this.playerHighScore = data.highScore;
+    }
+    if (data?.chaosMode) {
+      this.isChaosMode = data.chaosMode;
     }
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -693,8 +702,9 @@ export default class HelixScene extends Phaser.Scene {
         }
       }
 
-      // Power Ups
-      if (i > 5 && i < platformCount - 1 && Math.random() < 0.05) {
+      // Power Ups - Chaos mode has 4x more power-ups
+      const powerUpChance = this.isChaosMode ? 0.2 : 0.05;
+      if (i > 5 && i < platformCount - 1 && Math.random() < powerUpChance) {
         if (solidSegments.length > 0) {
           const seg =
             solidSegments[Math.floor(Math.random() * solidSegments.length)];
@@ -996,8 +1006,9 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Power Ups - SAME logic as createPlatforms
-    if (level > 5 && Math.random() < 0.05) {
+    // Power Ups - SAME logic as createPlatforms, Chaos mode has 4x more power-ups
+    const powerUpChance = this.isChaosMode ? 0.2 : 0.05;
+    if (level > 5 && Math.random() < powerUpChance) {
       if (solidSegments.length > 0) {
         const seg =
           solidSegments[Math.floor(Math.random() * solidSegments.length)];
@@ -1411,7 +1422,8 @@ export default class HelixScene extends Phaser.Scene {
           ) {
             // Ball passed through invisible platform - destroy it
             this.destroyPlatform(platform, i);
-            this.score++;
+            const pointsPerPlatform = this.isChaosMode ? 2 : 1;
+            this.score += pointsPerPlatform;
             this.scoreText.setText(this.score.toString());
           }
           continue; // Skip normal collision check
@@ -1425,7 +1437,8 @@ export default class HelixScene extends Phaser.Scene {
         if (this.ball.position.y >= topSurfaceY && nextY <= topSurfaceY) {
           if (this.isSuperSmash) {
             this.destroyPlatform(platform, i);
-            this.score++;
+            const pointsPerPlatform = this.isChaosMode ? 2 : 1;
+            this.score += pointsPerPlatform;
             this.comboCount++;
             this.scoreText.setText(this.score.toString());
             this.createExplosion(platform.position.y, 0xffd93d, 18); // Yellow explosion for smash
@@ -1452,7 +1465,8 @@ export default class HelixScene extends Phaser.Scene {
               return;
             } else {
               this.destroyPlatform(platform, i);
-              this.score++;
+              const pointsPerPlatform = this.isChaosMode ? 2 : 1;
+              this.score += pointsPerPlatform;
               this.comboCount++;
               this.scoreText.setText(this.score.toString());
             }
