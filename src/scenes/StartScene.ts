@@ -570,17 +570,13 @@ export default class StartScene extends Phaser.Scene {
 
   startChaosMode() {
     this.isChaosMode = true;
-    // If first time, show tutorial modal, otherwise go directly to chaos mode
-    if (!this.hasSeenTutorial) {
-      this.showTutorialModal();
-    } else {
-      this.scene.start("HelixScene", {
-        testRank: this.testRank,
-        ballStyle: this.selectedBallStyle,
-        highScore: this.highScore,
-        chaosMode: true,
-      });
-    }
+    // Chaos mode skips tutorial - go directly to game
+    this.scene.start("HelixScene", {
+      testRank: this.testRank,
+      ballStyle: this.selectedBallStyle,
+      highScore: this.highScore,
+      chaosMode: true,
+    });
   }
 
   showBallSelectModal() {

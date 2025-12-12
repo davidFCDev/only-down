@@ -96,6 +96,7 @@ export default class HelixScene extends Phaser.Scene {
     if (data?.chaosMode === true) {
       this.isChaosMode = true;
     }
+    console.log("🎮 HelixScene init - chaosMode:", this.isChaosMode, "data:", data);
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
     const rect = phaserCanvas.getBoundingClientRect();
@@ -472,6 +473,8 @@ export default class HelixScene extends Phaser.Scene {
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
+    console.log("🏗️ createPlatforms - isChaosMode:", this.isChaosMode);
+
     // Neon palette for Chaos mode, Lucha Libre vibrant palette for normal
     const colors = this.isChaosMode 
       ? [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00, 0xff6b00] // Cyan, Magenta, Neon Green, Yellow, Orange
@@ -607,9 +610,8 @@ export default class HelixScene extends Phaser.Scene {
           (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
       }
 
-      // Select Material - All platforms use same color palette
-      const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
-      const baseColor = platformColors[i % platformColors.length];
+      // Select Material - use colors array defined at top (neon for Chaos, normal otherwise)
+      const baseColor = colors[i % colors.length];
 
       let material;
       if (isBlinking) {
