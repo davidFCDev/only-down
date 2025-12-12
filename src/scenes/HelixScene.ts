@@ -81,6 +81,9 @@ export default class HelixScene extends Phaser.Scene {
     highScore?: number;
     chaosMode?: boolean;
   }) {
+    // Reset chaos mode first (important for scene restarts)
+    this.isChaosMode = false;
+    
     if (data?.testRank) {
       this.testRank = data.testRank;
     }
@@ -90,8 +93,8 @@ export default class HelixScene extends Phaser.Scene {
     if (typeof data?.highScore === "number") {
       this.playerHighScore = data.highScore;
     }
-    if (data?.chaosMode) {
-      this.isChaosMode = data.chaosMode;
+    if (data?.chaosMode === true) {
+      this.isChaosMode = true;
     }
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -113,8 +116,12 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    // Warm yellow/cream background
-    this.threeScene.background = new THREE.Color(0xf5d89a);
+    // Background color - black for Chaos mode, warm yellow/cream for normal
+    if (this.isChaosMode) {
+      this.threeScene.background = new THREE.Color(0x0a0a0a); // Near black
+    } else {
+      this.threeScene.background = new THREE.Color(0xf5d89a); // Warm yellow/cream
+    }
 
     const width = rect.width;
     const height = rect.height;
@@ -134,14 +141,8 @@ export default class HelixScene extends Phaser.Scene {
   create() {
     // No lights needed - using MeshBasicMaterial for flat shading
 
-    // Create Tower - tall enough to never see the end (10000 units = ~2500 platforms)
-    const towerGeo = new THREE.CylinderGeometry(2, 2, 10000, 16);
-    const towerMat = new THREE.MeshBasicMaterial({ color: 0x2c3e50 }); // Dark blue-gray
-    const cylinder = new THREE.Mesh(towerGeo, towerMat);
-    cylinder.position.y = -4500; // Offset down so most of the cylinder is below Y=0
-
+    // Initialize tower group (platforms will be added in createPlatforms)
     this.tower = new THREE.Group();
-    this.tower.add(cylinder);
     this.threeScene.add(this.tower);
 
     // No stars - solid background is more performant
@@ -471,8 +472,10 @@ export default class HelixScene extends Phaser.Scene {
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
-    // Lucha Libre vibrant palette
-    const colors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
+    // Neon palette for Chaos mode, Lucha Libre vibrant palette for normal
+    const colors = this.isChaosMode 
+      ? [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00, 0xff6b00] // Cyan, Magenta, Neon Green, Yellow, Orange
+      : [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c]; // Original colors
 
     this.platforms = [];
     this.powerUps = [];
@@ -480,12 +483,22 @@ export default class HelixScene extends Phaser.Scene {
     this.platformIdCounter = 0; // Reset ID counter
     this.tower.clear();
 
-    // Barber pole style tower (10000 units tall = ~2500 platforms worth)
-    const barberTexture = this.createBarberPoleTexture();
-    const towerMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(2, 2, 10000, 16),
-      new THREE.MeshBasicMaterial({ map: barberTexture })
-    );
+    // Tower style - dark for Chaos, barber pole for normal
+    let towerMesh;
+    if (this.isChaosMode) {
+      // Dark purple/black tower for Chaos mode
+      towerMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(2, 2, 10000, 16),
+        new THREE.MeshBasicMaterial({ color: 0x1a0a2e }) // Dark purple
+      );
+    } else {
+      // Barber pole style tower
+      const barberTexture = this.createBarberPoleTexture();
+      towerMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(2, 2, 10000, 16),
+        new THREE.MeshBasicMaterial({ map: barberTexture })
+      );
+    }
     towerMesh.position.y = -4500; // Offset down so most is below Y=0
     this.tower.add(towerMesh);
 
@@ -795,8 +808,10 @@ export default class HelixScene extends Phaser.Scene {
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    // Platform colors - same as createPlatforms
-    const platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3];
+    // Platform colors - neon for Chaos mode, original for normal
+    const platformColors = this.isChaosMode
+      ? [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00, 0xff6b00] // Neon colors
+      : [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3]; // Original colors
     const innerRadius = 2;
     const outerRadius = 4;
 
