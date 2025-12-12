@@ -609,10 +609,13 @@ export default class HelixScene extends Phaser.Scene {
         // Blinking platforms (20% chance after level 20)
         isBlinking = true;
       } else if (i > 10 && Math.random() < 0.3) {
-        // Rotating platforms (30% chance after level 10)
+        // Rotating platforms (30% chance after level 10) - Faster in Chaos Mode
         isMoving = true;
+        const baseSpeed = this.isChaosMode ? 0.01 : 0.005;
+        const randomSpeed = this.isChaosMode ? 0.02 : 0.01;
         moveSpeed =
-          (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
+          (Math.random() > 0.5 ? 1 : -1) *
+          (baseSpeed + Math.random() * randomSpeed);
       }
 
       // Select Material - use colors array defined at top (neon for Chaos, normal otherwise)
@@ -919,10 +922,13 @@ export default class HelixScene extends Phaser.Scene {
       // Blinking platforms (20% chance after level 20)
       isBlinking = true;
     } else if (level > 10 && Math.random() < 0.3) {
-      // Rotating platforms (30% chance after level 10)
+      // Rotating platforms (30% chance after level 10) - Faster in Chaos Mode
       isMoving = true;
+      const baseSpeed = this.isChaosMode ? 0.01 : 0.005;
+      const randomSpeed = this.isChaosMode ? 0.02 : 0.01;
       moveSpeed =
-        (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
+        (Math.random() > 0.5 ? 1 : -1) *
+        (baseSpeed + Math.random() * randomSpeed);
     }
 
     // Select Material - All platforms use same color palette
@@ -1261,11 +1267,14 @@ export default class HelixScene extends Phaser.Scene {
       }
 
       if (platform.userData.isBlinking) {
-        // Update blink time (frame-independent)
-        platform.userData.blinkTime += 0.03 * deltaMultiplier;
+        // Update blink time (frame-independent) - Faster in Chaos Mode
+        const blinkSpeed = this.isChaosMode ? 0.05 : 0.03;
+        platform.userData.blinkTime += blinkSpeed * deltaMultiplier;
 
-        // Smooth fade in/out using sine wave
-        const opacity = (Math.sin(platform.userData.blinkTime * 0.5) + 1) / 2;
+        // Smooth fade in/out using sine wave - Faster frequency in Chaos Mode
+        const blinkFrequency = this.isChaosMode ? 0.8 : 0.5;
+        const opacity =
+          (Math.sin(platform.userData.blinkTime * blinkFrequency) + 1) / 2;
         const finalOpacity = 0.1 + opacity * 0.9;
 
         // Set material opacity for platform and ALL children (danger zones, outlines)
@@ -1328,32 +1337,36 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Chaos Mode Trail Effect - Glowing neon trail that follows the ball
+    // Chaos Mode Trail Effect - Smooth glowing neon trail
     if (this.isChaosMode && this.isGameActive && !this.isGameStarting) {
-      // Create trail particles every few frames
-      if (Math.random() > 0.5) {
+      // Create trail particles more frequently for smooth effect
+      if (Math.random() > 0.3) {
         // Neon trail colors matching cyberpunk theme
         const chaosTrailColors = [0x00ff00, 0xff00ff, 0xffff00, 0x00ffff]; // Green, Magenta, Yellow, Cyan
-        const trailColor = chaosTrailColors[Math.floor(Math.random() * chaosTrailColors.length)];
-        
-        // Create glowing sphere trail
-        const trailGeo = new THREE.SphereGeometry(0.2, 8, 8);
-        const trailMat = new THREE.MeshBasicMaterial({ 
+        const trailColor =
+          chaosTrailColors[Math.floor(Math.random() * chaosTrailColors.length)];
+
+        // Create smooth glowing sprite trail instead of spheres
+        const trailTexture = this.createGlowTexture();
+        const trailMat = new THREE.SpriteMaterial({
+          map: trailTexture,
           color: trailColor,
           transparent: true,
-          opacity: 0.9
+          opacity: 0.6,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
         });
-        const trail = new THREE.Mesh(trailGeo, trailMat);
+        const trail = new THREE.Sprite(trailMat);
+        trail.scale.set(0.6, 0.6, 1); // Smaller, finer trail
         trail.position.copy(this.ball.position);
-        // Add slight random offset for more dynamic effect
-        trail.position.x += (Math.random() - 0.5) * 0.15;
-        trail.position.z += (Math.random() - 0.5) * 0.15;
-        
+        // Slight offset behind the ball
+        trail.position.y += 0.1;
+
         this.threeScene.add(trail);
         this.particles.push({
           mesh: trail,
-          velocity: new THREE.Vector3(0, 0.02, 0),
-          life: 0.8,
+          velocity: new THREE.Vector3(0, 0.01, 0),
+          life: 0.5,
         });
       }
     }
