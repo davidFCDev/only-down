@@ -83,7 +83,7 @@ export default class HelixScene extends Phaser.Scene {
   }) {
     // Reset chaos mode first (important for scene restarts)
     this.isChaosMode = false;
-    
+
     if (data?.testRank) {
       this.testRank = data.testRank;
     }
@@ -96,7 +96,12 @@ export default class HelixScene extends Phaser.Scene {
     if (data?.chaosMode === true) {
       this.isChaosMode = true;
     }
-    console.log("🎮 HelixScene init - chaosMode:", this.isChaosMode, "data:", data);
+    console.log(
+      "🎮 HelixScene init - chaosMode:",
+      this.isChaosMode,
+      "data:",
+      data
+    );
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
     const rect = phaserCanvas.getBoundingClientRect();
@@ -476,7 +481,7 @@ export default class HelixScene extends Phaser.Scene {
     console.log("🏗️ createPlatforms - isChaosMode:", this.isChaosMode);
 
     // Cyberpunk palette for Chaos mode (green, purple, yellow), normal palette otherwise
-    const colors = this.isChaosMode 
+    const colors = this.isChaosMode
       ? [0x00ff00, 0xff00ff, 0xffff00] // Neon Green, Purple, Yellow
       : [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c]; // Original colors
 
@@ -706,9 +711,10 @@ export default class HelixScene extends Phaser.Scene {
                 depth: this.platformThickness + 0.05,
                 bevelEnabled: false,
               });
-              // Flat red
+              // Neon red for Chaos, flat red for normal
+              const dangerColor = this.isChaosMode ? 0xff0044 : 0xe74c3c;
               const dangerMat = new THREE.MeshBasicMaterial({
-                color: 0xe74c3c,
+                color: dangerColor,
               });
               const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
               platform.add(dangerMesh);
@@ -1013,8 +1019,10 @@ export default class HelixScene extends Phaser.Scene {
               depth: this.platformThickness + 0.05,
               bevelEnabled: false,
             });
+            // Neon red for Chaos, flat red for normal
+            const dangerColor = this.isChaosMode ? 0xff0044 : 0xe74c3c;
             const dangerMat = new THREE.MeshBasicMaterial({
-              color: 0xe74c3c,
+              color: dangerColor,
             });
             const dangerMesh = new THREE.Mesh(dangerGeo, dangerMat);
             platform.add(dangerMesh);
@@ -1317,6 +1325,36 @@ export default class HelixScene extends Phaser.Scene {
       if (p.life <= 0) {
         this.threeScene.remove(p.mesh);
         this.particles.splice(i, 1);
+      }
+    }
+
+    // Chaos Mode Trail Effect - Glowing neon trail that follows the ball
+    if (this.isChaosMode && this.isGameActive && !this.isGameStarting) {
+      // Create trail particles every few frames
+      if (Math.random() > 0.5) {
+        // Neon trail colors matching cyberpunk theme
+        const chaosTrailColors = [0x00ff00, 0xff00ff, 0xffff00, 0x00ffff]; // Green, Magenta, Yellow, Cyan
+        const trailColor = chaosTrailColors[Math.floor(Math.random() * chaosTrailColors.length)];
+        
+        // Create glowing sphere trail
+        const trailGeo = new THREE.SphereGeometry(0.2, 8, 8);
+        const trailMat = new THREE.MeshBasicMaterial({ 
+          color: trailColor,
+          transparent: true,
+          opacity: 0.9
+        });
+        const trail = new THREE.Mesh(trailGeo, trailMat);
+        trail.position.copy(this.ball.position);
+        // Add slight random offset for more dynamic effect
+        trail.position.x += (Math.random() - 0.5) * 0.15;
+        trail.position.z += (Math.random() - 0.5) * 0.15;
+        
+        this.threeScene.add(trail);
+        this.particles.push({
+          mesh: trail,
+          velocity: new THREE.Vector3(0, 0.02, 0),
+          life: 0.8,
+        });
       }
     }
 
