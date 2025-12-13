@@ -536,6 +536,43 @@ export default class StartScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.chaosBtnContainer.add(btnText);
 
+    // NEW badge
+    const badgeWidth = 55;
+    const badgeHeight = 24;
+    const badgeX = btnWidth / 2 - 10;
+    const badgeY = -btnHeight / 2 - 5;
+
+    const badgeBg = this.add.graphics();
+    // Badge background - bright green/cyan
+    badgeBg.fillStyle(0x00ff88, 1);
+    badgeBg.fillRoundedRect(
+      badgeX - badgeWidth / 2,
+      badgeY - badgeHeight / 2,
+      badgeWidth,
+      badgeHeight,
+      8
+    );
+    // Black border
+    badgeBg.lineStyle(2, 0x000000, 1);
+    badgeBg.strokeRoundedRect(
+      badgeX - badgeWidth / 2,
+      badgeY - badgeHeight / 2,
+      badgeWidth,
+      badgeHeight,
+      8
+    );
+    this.chaosBtnContainer.add(badgeBg);
+
+    const badgeText = this.add
+      .text(badgeX, badgeY, "NEW", {
+        fontSize: "16px",
+        color: "#000000",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.chaosBtnContainer.add(badgeText);
+
     // Interactive zone
     const zone = this.add
       .zone(0, 0, btnWidth, btnHeight)

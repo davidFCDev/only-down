@@ -70,6 +70,7 @@ export default class HelixScene extends Phaser.Scene {
   private testRank: string = "Remixer"; // For development testing
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = false; // Chaos mode flag
+  private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
 
   constructor() {
     super("HelixScene");
@@ -151,7 +152,10 @@ export default class HelixScene extends Phaser.Scene {
     this.tower = new THREE.Group();
     this.threeScene.add(this.tower);
 
-    // No stars - solid background is more performant
+    // Cyberpunk grid background for Chaos Mode
+    if (this.isChaosMode) {
+      this.createCyberpunkGrid();
+    }
 
     // Materials - Vibrant colors
     this.normalMaterial = new THREE.MeshBasicMaterial({
@@ -1585,6 +1589,18 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
+    // Animate cyberpunk grid (subtle movement + follow camera)
+    if (this.cyberpunkGrid && this.isChaosMode) {
+      // Make grid follow the camera Y position so it's always visible
+      this.cyberpunkGrid.position.y = this.camera.position.y - 55;
+      
+      // Slow scroll effect on the grid for animation
+      this.cyberpunkGrid.position.z += 0.02 * deltaMultiplier;
+      if (this.cyberpunkGrid.position.z > 4) {
+        this.cyberpunkGrid.position.z = 0;
+      }
+    }
+
     this.threeRenderer.render(this.threeScene, this.camera);
   }
 
@@ -1803,6 +1819,84 @@ export default class HelixScene extends Phaser.Scene {
     noise.connect(noiseGain);
     noiseGain.connect(masterOut);
     noise.start(now);
+  }
+
+  createCyberpunkGrid() {
+    this.cyberpunkGrid = new THREE.Group();
+    
+    // Create horizontal lines (floor grid extending to horizon)
+    const gridMaterial = new THREE.LineBasicMaterial({
+      color: 0xff00ff, // Magenta
+      transparent: true,
+      opacity: 0.3,
+    });
+    
+    const gridMaterial2 = new THREE.LineBasicMaterial({
+      color: 0x00ffff, // Cyan
+      transparent: true,
+      opacity: 0.2,
+    });
+
+    // Horizontal lines on floor plane
+    const floorY = -50;
+    const gridSize = 100;
+    const lineSpacing = 4;
+    
+    for (let i = -gridSize; i <= gridSize; i += lineSpacing) {
+      // Lines along Z axis
+      const points1 = [
+        new THREE.Vector3(i, floorY, -gridSize),
+        new THREE.Vector3(i, floorY, gridSize)
+      ];
+      const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
+      const line1 = new THREE.Line(geometry1, i % 8 === 0 ? gridMaterial : gridMaterial2);
+      this.cyberpunkGrid.add(line1);
+      
+      // Lines along X axis
+      const points2 = [
+        new THREE.Vector3(-gridSize, floorY, i),
+        new THREE.Vector3(gridSize, floorY, i)
+      ];
+      const geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
+      const line2 = new THREE.Line(geometry2, i % 8 === 0 ? gridMaterial : gridMaterial2);
+      this.cyberpunkGrid.add(line2);
+    }
+
+    // Add vertical accent lines in the background
+    const verticalMaterial = new THREE.LineBasicMaterial({
+      color: 0x00ff00, // Green
+      transparent: true,
+      opacity: 0.15,
+    });
+    
+    for (let i = -40; i <= 40; i += 10) {
+      const points = [
+        new THREE.Vector3(i, floorY, -60),
+        new THREE.Vector3(i, 30, -60)
+      ];
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, verticalMaterial);
+      this.cyberpunkGrid.add(line);
+    }
+
+    // Add floating horizontal scan lines
+    const scanMaterial = new THREE.LineBasicMaterial({
+      color: 0xffff00, // Yellow
+      transparent: true,
+      opacity: 0.1,
+    });
+    
+    for (let y = -30; y <= 20; y += 5) {
+      const points = [
+        new THREE.Vector3(-50, y, -50),
+        new THREE.Vector3(50, y, -50)
+      ];
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, scanMaterial);
+      this.cyberpunkGrid.add(line);
+    }
+
+    this.threeScene.add(this.cyberpunkGrid);
   }
 
   createGlowTexture() {
