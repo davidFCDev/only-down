@@ -1589,17 +1589,7 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Animate cyberpunk grid (subtle movement + follow camera)
-    if (this.cyberpunkGrid && this.isChaosMode) {
-      // Make grid follow the camera Y position so it's always visible
-      this.cyberpunkGrid.position.y = this.camera.position.y - 55;
-      
-      // Slow scroll effect on the grid for animation
-      this.cyberpunkGrid.position.z += 0.02 * deltaMultiplier;
-      if (this.cyberpunkGrid.position.z > 4) {
-        this.cyberpunkGrid.position.z = 0;
-      }
-    }
+    // Cyberpunk grid is static - no animation needed
 
     this.threeRenderer.render(this.threeScene, this.camera);
   }
