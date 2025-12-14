@@ -750,11 +750,11 @@ export default class HelixScene extends Phaser.Scene {
           const worldAngle = angle + rotationZ;
           const betweenY = yPos - 2;
 
-          // In Chaos Mode, 10% chance for Shield (rare), 90% for Super Smash
-          const isShieldPowerUp = this.isChaosMode && Math.random() < 0.1;
+          // In Chaos Mode, 35% chance for Shield, 65% for Super Smash
+          const isShieldPowerUp = this.isChaosMode && Math.random() < 0.35;
 
           const group = new THREE.Group();
-          
+
           if (isShieldPowerUp) {
             // Shield power-up - Cyan bubble/sphere
             const shieldMat = new THREE.MeshBasicMaterial({
@@ -766,7 +766,7 @@ export default class HelixScene extends Phaser.Scene {
               color: 0x000000,
               side: THREE.BackSide,
             });
-            
+
             // Outer sphere
             const sphereGeo = new THREE.SphereGeometry(0.5, 16, 16);
             const sphere = new THREE.Mesh(sphereGeo, shieldMat);
@@ -774,14 +774,14 @@ export default class HelixScene extends Phaser.Scene {
             sphereOutline.scale.set(1.15, 1.15, 1.15);
             sphere.add(sphereOutline);
             group.add(sphere);
-            
+
             // Inner ring for visual effect
             const ringGeo = new THREE.TorusGeometry(0.35, 0.08, 8, 16);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.rotation.x = Math.PI / 2;
             group.add(ring);
-            
+
             group.userData = {
               isPowerUp: true,
               isShield: true,
@@ -813,7 +813,12 @@ export default class HelixScene extends Phaser.Scene {
             const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
             const cyl = new THREE.Mesh(cylGeo, mat);
             cyl.position.y = 0.4;
-            const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+            const cylOutlineGeo = new THREE.CylinderGeometry(
+              0.15,
+              0.15,
+              0.8,
+              8
+            );
             const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
             cylOutline.scale.set(1.2, 1.1, 1.2);
             cyl.add(cylOutline);
@@ -1098,8 +1103,8 @@ export default class HelixScene extends Phaser.Scene {
         const worldAngle = angle + rotationZ;
         const betweenY = yPos - 2;
 
-        // In Chaos Mode: 20% chance for Shield, 80% for Super Smash
-        const isShieldPowerUp = this.isChaosMode && Math.random() < 0.2;
+        // In Chaos Mode: 35% chance for Shield, 65% for Super Smash
+        const isShieldPowerUp = this.isChaosMode && Math.random() < 0.35;
 
         const group = new THREE.Group();
 
@@ -1521,7 +1526,9 @@ export default class HelixScene extends Phaser.Scene {
       }
     } else {
       // In Chaos Mode, use progressive gravity
-      const currentGravity = this.isChaosMode ? this.chaosGravity : this.gravity;
+      const currentGravity = this.isChaosMode
+        ? this.chaosGravity
+        : this.gravity;
       this.ballVelocity += currentGravity * deltaMultiplier;
 
       // Gradually increase chaos gravity and jump strength up to max
@@ -1634,7 +1641,9 @@ export default class HelixScene extends Phaser.Scene {
             this.platformsToSmash--;
             if (this.platformsToSmash <= 0) {
               this.isSuperSmash = false;
-              this.ballVelocity = this.isChaosMode ? this.chaosJumpStrength : this.jumpStrength;
+              this.ballVelocity = this.isChaosMode
+                ? this.chaosJumpStrength
+                : this.jumpStrength;
               this.resolveCombo();
             }
             collided = true;
@@ -1642,7 +1651,9 @@ export default class HelixScene extends Phaser.Scene {
             const collisionResult = this.checkCollision(platform);
 
             if (collisionResult === "hit") {
-              this.ballVelocity = this.isChaosMode ? this.chaosJumpStrength : this.jumpStrength;
+              this.ballVelocity = this.isChaosMode
+                ? this.chaosJumpStrength
+                : this.jumpStrength;
               this.ball.position.y = topSurfaceY;
               this.jumpSound.play();
               this.resolveCombo();
@@ -1658,7 +1669,8 @@ export default class HelixScene extends Phaser.Scene {
                 this.scoreText.setText(this.score.toString());
                 // Flash shield visual to indicate protection
                 if (this.shieldVisual) {
-                  const mat = this.shieldVisual.material as THREE.MeshBasicMaterial;
+                  const mat = this.shieldVisual
+                    .material as THREE.MeshBasicMaterial;
                   mat.opacity = 0.8;
                 }
               } else {
