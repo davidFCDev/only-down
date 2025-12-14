@@ -71,6 +71,8 @@ export default class HelixScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = false; // Chaos mode flag
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
+  private isSpeedBoost: boolean = false; // Speed boost power-up active
+  private speedBoostTimer: number = 0; // Timer for speed boost duration
 
   constructor() {
     super("HelixScene");
@@ -743,39 +745,94 @@ export default class HelixScene extends Phaser.Scene {
           const worldAngle = angle + rotationZ;
           const betweenY = yPos - 2;
 
+          // In Chaos Mode, 50% chance for Speed Boost, 50% for Super Smash
+          const isSpeedBoostPowerUp = this.isChaosMode && Math.random() < 0.5;
+
           const group = new THREE.Group();
-          const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-          // Flat gold/yellow for power-ups
-          const mat = new THREE.MeshBasicMaterial({
-            color: 0xffd93d, // Yellow gold
-          });
-          const cone = new THREE.Mesh(coneGeo, mat);
-          cone.rotation.x = Math.PI;
-          cone.position.y = -0.4;
+          
+          if (isSpeedBoostPowerUp) {
+            // Speed Boost power-up - Lightning bolt shape (orange/red)
+            const boltMat = new THREE.MeshBasicMaterial({
+              color: 0xff4500, // Orange-red
+            });
+            const outlineMat = new THREE.MeshBasicMaterial({
+              color: 0x000000,
+              side: THREE.BackSide,
+            });
+            
+            // Create lightning bolt from boxes
+            const topGeo = new THREE.BoxGeometry(0.3, 0.5, 0.15);
+            const top = new THREE.Mesh(topGeo, boltMat);
+            top.position.set(0.1, 0.3, 0);
+            top.rotation.z = -0.3;
+            const topOutline = new THREE.Mesh(topGeo, outlineMat);
+            topOutline.scale.set(1.2, 1.1, 1.3);
+            top.add(topOutline);
+            group.add(top);
+            
+            const midGeo = new THREE.BoxGeometry(0.5, 0.25, 0.15);
+            const mid = new THREE.Mesh(midGeo, boltMat);
+            mid.position.set(0, 0, 0);
+            const midOutline = new THREE.Mesh(midGeo, outlineMat);
+            midOutline.scale.set(1.15, 1.2, 1.3);
+            mid.add(midOutline);
+            group.add(mid);
+            
+            const botGeo = new THREE.BoxGeometry(0.3, 0.5, 0.15);
+            const bot = new THREE.Mesh(botGeo, boltMat);
+            bot.position.set(-0.1, -0.3, 0);
+            bot.rotation.z = -0.3;
+            const botOutline = new THREE.Mesh(botGeo, outlineMat);
+            botOutline.scale.set(1.2, 1.1, 1.3);
+            bot.add(botOutline);
+            group.add(bot);
+            
+            group.userData = {
+              isPowerUp: true,
+              isSpeedBoost: true,
+              rotationSpeed: 0.08,
+              bobSpeed: 0.06,
+              time: Math.random() * 100,
+              baseY: betweenY,
+            };
+          } else {
+            // Original Super Smash power-up (cone + cylinder)
+            const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+            const mat = new THREE.MeshBasicMaterial({
+              color: 0xffd93d, // Yellow gold
+            });
+            const cone = new THREE.Mesh(coneGeo, mat);
+            cone.rotation.x = Math.PI;
+            cone.position.y = -0.4;
 
-          // Add black outline to cone
-          const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-          const outlineMat = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            side: THREE.BackSide,
-          });
-          const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
-          coneOutline.scale.set(1.15, 1.1, 1.15);
-          cone.add(coneOutline);
+            const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+            const outlineMat = new THREE.MeshBasicMaterial({
+              color: 0x000000,
+              side: THREE.BackSide,
+            });
+            const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
+            coneOutline.scale.set(1.15, 1.1, 1.15);
+            cone.add(coneOutline);
+            group.add(cone);
 
-          group.add(cone);
+            const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+            const cyl = new THREE.Mesh(cylGeo, mat);
+            cyl.position.y = 0.4;
+            const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+            const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
+            cylOutline.scale.set(1.2, 1.1, 1.2);
+            cyl.add(cylOutline);
+            group.add(cyl);
 
-          const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-          const cyl = new THREE.Mesh(cylGeo, mat);
-          cyl.position.y = 0.4;
-
-          // Add black outline to cylinder
-          const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-          const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
-          cylOutline.scale.set(1.2, 1.1, 1.2);
-          cyl.add(cylOutline);
-
-          group.add(cyl);
+            group.userData = {
+              isPowerUp: true,
+              isSpeedBoost: false,
+              rotationSpeed: 0.05,
+              bobSpeed: 0.05,
+              time: Math.random() * 100,
+              baseY: betweenY,
+            };
+          }
 
           group.position.set(
             Math.cos(worldAngle) * radius,
@@ -783,15 +840,7 @@ export default class HelixScene extends Phaser.Scene {
             Math.sin(worldAngle) * radius
           );
 
-          group.scale.set(1.2, 1.2, 1.2); // Smaller power-up
-
-          group.userData = {
-            isPowerUp: true,
-            rotationSpeed: 0.05,
-            bobSpeed: 0.05,
-            time: Math.random() * 100,
-            baseY: betweenY,
-          };
+          group.scale.set(1.2, 1.2, 1.2);
 
           this.tower.add(group);
           this.powerUps.push(group);
@@ -1054,38 +1103,94 @@ export default class HelixScene extends Phaser.Scene {
         const worldAngle = angle + rotationZ;
         const betweenY = yPos - 2;
 
+        // In Chaos Mode, 50% chance for Speed Boost, 50% for Super Smash
+        const isSpeedBoostPowerUp = this.isChaosMode && Math.random() < 0.5;
+
         const group = new THREE.Group();
-        const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-        const mat = new THREE.MeshBasicMaterial({
-          color: 0xffd93d, // Yellow gold
-        });
-        const cone = new THREE.Mesh(coneGeo, mat);
-        cone.rotation.x = Math.PI;
-        cone.position.y = -0.4;
+        
+        if (isSpeedBoostPowerUp) {
+          // Speed Boost power-up - Lightning bolt shape (orange/red)
+          const boltMat = new THREE.MeshBasicMaterial({
+            color: 0xff4500, // Orange-red
+          });
+          const outlineMat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            side: THREE.BackSide,
+          });
+          
+          // Create lightning bolt from boxes
+          const topGeo = new THREE.BoxGeometry(0.3, 0.5, 0.15);
+          const top = new THREE.Mesh(topGeo, boltMat);
+          top.position.set(0.1, 0.3, 0);
+          top.rotation.z = -0.3;
+          const topOutline = new THREE.Mesh(topGeo, outlineMat);
+          topOutline.scale.set(1.2, 1.1, 1.3);
+          top.add(topOutline);
+          group.add(top);
+          
+          const midGeo = new THREE.BoxGeometry(0.5, 0.25, 0.15);
+          const mid = new THREE.Mesh(midGeo, boltMat);
+          mid.position.set(0, 0, 0);
+          const midOutline = new THREE.Mesh(midGeo, outlineMat);
+          midOutline.scale.set(1.15, 1.2, 1.3);
+          mid.add(midOutline);
+          group.add(mid);
+          
+          const botGeo = new THREE.BoxGeometry(0.3, 0.5, 0.15);
+          const bot = new THREE.Mesh(botGeo, boltMat);
+          bot.position.set(-0.1, -0.3, 0);
+          bot.rotation.z = -0.3;
+          const botOutline = new THREE.Mesh(botGeo, outlineMat);
+          botOutline.scale.set(1.2, 1.1, 1.3);
+          bot.add(botOutline);
+          group.add(bot);
+          
+          group.userData = {
+            isPowerUp: true,
+            isSpeedBoost: true,
+            rotationSpeed: 0.08,
+            bobSpeed: 0.06,
+            time: Math.random() * 100,
+            baseY: betweenY,
+          };
+        } else {
+          // Original Super Smash power-up (cone + cylinder)
+          const coneGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+          const mat = new THREE.MeshBasicMaterial({
+            color: 0xffd93d, // Yellow gold
+          });
+          const cone = new THREE.Mesh(coneGeo, mat);
+          cone.rotation.x = Math.PI;
+          cone.position.y = -0.4;
 
-        // Add black outline to cone
-        const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
-        const outlineMat = new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          side: THREE.BackSide,
-        });
-        const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
-        coneOutline.scale.set(1.15, 1.1, 1.15);
-        cone.add(coneOutline);
+          const coneOutlineGeo = new THREE.ConeGeometry(0.4, 0.8, 8);
+          const outlineMat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            side: THREE.BackSide,
+          });
+          const coneOutline = new THREE.Mesh(coneOutlineGeo, outlineMat);
+          coneOutline.scale.set(1.15, 1.1, 1.15);
+          cone.add(coneOutline);
+          group.add(cone);
 
-        group.add(cone);
+          const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+          const cyl = new THREE.Mesh(cylGeo, mat);
+          cyl.position.y = 0.4;
+          const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
+          const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
+          cylOutline.scale.set(1.2, 1.1, 1.2);
+          cyl.add(cylOutline);
+          group.add(cyl);
 
-        const cylGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-        const cyl = new THREE.Mesh(cylGeo, mat);
-        cyl.position.y = 0.4;
-
-        // Add black outline to cylinder
-        const cylOutlineGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-        const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
-        cylOutline.scale.set(1.2, 1.1, 1.2);
-        cyl.add(cylOutline);
-
-        group.add(cyl);
+          group.userData = {
+            isPowerUp: true,
+            isSpeedBoost: false,
+            rotationSpeed: 0.05,
+            bobSpeed: 0.05,
+            time: Math.random() * 100,
+            baseY: betweenY,
+          };
+        }
 
         group.position.set(
           Math.cos(worldAngle) * radius,
@@ -1094,14 +1199,6 @@ export default class HelixScene extends Phaser.Scene {
         );
 
         group.scale.set(1.2, 1.2, 1.2);
-
-        group.userData = {
-          isPowerUp: true,
-          rotationSpeed: 0.05,
-          bobSpeed: 0.05,
-          time: Math.random() * 100,
-          baseY: betweenY,
-        };
 
         this.tower.add(group);
         this.powerUps.push(group);
@@ -1154,6 +1251,8 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.isSuperSmash = false;
     this.platformsToSmash = 0;
+    this.isSpeedBoost = false;
+    this.speedBoostTimer = 0;
 
     // Apply ball style based on test rank
     this.applyBallStyle(this.testRank);
@@ -1420,7 +1519,43 @@ export default class HelixScene extends Phaser.Scene {
         });
       }
     } else {
-      this.ballVelocity += this.gravity * deltaMultiplier;
+      // Apply gravity - Speed Boost makes gravity 2.5x stronger
+      const gravityMultiplier = this.isSpeedBoost ? 2.5 : 1;
+      this.ballVelocity += this.gravity * gravityMultiplier * deltaMultiplier;
+      
+      // Speed Boost trail effect - fire/speed lines
+      if (this.isSpeedBoost && Math.random() > 0.5) {
+        const trailTexture = this.createGlowTexture();
+        const speedTrailMat = new THREE.SpriteMaterial({
+          map: trailTexture,
+          color: 0xff4500, // Orange-red
+          transparent: true,
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const speedTrail = new THREE.Sprite(speedTrailMat);
+        speedTrail.scale.set(0.8, 1.2, 1); // Elongated for speed effect
+        speedTrail.position.copy(this.ball.position);
+        speedTrail.position.y += 0.5;
+        speedTrail.position.x += (Math.random() - 0.5) * 0.3;
+        
+        this.threeScene.add(speedTrail);
+        this.particles.push({
+          mesh: speedTrail,
+          velocity: new THREE.Vector3(0, 0.15, 0), // Faster upward movement
+          life: 0.4,
+        });
+      }
+    }
+    
+    // Update Speed Boost timer
+    if (this.isSpeedBoost) {
+      this.speedBoostTimer -= deltaMultiplier;
+      if (this.speedBoostTimer <= 0) {
+        this.isSpeedBoost = false;
+        this.speedBoostTimer = 0;
+      }
     }
 
     const nextY = this.ball.position.y + this.ballVelocity * deltaMultiplier;
@@ -1444,33 +1579,17 @@ export default class HelixScene extends Phaser.Scene {
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
       if (distance < 1.2) {
-        this.activateSuperSmash();
+        // Check if this is a Speed Boost or Super Smash power-up
+        if (pu.userData.isSpeedBoost) {
+          this.activateSpeedBoost();
+        } else {
+          this.activateSuperSmash();
+        }
         this.tower.remove(pu);
         this.powerUps.splice(i, 1);
 
-        // Add explosion with shockwave for power-up - match ball color
-        let explosionColor = 0x2ecc71; // Default green
-
-        if (this.ball.material === this.remixerMaterial) {
-          explosionColor = 0xb7ff00; // Remixer neon green
-        } else if (this.ball.material === this.masterMaterial) {
-          // Random color from Gravity Master palette (two-tone)
-          const masterColors = [0xff6b35, 0xffd93d]; // Red-Orange, Yellow
-          explosionColor =
-            masterColors[Math.floor(Math.random() * masterColors.length)];
-        } else if (this.ball.material === this.legendMaterial) {
-          // Random color from Legend palette
-          const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
-          explosionColor =
-            legendColors[Math.floor(Math.random() * legendColors.length)];
-        } else if (this.ball.material === this.proMaterial) {
-          // Pro colors - white and red
-          const proColors = [0xffffff, 0xff2222];
-          explosionColor =
-            proColors[Math.floor(Math.random() * proColors.length)];
-        } else if (this.ball.material === this.noobMaterial) {
-          explosionColor = 0x00d2d3; // Noob cyan
-        }
+        // Add explosion with shockwave for power-up - use power-up color
+        const explosionColor = pu.userData.isSpeedBoost ? 0xff4500 : 0xffd93d;
 
         this.createExplosion(puWorldPos.y, explosionColor, 15, true);
       }
@@ -1664,6 +1783,17 @@ export default class HelixScene extends Phaser.Scene {
   activateSuperSmash() {
     this.isSuperSmash = true;
     this.platformsToSmash = 5;
+
+    // Play power-up sound
+    this.playPowerUpSound();
+
+    // Haptic feedback on power-up collection
+    this.triggerHapticFeedback();
+  }
+
+  activateSpeedBoost() {
+    this.isSpeedBoost = true;
+    this.speedBoostTimer = 180; // ~3 seconds at 60fps
 
     // Play power-up sound
     this.playPowerUpSound();
