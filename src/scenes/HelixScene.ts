@@ -71,6 +71,8 @@ export default class HelixScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = false; // Chaos mode flag
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
+  private chaosGravity: number = -0.015; // Progressive gravity for Chaos Mode
+  private chaosGravityMax: number = -0.025; // Maximum gravity in Chaos Mode
   private hasShield: boolean = false; // Shield power-up active
   private shieldTimer: number = 0; // Timer for shield duration
   private shieldMesh: THREE.Mesh | null = null; // Visual shield bubble around ball
@@ -1247,6 +1249,9 @@ export default class HelixScene extends Phaser.Scene {
       this.shieldVisual = null;
     }
 
+    // Reset Chaos Mode gravity
+    this.chaosGravity = -0.015;
+
     // Apply ball style based on test rank
     this.applyBallStyle(this.testRank);
 
@@ -1512,7 +1517,14 @@ export default class HelixScene extends Phaser.Scene {
         });
       }
     } else {
-      this.ballVelocity += this.gravity * deltaMultiplier;
+      // In Chaos Mode, use progressive gravity
+      const currentGravity = this.isChaosMode ? this.chaosGravity : this.gravity;
+      this.ballVelocity += currentGravity * deltaMultiplier;
+
+      // Gradually increase chaos gravity up to max
+      if (this.isChaosMode && this.chaosGravity > this.chaosGravityMax) {
+        this.chaosGravity -= 0.00001 * deltaMultiplier; // Slow increase
+      }
     }
 
     const nextY = this.ball.position.y + this.ballVelocity * deltaMultiplier;
