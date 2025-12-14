@@ -1660,7 +1660,7 @@ export default class HelixScene extends Phaser.Scene {
               this.resolveCombo();
               collided = true;
             } else if (collisionResult === "danger") {
-              // Shield protects from danger zones
+              // Shield protects from danger zones but gets consumed
               if (this.isShieldActive) {
                 // Destroy platform instead of dying
                 this.destroyPlatform(platform, i);
@@ -1668,11 +1668,23 @@ export default class HelixScene extends Phaser.Scene {
                 this.score += pointsPerPlatform;
                 this.comboCount++;
                 this.scoreText.setText(this.score.toString());
-                // Flash shield visual to indicate protection
+
+                // Consume shield - deactivate it
+                this.isShieldActive = false;
+                this.shieldTimer = 0;
+
+                // Create shield break effect
                 if (this.shieldVisual) {
-                  const mat = this.shieldVisual
-                    .material as THREE.MeshBasicMaterial;
-                  mat.opacity = 0.8;
+                  // Flash bright before removing
+                  const mat = this.shieldVisual.material as THREE.MeshBasicMaterial;
+                  mat.opacity = 1.0;
+
+                  // Create cyan explosion effect
+                  this.createExplosion(this.ball.position.y, 0x00ffff, 12, true);
+
+                  // Remove shield visual
+                  this.threeScene.remove(this.shieldVisual);
+                  this.shieldVisual = null;
                 }
               } else {
                 this.gameOverSplatter(topSurfaceY);
