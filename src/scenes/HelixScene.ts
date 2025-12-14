@@ -1094,8 +1094,8 @@ export default class HelixScene extends Phaser.Scene {
         const worldAngle = angle + rotationZ;
         const betweenY = yPos - 2;
 
-        // In Chaos Mode: 10% chance for Shield, 90% for Super Smash
-        const isShieldPowerUp = this.isChaosMode && Math.random() < 0.1;
+        // In Chaos Mode: 20% chance for Shield, 80% for Super Smash
+        const isShieldPowerUp = this.isChaosMode && Math.random() < 0.2;
 
         const group = new THREE.Group();
 
@@ -1820,7 +1820,7 @@ export default class HelixScene extends Phaser.Scene {
 
   activateShield() {
     this.isShieldActive = true;
-    this.shieldTimer = 5000; // 5 seconds of immunity
+    this.shieldTimer = 8000; // 8 seconds of immunity
 
     // Play power-up sound
     this.playPowerUpSound();
