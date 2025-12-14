@@ -1589,6 +1589,11 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
+    // Keep cyberpunk grid following camera Y position
+    if (this.cyberpunkGrid && this.isChaosMode) {
+      this.cyberpunkGrid.position.y = this.camera.position.y;
+    }
+
     this.threeRenderer.render(this.threeScene, this.camera);
   }
 
@@ -1812,7 +1817,6 @@ export default class HelixScene extends Phaser.Scene {
   createCyberpunkGrid() {
     this.cyberpunkGrid = new THREE.Group();
     
-    // All positions are relative to the camera (grid will be added as child of camera)
     // Create horizontal lines (floor grid extending to horizon)
     const gridMaterial = new THREE.LineBasicMaterial({
       color: 0xff00ff, // Magenta
@@ -1826,8 +1830,8 @@ export default class HelixScene extends Phaser.Scene {
       opacity: 0.2,
     });
 
-    // Horizontal lines on floor plane (relative to camera)
-    const floorY = -55; // Below camera
+    // Horizontal lines on floor plane
+    const floorY = -50;
     const gridSize = 100;
     const lineSpacing = 4;
     
@@ -1851,7 +1855,7 @@ export default class HelixScene extends Phaser.Scene {
       this.cyberpunkGrid.add(line2);
     }
 
-    // Add vertical accent lines in the background (relative to camera)
+    // Add vertical accent lines in the background
     const verticalMaterial = new THREE.LineBasicMaterial({
       color: 0x00ff00, // Green
       transparent: true,
@@ -1860,22 +1864,22 @@ export default class HelixScene extends Phaser.Scene {
     
     for (let i = -40; i <= 40; i += 10) {
       const points = [
-        new THREE.Vector3(i, -80, -60),
-        new THREE.Vector3(i, 80, -60) // Tall lines centered on camera
+        new THREE.Vector3(i, floorY, -60),
+        new THREE.Vector3(i, floorY + 200, -60) // Tall lines
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, verticalMaterial);
       this.cyberpunkGrid.add(line);
     }
 
-    // Add floating horizontal scan lines (relative to camera)
+    // Add floating horizontal scan lines
     const scanMaterial = new THREE.LineBasicMaterial({
       color: 0xffff00, // Yellow
       transparent: true,
       opacity: 0.1,
     });
     
-    for (let y = -60; y <= 60; y += 5) {
+    for (let y = floorY; y <= floorY + 200; y += 5) {
       const points = [
         new THREE.Vector3(-50, y, -50),
         new THREE.Vector3(50, y, -50)
@@ -1885,9 +1889,10 @@ export default class HelixScene extends Phaser.Scene {
       this.cyberpunkGrid.add(line);
     }
 
-    // Add grid as child of camera so it always stays in same relative position
-    this.camera.add(this.cyberpunkGrid);
-    this.threeScene.add(this.camera); // Camera must be in scene for children to render
+    // Add to scene and position at camera Y immediately
+    this.threeScene.add(this.cyberpunkGrid);
+    // Set initial position to match camera
+    this.cyberpunkGrid.position.y = this.camera.position.y;
   }
 
   createGlowTexture() {
