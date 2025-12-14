@@ -62,6 +62,7 @@ export default class HelixScene extends Phaser.Scene {
   private currentMusic!: Phaser.Sound.BaseSound;
   private musicTracks: string[] = ["music1", "music2", "music3"];
   private premiumMusicTracks: string[] = ["unlock1", "unlock2"]; // Unlocked at score >= 500
+  private chaosMusicTracks: string[] = ["chaos1", "chaos2", "chaos3"]; // Chaos Mode exclusive
   private playerHighScore: number = 0; // Player's high score for premium content
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
@@ -1827,6 +1828,10 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   getAvailableMusicTracks(): string[] {
+    // Chaos Mode uses exclusive music tracks
+    if (this.isChaosMode) {
+      return this.chaosMusicTracks;
+    }
     // Premium tracks are unlocked at score >= 500 (Gravity Master rank)
     if (this.playerHighScore >= 500) {
       // Combine base tracks with premium tracks

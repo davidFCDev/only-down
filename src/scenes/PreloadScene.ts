@@ -65,6 +65,20 @@ export class PreloadScene extends Phaser.Scene {
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/unlock2-TU5t1uk6rH6C4ryPpLzVrzhhqkzltI.mp3?utUq"
     );
 
+    // Chaos Mode exclusive music tracks
+    this.load.audio(
+      "chaos1",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV"
+    );
+    this.load.audio(
+      "chaos2",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz"
+    );
+    this.load.audio(
+      "chaos3",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of"
+    );
+
     // --- IMAGES ---
     this.load.image(
       "startBg",
