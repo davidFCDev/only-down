@@ -152,11 +152,6 @@ export default class HelixScene extends Phaser.Scene {
     this.tower = new THREE.Group();
     this.threeScene.add(this.tower);
 
-    // Cyberpunk grid background for Chaos Mode
-    if (this.isChaosMode) {
-      this.createCyberpunkGrid();
-    }
-
     // Materials - Vibrant colors
     this.normalMaterial = new THREE.MeshBasicMaterial({
       color: 0x2ecc71, // Bright green
@@ -251,6 +246,12 @@ export default class HelixScene extends Phaser.Scene {
     // Camera Start - Balanced angle
     this.camera.position.set(0, 5, 11);
     this.camera.lookAt(0, -1, 0);
+
+    // Cyberpunk grid background for Chaos Mode - create AFTER camera is positioned
+    if (this.isChaosMode) {
+      this.createCyberpunkGrid();
+    }
+
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
     this.jumpSound = this.sound.add("jump", { volume: 0.3 }); // Low volume so music predominates
 
@@ -1816,14 +1817,14 @@ export default class HelixScene extends Phaser.Scene {
 
   createCyberpunkGrid() {
     this.cyberpunkGrid = new THREE.Group();
-    
+
     // Create horizontal lines (floor grid extending to horizon)
     const gridMaterial = new THREE.LineBasicMaterial({
       color: 0xff00ff, // Magenta
       transparent: true,
       opacity: 0.3,
     });
-    
+
     const gridMaterial2 = new THREE.LineBasicMaterial({
       color: 0x00ffff, // Cyan
       transparent: true,
@@ -1834,24 +1835,30 @@ export default class HelixScene extends Phaser.Scene {
     const floorY = -50;
     const gridSize = 100;
     const lineSpacing = 4;
-    
+
     for (let i = -gridSize; i <= gridSize; i += lineSpacing) {
       // Lines along Z axis
       const points1 = [
         new THREE.Vector3(i, floorY, -gridSize),
-        new THREE.Vector3(i, floorY, gridSize)
+        new THREE.Vector3(i, floorY, gridSize),
       ];
       const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
-      const line1 = new THREE.Line(geometry1, i % 8 === 0 ? gridMaterial : gridMaterial2);
+      const line1 = new THREE.Line(
+        geometry1,
+        i % 8 === 0 ? gridMaterial : gridMaterial2
+      );
       this.cyberpunkGrid.add(line1);
-      
+
       // Lines along X axis
       const points2 = [
         new THREE.Vector3(-gridSize, floorY, i),
-        new THREE.Vector3(gridSize, floorY, i)
+        new THREE.Vector3(gridSize, floorY, i),
       ];
       const geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
-      const line2 = new THREE.Line(geometry2, i % 8 === 0 ? gridMaterial : gridMaterial2);
+      const line2 = new THREE.Line(
+        geometry2,
+        i % 8 === 0 ? gridMaterial : gridMaterial2
+      );
       this.cyberpunkGrid.add(line2);
     }
 
@@ -1861,11 +1868,11 @@ export default class HelixScene extends Phaser.Scene {
       transparent: true,
       opacity: 0.15,
     });
-    
+
     for (let i = -40; i <= 40; i += 10) {
       const points = [
         new THREE.Vector3(i, floorY, -60),
-        new THREE.Vector3(i, floorY + 200, -60) // Tall lines
+        new THREE.Vector3(i, floorY + 200, -60), // Tall lines
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, verticalMaterial);
@@ -1878,11 +1885,11 @@ export default class HelixScene extends Phaser.Scene {
       transparent: true,
       opacity: 0.1,
     });
-    
+
     for (let y = floorY; y <= floorY + 200; y += 5) {
       const points = [
         new THREE.Vector3(-50, y, -50),
-        new THREE.Vector3(50, y, -50)
+        new THREE.Vector3(50, y, -50),
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, scanMaterial);
