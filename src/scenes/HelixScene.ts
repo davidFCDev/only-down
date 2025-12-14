@@ -1862,7 +1862,7 @@ export default class HelixScene extends Phaser.Scene {
       this.cyberpunkGrid.add(line2);
     }
 
-    // Add vertical accent lines in the background
+    // Add vertical accent lines in the background - extend much higher
     const verticalMaterial = new THREE.LineBasicMaterial({
       color: 0x00ff00, // Green
       transparent: true,
@@ -1872,21 +1872,21 @@ export default class HelixScene extends Phaser.Scene {
     for (let i = -40; i <= 40; i += 10) {
       const points = [
         new THREE.Vector3(i, floorY, -60),
-        new THREE.Vector3(i, 30, -60)
+        new THREE.Vector3(i, 150, -60) // Much higher to stay visible when camera moves
       ];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, verticalMaterial);
       this.cyberpunkGrid.add(line);
     }
 
-    // Add floating horizontal scan lines
+    // Add floating horizontal scan lines - extend range
     const scanMaterial = new THREE.LineBasicMaterial({
       color: 0xffff00, // Yellow
       transparent: true,
       opacity: 0.1,
     });
     
-    for (let y = -30; y <= 20; y += 5) {
+    for (let y = -30; y <= 120; y += 5) {
       const points = [
         new THREE.Vector3(-50, y, -50),
         new THREE.Vector3(50, y, -50)
