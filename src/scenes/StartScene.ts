@@ -110,14 +110,34 @@ const LEVEL_TRAILS: {
   [key: string]: {
     name: string;
     color: number;
+    color2?: number;
     enabled: boolean;
+    style: string; // none, flames, dots, snow, gradient
   };
 } = {
-  none: { name: "None", color: 0x000000, enabled: false },
-  fire: { name: "Fire", color: 0xff4500, enabled: true },
-  neon: { name: "Neon", color: 0xb7ff00, enabled: true },
-  electric: { name: "Electric", color: 0x00ffff, enabled: true },
-  rainbow: { name: "Rainbow", color: 0xff00ff, enabled: true },
+  none: { name: "None", color: 0x000000, enabled: false, style: "none" },
+  fire: {
+    name: "Fire",
+    color: 0xff4500,
+    color2: 0xffcc00,
+    enabled: true,
+    style: "flames",
+  },
+  neon: { name: "Neon", color: 0xb7ff00, color2: 0xffff00, enabled: true, style: "dots" },
+  frost: {
+    name: "Frost",
+    color: 0xaaddff,
+    color2: 0xffffff,
+    enabled: true,
+    style: "snow",
+  },
+  rainbow: {
+    name: "Rainbow",
+    color: 0xff00ff,
+    color2: 0x00ffff,
+    enabled: true,
+    style: "gradient",
+  },
 };
 
 // Default custom level config
@@ -1235,15 +1255,15 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(title);
 
     // Section 1: THEME SELECTOR (combines palette + background)
-    const themeSectionY = height * 0.1;
+    const themeSectionY = height * 0.10;
     this.createThemeSelector(width, themeSectionY);
 
     // Section 2: TRAIL SELECTOR
-    const trailSectionY = height * 0.65;
+    const trailSectionY = height * 0.62;
     this.createTrailSelector(width, trailSectionY);
 
-    // Buttons: SAVE, RESET, CLOSE
-    const btnY = height * 0.85;
+    // Buttons: SAVE and CLOSE only
+    const btnY = height * 0.78;
     this.createCustomLevelModalButtons(width, btnY);
 
     // Fade in
@@ -1385,9 +1405,9 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createTrailSelector(width: number, y: number) {
-    // Section label
+    // Section label - same separation as THEME
     const label = this.add
-      .text(width / 2, y - 55, "BALL TRAIL", {
+      .text(width / 2, y - 65, "BALL TRAIL", {
         fontSize: "26px",
         color: "#ffd93d",
         fontFamily: "Fredoka",
@@ -1401,9 +1421,9 @@ export default class StartScene extends Phaser.Scene {
     // Trail options - OVERSIZE (same width as theme section)
     const trails = Object.keys(LEVEL_TRAILS);
     const rowWidth = width * 0.92;
-    const btnWidth = (rowWidth - 40) / trails.length; // Divide equally
-    const btnHeight = 70;
-    const startX = width / 2 - rowWidth / 2 + btnWidth / 2 + 8;
+    const btnWidth = (rowWidth - 20) / trails.length;
+    const btnHeight = 90; // More height to avoid overlap
+    const startX = width / 2 - rowWidth / 2 + btnWidth / 2 + 4;
 
     trails.forEach((trailKey, index) => {
       const trailData = LEVEL_TRAILS[trailKey];
@@ -1414,9 +1434,9 @@ export default class StartScene extends Phaser.Scene {
       const btn = this.add.graphics();
       btn.fillStyle(0x1a1a1a, 1);
       btn.fillRoundedRect(
-        x - (btnWidth - 8) / 2,
+        x - (btnWidth - 6) / 2,
         y - btnHeight / 2,
-        btnWidth - 8,
+        btnWidth - 6,
         btnHeight,
         12
       );
@@ -1425,39 +1445,23 @@ export default class StartScene extends Phaser.Scene {
       if (isSelected) {
         btn.lineStyle(4, 0xffd93d, 1);
         btn.strokeRoundedRect(
-          x - (btnWidth - 8) / 2,
+          x - (btnWidth - 6) / 2,
           y - btnHeight / 2,
-          btnWidth - 8,
+          btnWidth - 6,
           btnHeight,
           12
         );
       }
       this.customLevelModalContainer.add(btn);
 
-      // Trail color indicator - BIGGER glow effect
-      if (trailData.enabled) {
-        // Outer glow effect
-        btn.fillStyle(trailData.color, 0.3);
-        btn.fillCircle(x, y - 8, 22);
-        // Inner solid circle
-        btn.fillStyle(trailData.color, 1);
-        btn.fillCircle(x, y - 8, 15);
-      } else {
-        // X for none - BIGGER
-        const noneText = this.add
-          .text(x, y - 8, "✕", {
-            fontSize: "32px",
-            color: "#666666",
-            fontFamily: "Fredoka",
-          })
-          .setOrigin(0.5);
-        this.customLevelModalContainer.add(noneText);
-      }
+      // Draw distinctive trail icon based on style
+      const iconY = y - 8;
+      this.drawTrailIcon(btn, x, iconY, trailData);
 
-      // Label - BIGGER
+      // Label
       const trailLabel = this.add
-        .text(x, y + btnHeight / 2 - 14, trailData.name, {
-          fontSize: "14px",
+        .text(x, y + btnHeight / 2 - 12, trailData.name, {
+          fontSize: "13px",
           color: isSelected ? "#ffd93d" : "#FFFFFF",
           fontFamily: "Fredoka",
           fontStyle: "bold",
@@ -1467,7 +1471,7 @@ export default class StartScene extends Phaser.Scene {
 
       // Interactive zone
       const zone = this.add
-        .zone(x, y, btnWidth - 8, btnHeight)
+        .zone(x, y, btnWidth - 6, btnHeight)
         .setInteractive({ useHandCursor: true })
         .on("pointerdown", () => {
           this.customLevelConfig.trail = trailKey;
@@ -1477,16 +1481,189 @@ export default class StartScene extends Phaser.Scene {
     });
   }
 
-  createCustomLevelModalButtons(width: number, y: number) {
-    const btnWidth = 115;
-    const btnHeight = 55;
-    const spacing = 125;
+  drawTrailIcon(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    trailData: {
+      color: number;
+      color2?: number;
+      enabled: boolean;
+      style: string;
+    }
+  ) {
+    if (!trailData.enabled) {
+      // X for none - just a gray ball with X
+      graphics.fillStyle(0x444444, 1);
+      graphics.fillCircle(x, y, 14);
+      const noneText = this.add
+        .text(x, y, "✕", {
+          fontSize: "20px",
+          color: "#666666",
+          fontFamily: "Fredoka",
+        })
+        .setOrigin(0.5);
+      this.customLevelModalContainer.add(noneText);
+      return;
+    }
 
-    // SAVE button - BIGGER
+    // Ball radius and trail particles emanating from it
+    const ballRadius = 12;
+    const numParticles = 8;
+
+    switch (trailData.style) {
+      case "flames":
+        // Fire: flames emanating outward from ball in all directions
+        for (let i = 0; i < numParticles; i++) {
+          const angle = (i / numParticles) * Math.PI * 2;
+          const dist1 = ballRadius + 4;
+          const dist2 = ballRadius + 12;
+          const dist3 = ballRadius + 20;
+          
+          // Outer flame (yellow, faded)
+          graphics.fillStyle(trailData.color2 || 0xffcc00, 0.3);
+          graphics.fillCircle(
+            x + Math.cos(angle) * dist3,
+            y + Math.sin(angle) * dist3,
+            4
+          );
+          // Middle flame (orange)
+          graphics.fillStyle(trailData.color, 0.6);
+          graphics.fillCircle(
+            x + Math.cos(angle) * dist2,
+            y + Math.sin(angle) * dist2,
+            5
+          );
+          // Inner flame (yellow, bright)
+          graphics.fillStyle(trailData.color2 || 0xffcc00, 0.9);
+          graphics.fillCircle(
+            x + Math.cos(angle) * dist1,
+            y + Math.sin(angle) * dist1,
+            4
+          );
+        }
+        // Central ball (dark core)
+        graphics.fillStyle(0x331100, 1);
+        graphics.fillCircle(x, y, ballRadius);
+        graphics.fillStyle(trailData.color, 0.8);
+        graphics.fillCircle(x, y, ballRadius - 3);
+        break;
+
+      case "dots":
+        // Neon: glowing dots scattered around the ball
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2 + Math.random() * 0.3;
+          const dist = ballRadius + 6 + (i % 3) * 6;
+          const size = 3 + (i % 3) * 2;
+          const alpha = 0.9 - (i % 3) * 0.25;
+          
+          graphics.fillStyle(trailData.color, alpha);
+          graphics.fillCircle(
+            x + Math.cos(angle) * dist,
+            y + Math.sin(angle) * dist,
+            size
+          );
+        }
+        // Central ball with glow
+        graphics.fillStyle(trailData.color, 0.3);
+        graphics.fillCircle(x, y, ballRadius + 4);
+        graphics.fillStyle(0x112200, 1);
+        graphics.fillCircle(x, y, ballRadius);
+        graphics.fillStyle(trailData.color, 1);
+        graphics.fillCircle(x, y, ballRadius - 4);
+        break;
+
+      case "snow":
+        // Snow: snowflakes falling around the ball
+        // Draw multiple snowflakes at different positions
+        const snowPositions = [
+          { x: 0, y: -12, size: 4, alpha: 1 },
+          { x: -10, y: -5, size: 3, alpha: 0.8 },
+          { x: 12, y: -8, size: 3.5, alpha: 0.9 },
+          { x: -6, y: 8, size: 2.5, alpha: 0.6 },
+          { x: 8, y: 5, size: 2, alpha: 0.5 },
+          { x: -14, y: 10, size: 2, alpha: 0.4 },
+          { x: 14, y: 12, size: 1.5, alpha: 0.3 },
+        ];
+        
+        snowPositions.forEach(sp => {
+          // Draw snowflake as star pattern
+          graphics.fillStyle(trailData.color, sp.alpha);
+          graphics.fillCircle(x + sp.x, y + sp.y, sp.size);
+          // Add sparkle effect
+          if (sp.size > 2.5) {
+            graphics.lineStyle(1, 0xffffff, sp.alpha * 0.8);
+            // Cross pattern for snowflake
+            graphics.beginPath();
+            graphics.moveTo(x + sp.x - sp.size * 1.5, y + sp.y);
+            graphics.lineTo(x + sp.x + sp.size * 1.5, y + sp.y);
+            graphics.moveTo(x + sp.x, y + sp.y - sp.size * 1.5);
+            graphics.lineTo(x + sp.x, y + sp.y + sp.size * 1.5);
+            graphics.strokePath();
+          }
+        });
+        
+        // Central ball with icy glow
+        graphics.fillStyle(trailData.color2 || 0xaaddff, 0.3);
+        graphics.fillCircle(x, y, ballRadius + 6);
+        graphics.fillStyle(0xddeeff, 1);
+        graphics.fillCircle(x, y, ballRadius);
+        graphics.fillStyle(0xffffff, 0.9);
+        graphics.fillCircle(x, y, ballRadius - 4);
+        break;
+
+      case "gradient":
+        // Rainbow: multicolor rings emanating from ball
+        const rainbowColors = [0xff0000, 0xff7700, 0xffff00, 0x00ff00, 0x00ffff, 0xff00ff];
+        
+        // Draw rainbow particles in spiral
+        for (let ring = 0; ring < 3; ring++) {
+          const ringDist = ballRadius + 5 + ring * 7;
+          const particlesInRing = 6 + ring * 2;
+          
+          for (let i = 0; i < particlesInRing; i++) {
+            const angle = (i / particlesInRing) * Math.PI * 2 + ring * 0.3;
+            const colorIndex = (i + ring) % rainbowColors.length;
+            const alpha = 0.9 - ring * 0.25;
+            const size = 4 - ring * 0.5;
+            
+            graphics.fillStyle(rainbowColors[colorIndex], alpha);
+            graphics.fillCircle(
+              x + Math.cos(angle) * ringDist,
+              y + Math.sin(angle) * ringDist,
+              size
+            );
+          }
+        }
+        // Central ball with rainbow gradient
+        graphics.fillStyle(0x220022, 1);
+        graphics.fillCircle(x, y, ballRadius);
+        graphics.fillStyle(0xff00ff, 0.8);
+        graphics.fillCircle(x, y, ballRadius - 2);
+        graphics.fillStyle(0x00ffff, 0.6);
+        graphics.fillCircle(x, y, ballRadius - 5);
+        break;
+
+      default:
+        // Fallback: simple glowing ball
+        graphics.fillStyle(trailData.color, 0.3);
+        graphics.fillCircle(x, y, 20);
+        graphics.fillStyle(trailData.color, 1);
+        graphics.fillCircle(x, y, 12);
+    }
+  }
+
+  createCustomLevelModalButtons(width: number, y: number) {
+    const btnWidth = 140;
+    const btnHeight = 60;
+    const spacing = 20; // Gap between buttons
+
+    // SAVE button (left) - centered properly
+    const saveX = width / 2 - spacing / 2 - btnWidth / 2;
     const saveBg = this.add.graphics();
     saveBg.fillStyle(0x000000, 1);
     saveBg.fillRoundedRect(
-      width / 2 - spacing - btnWidth / 2 - 4,
+      saveX - btnWidth / 2 - 4,
       y - btnHeight / 2 - 4,
       btnWidth + 8,
       btnHeight + 8,
@@ -1494,7 +1671,7 @@ export default class StartScene extends Phaser.Scene {
     );
     saveBg.fillStyle(0x2ecc71, 1);
     saveBg.fillRoundedRect(
-      width / 2 - spacing - btnWidth / 2,
+      saveX - btnWidth / 2,
       y - btnHeight / 2,
       btnWidth,
       btnHeight,
@@ -1503,8 +1680,8 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(saveBg);
 
     const saveText = this.add
-      .text(width / 2 - spacing, y, "SAVE", {
-        fontSize: "24px",
+      .text(saveX, y, "SAVE", {
+        fontSize: "28px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
@@ -1515,7 +1692,7 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(saveText);
 
     const saveZone = this.add
-      .zone(width / 2 - spacing, y, btnWidth, btnHeight)
+      .zone(saveX, y, btnWidth, btnHeight)
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", async () => {
         await this.saveCustomLevelConfig();
@@ -1523,52 +1700,12 @@ export default class StartScene extends Phaser.Scene {
       });
     this.customLevelModalContainer.add(saveZone);
 
-    // RESET button - BIGGER
-    const resetBg = this.add.graphics();
-    resetBg.fillStyle(0x000000, 1);
-    resetBg.fillRoundedRect(
-      width / 2 - btnWidth / 2 - 4,
-      y - btnHeight / 2 - 4,
-      btnWidth + 8,
-      btnHeight + 8,
-      14
-    );
-    resetBg.fillStyle(0xe74c3c, 1);
-    resetBg.fillRoundedRect(
-      width / 2 - btnWidth / 2,
-      y - btnHeight / 2,
-      btnWidth,
-      btnHeight,
-      12
-    );
-    this.customLevelModalContainer.add(resetBg);
-
-    const resetText = this.add
-      .text(width / 2, y, "RESET", {
-        fontSize: "24px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-    this.customLevelModalContainer.add(resetText);
-
-    const resetZone = this.add
-      .zone(width / 2, y, btnWidth, btnHeight)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => {
-        this.customLevelConfig = { ...DEFAULT_CUSTOM_LEVEL };
-        this.refreshCustomLevelModal();
-      });
-    this.customLevelModalContainer.add(resetZone);
-
-    // CLOSE button - BIGGER
+    // CLOSE button (right) - centered properly
+    const closeX = width / 2 + spacing / 2 + btnWidth / 2;
     const closeBg = this.add.graphics();
     closeBg.fillStyle(0x000000, 1);
     closeBg.fillRoundedRect(
-      width / 2 + spacing - btnWidth / 2 - 4,
+      closeX - btnWidth / 2 - 4,
       y - btnHeight / 2 - 4,
       btnWidth + 8,
       btnHeight + 8,
@@ -1576,7 +1713,7 @@ export default class StartScene extends Phaser.Scene {
     );
     closeBg.fillStyle(0x7f8c8d, 1);
     closeBg.fillRoundedRect(
-      width / 2 + spacing - btnWidth / 2,
+      closeX - btnWidth / 2,
       y - btnHeight / 2,
       btnWidth,
       btnHeight,
@@ -1585,8 +1722,8 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(closeBg);
 
     const closeText = this.add
-      .text(width / 2 + spacing, y, "CLOSE", {
-        fontSize: "24px",
+      .text(closeX, y, "CLOSE", {
+        fontSize: "28px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
@@ -1597,7 +1734,7 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(closeText);
 
     const closeZone = this.add
-      .zone(width / 2 + spacing, y, btnWidth, btnHeight)
+      .zone(closeX, y, btnWidth, btnHeight)
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => {
         this.closeCustomLevelModal();

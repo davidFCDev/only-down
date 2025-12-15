@@ -144,8 +144,8 @@ export default class HelixScene extends Phaser.Scene {
   private static readonly TRAIL_COLORS: { [key: string]: number[] } = {
     none: [],
     fire: [0xff4500, 0xff6600, 0xff8800, 0xffaa00],
-    neon: [0x00ff88, 0x00ffff, 0xff00ff, 0xffff00],
-    electric: [0x00bfff, 0x1e90ff, 0x4169e1, 0x0000ff],
+    neon: [0xb7ff00, 0xccff00, 0xffff00, 0x88ff00], // Verde/amarillo neón
+    frost: [0xffffff, 0xeeeeff, 0xaaddff, 0xccddff], // Blanco/azul hielo
     rainbow: [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff],
   };
 
@@ -1637,7 +1637,7 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Custom Level Trail Effect
+    // Custom Level Trail Effect - Enhanced with unique styles per trail type
     if (
       !this.isChaosMode &&
       this.customLevelConfig &&
@@ -1645,34 +1645,202 @@ export default class HelixScene extends Phaser.Scene {
       this.isGameActive &&
       !this.isGameStarting
     ) {
-      if (Math.random() > 0.4) {
-        const trailColors =
-          HelixScene.TRAIL_COLORS[this.customLevelConfig.trail] ||
-          HelixScene.TRAIL_COLORS.fire;
-        if (trailColors.length > 0) {
-          const trailColor =
-            trailColors[Math.floor(Math.random() * trailColors.length)];
+      const trailType = this.customLevelConfig.trail;
+      const trailColors =
+        HelixScene.TRAIL_COLORS[trailType] || HelixScene.TRAIL_COLORS.fire;
+      
+      if (trailColors.length > 0) {
+        // Different behavior per trail type
+        switch (trailType) {
+          case "fire":
+            // Fire: multiple particles rising with spread, flickering
+            if (Math.random() > 0.25) {
+              for (let i = 0; i < 3; i++) {
+                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+                const trailTexture = this.createGlowTexture();
+                const trailMat = new THREE.SpriteMaterial({
+                  map: trailTexture,
+                  color: trailColor,
+                  transparent: true,
+                  opacity: 0.7 + Math.random() * 0.3,
+                  blending: THREE.AdditiveBlending,
+                  depthWrite: false,
+                });
+                const trail = new THREE.Sprite(trailMat);
+                const size = 0.4 + Math.random() * 0.4;
+                trail.scale.set(size, size, 1);
+                trail.position.copy(this.ball.position);
+                // Spread around the ball
+                trail.position.x += (Math.random() - 0.5) * 0.5;
+                trail.position.z += (Math.random() - 0.5) * 0.5;
+                trail.position.y += Math.random() * 0.2;
 
-          const trailTexture = this.createGlowTexture();
-          const trailMat = new THREE.SpriteMaterial({
-            map: trailTexture,
-            color: trailColor,
-            transparent: true,
-            opacity: 0.5,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          });
-          const trail = new THREE.Sprite(trailMat);
-          trail.scale.set(0.5, 0.5, 1);
-          trail.position.copy(this.ball.position);
-          trail.position.y += 0.1;
+                this.threeScene.add(trail);
+                this.particles.push({
+                  mesh: trail,
+                  velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.03,
+                    0.02 + Math.random() * 0.02,
+                    (Math.random() - 0.5) * 0.03
+                  ),
+                  life: 0.4 + Math.random() * 0.3,
+                });
+              }
+            }
+            break;
 
-          this.threeScene.add(trail);
-          this.particles.push({
-            mesh: trail,
-            velocity: new THREE.Vector3(0, 0.01, 0),
-            life: 0.4,
-          });
+          case "neon":
+            // Neon: bouncing dots that spread outward in bursts
+            if (Math.random() > 0.35) {
+              const numDots = 2 + Math.floor(Math.random() * 2);
+              for (let i = 0; i < numDots; i++) {
+                const angle = (i / numDots) * Math.PI * 2 + Math.random() * 0.5;
+                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+                const trailTexture = this.createGlowTexture();
+                const trailMat = new THREE.SpriteMaterial({
+                  map: trailTexture,
+                  color: trailColor,
+                  transparent: true,
+                  opacity: 0.8,
+                  blending: THREE.AdditiveBlending,
+                  depthWrite: false,
+                });
+                const trail = new THREE.Sprite(trailMat);
+                const size = 0.3 + Math.random() * 0.25;
+                trail.scale.set(size, size, 1);
+                trail.position.copy(this.ball.position);
+                // Start from ball surface
+                const spread = 0.25;
+                trail.position.x += Math.cos(angle) * spread;
+                trail.position.z += Math.sin(angle) * spread;
+
+                this.threeScene.add(trail);
+                this.particles.push({
+                  mesh: trail,
+                  velocity: new THREE.Vector3(
+                    Math.cos(angle) * 0.04,
+                    0.01 + Math.random() * 0.02,
+                    Math.sin(angle) * 0.04
+                  ),
+                  life: 0.35 + Math.random() * 0.2,
+                });
+              }
+            }
+            break;
+
+          case "frost":
+            // Frost/Ice: subtle icy particles around the ball
+            if (Math.random() > 0.5) { // Less frequent
+              const numFlakes = 2 + Math.floor(Math.random() * 2); // 2-3 particles
+              for (let i = 0; i < numFlakes; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+                
+                const trailTexture = this.createGlowTexture();
+                const trailMat = new THREE.SpriteMaterial({
+                  map: trailTexture,
+                  color: trailColor,
+                  transparent: true,
+                  opacity: 0.7 + Math.random() * 0.2, // Softer opacity
+                  blending: THREE.AdditiveBlending,
+                  depthWrite: false,
+                });
+                const trail = new THREE.Sprite(trailMat);
+                // Smaller, subtler sizes
+                const size = 0.2 + Math.random() * 0.25;
+                trail.scale.set(size, size, 1);
+                trail.position.copy(this.ball.position);
+                // Gentle spread around the ball
+                const spread = 0.2 + Math.random() * 0.15;
+                trail.position.x += Math.cos(angle) * spread;
+                trail.position.z += Math.sin(angle) * spread;
+                trail.position.y += Math.random() * 0.15;
+
+                this.threeScene.add(trail);
+                this.particles.push({
+                  mesh: trail,
+                  velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.015, // Gentler movement
+                    0.015 + Math.random() * 0.01,
+                    (Math.random() - 0.5) * 0.015
+                  ),
+                  life: 0.4 + Math.random() * 0.2, // Shorter life
+                });
+              }
+            }
+            break;
+
+          case "rainbow":
+            // Rainbow: colorful spiral/ring emanating outward
+            if (Math.random() > 0.3) {
+              const numParticles = 4;
+              const baseAngle = Date.now() * 0.01; // Rotating pattern
+              for (let i = 0; i < numParticles; i++) {
+                const angle = baseAngle + (i / numParticles) * Math.PI * 2;
+                const trailColor = trailColors[i % trailColors.length];
+                const trailTexture = this.createGlowTexture();
+                const trailMat = new THREE.SpriteMaterial({
+                  map: trailTexture,
+                  color: trailColor,
+                  transparent: true,
+                  opacity: 0.75,
+                  blending: THREE.AdditiveBlending,
+                  depthWrite: false,
+                });
+                const trail = new THREE.Sprite(trailMat);
+                const size = 0.35 + Math.random() * 0.2;
+                trail.scale.set(size, size, 1);
+                trail.position.copy(this.ball.position);
+                // Spiral outward
+                const startDist = 0.2;
+                trail.position.x += Math.cos(angle) * startDist;
+                trail.position.z += Math.sin(angle) * startDist;
+
+                this.threeScene.add(trail);
+                this.particles.push({
+                  mesh: trail,
+                  velocity: new THREE.Vector3(
+                    Math.cos(angle) * 0.05,
+                    0.015,
+                    Math.sin(angle) * 0.05
+                  ),
+                  life: 0.45 + Math.random() * 0.2,
+                });
+              }
+            }
+            break;
+
+          default:
+            // Fallback: simple spread
+            if (Math.random() > 0.4) {
+              const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+              const trailTexture = this.createGlowTexture();
+              const trailMat = new THREE.SpriteMaterial({
+                map: trailTexture,
+                color: trailColor,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+              });
+              const trail = new THREE.Sprite(trailMat);
+              trail.scale.set(0.5, 0.5, 1);
+              trail.position.copy(this.ball.position);
+              trail.position.x += (Math.random() - 0.5) * 0.4;
+              trail.position.z += (Math.random() - 0.5) * 0.4;
+              trail.position.y += 0.1;
+
+              this.threeScene.add(trail);
+              this.particles.push({
+                mesh: trail,
+                velocity: new THREE.Vector3(
+                  (Math.random() - 0.5) * 0.02,
+                  0.01,
+                  (Math.random() - 0.5) * 0.02
+                ),
+                life: 0.4,
+              });
+            }
         }
       }
     }
