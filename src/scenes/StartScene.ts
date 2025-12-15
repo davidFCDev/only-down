@@ -103,7 +103,7 @@ const LEVEL_BACKGROUNDS: {
   classic: { name: "Classic", color: 0xf5d89a }, // Warm yellow/cream
   cyberpunk: { name: "Cyberpunk", color: 0x0a0a0a }, // Near black
   ocean: { name: "Ocean", color: 0x1a1a2e }, // Dark blue
-  sunset: { name: "Sunset", color: 0x2d1b69 }, // Deep purple
+  sunset: { name: "Sunset", color: 0xffeaa7 }, // Warm yellow/orange
 };
 
 const LEVEL_TRAILS: {

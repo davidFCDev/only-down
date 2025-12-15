@@ -72,6 +72,7 @@ export default class HelixScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = false; // Chaos mode flag
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
+  private sunsetBackground: THREE.Group | null = null; // Sunset background with sun
   private chaosGravity: number = -0.015; // Progressive gravity for Chaos Mode
   private chaosGravityMax: number = -0.025; // Maximum gravity in Chaos Mode
   private chaosJumpStrength: number = 0.35; // Progressive jump strength for Chaos Mode
@@ -135,7 +136,7 @@ export default class HelixScene extends Phaser.Scene {
     classic: { name: "Classic", color: 0xf5d89a }, // Warm yellow/cream
     cyberpunk: { name: "Cyberpunk", color: 0x0a0a0a }, // Near black
     ocean: { name: "Ocean", color: 0x1a1a2e }, // Dark blue
-    sunset: { name: "Sunset", color: 0x2d1b69 }, // Deep purple
+    sunset: { name: "Sunset", color: 0xffeaa7 }, // Warm yellow/orange
   };
 
   // Trail colors
@@ -337,9 +338,17 @@ export default class HelixScene extends Phaser.Scene {
     this.camera.position.set(0, 5, 11);
     this.camera.lookAt(0, -1, 0);
 
-    // Cyberpunk grid background for Chaos Mode - create AFTER camera is positioned
-    if (this.isChaosMode) {
+    // Cyberpunk grid background for Chaos Mode OR Custom Level with cyberpunk background
+    if (
+      this.isChaosMode ||
+      this.customLevelConfig?.background === "cyberpunk"
+    ) {
       this.createCyberpunkGrid();
+    }
+
+    // Sunset background with sun for Custom Level
+    if (this.customLevelConfig?.background === "sunset") {
+      this.createSunsetBackground();
     }
 
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
@@ -1920,8 +1929,19 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     // Keep cyberpunk grid following camera Y position
-    if (this.cyberpunkGrid && this.isChaosMode) {
+    if (
+      this.cyberpunkGrid &&
+      (this.isChaosMode || this.customLevelConfig?.background === "cyberpunk")
+    ) {
       this.cyberpunkGrid.position.y = this.camera.position.y;
+    }
+
+    // Keep sunset background following camera Y position
+    if (
+      this.sunsetBackground &&
+      this.customLevelConfig?.background === "sunset"
+    ) {
+      this.sunsetBackground.position.y = this.camera.position.y;
     }
 
     // Update Shield power-up
@@ -2293,6 +2313,63 @@ export default class HelixScene extends Phaser.Scene {
     this.threeScene.add(this.cyberpunkGrid);
     // Set initial position to match camera
     this.cyberpunkGrid.position.y = this.camera.position.y;
+  }
+
+  createSunsetBackground() {
+    this.sunsetBackground = new THREE.Group();
+
+    // Create horizontal gradient bands covering the entire horizon
+    // Colors from top to bottom: purple -> red -> orange -> yellow
+    const gradientColors = [
+      { color: 0x4a1942, y: 80, height: 40 }, // Dark purple (top)
+      { color: 0x6b2d5c, y: 50, height: 30 }, // Purple
+      { color: 0x8b3a62, y: 25, height: 25 }, // Mauve
+      { color: 0xc0392b, y: 5, height: 20 }, // Deep red
+      { color: 0xe74c3c, y: -10, height: 15 }, // Red
+      { color: 0xff6b35, y: -22, height: 12 }, // Orange-red
+      { color: 0xff8c42, y: -32, height: 10 }, // Orange
+      { color: 0xffa64d, y: -40, height: 8 }, // Light orange
+      { color: 0xffbe5c, y: -47, height: 7 }, // Golden orange
+      { color: 0xffd166, y: -53, height: 6 }, // Golden yellow
+      { color: 0xffdd80, y: -58, height: 5 }, // Light yellow
+      { color: 0xffeaa7, y: -62, height: 4 }, // Pale yellow (matches background)
+    ];
+
+    const bandWidth = 200; // Wide enough to cover the view
+    const bandZ = -80;
+
+    gradientColors.forEach((band) => {
+      const geometry = new THREE.PlaneGeometry(bandWidth, band.height);
+      const material = new THREE.MeshBasicMaterial({
+        color: band.color,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, band.y, bandZ);
+      this.sunsetBackground!.add(mesh);
+    });
+
+    // Add subtle horizontal lines for that synthwave feel
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.08,
+    });
+
+    for (let y = -60; y <= 80; y += 8) {
+      const points = [
+        new THREE.Vector3(-100, y, bandZ + 1),
+        new THREE.Vector3(100, y, bandZ + 1),
+      ];
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, lineMaterial);
+      this.sunsetBackground!.add(line);
+    }
+
+    // Add to scene
+    this.threeScene.add(this.sunsetBackground);
+    this.sunsetBackground.position.y = this.camera.position.y;
   }
 
   createGlowTexture() {
