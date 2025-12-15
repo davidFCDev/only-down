@@ -194,9 +194,8 @@ export default class StartScene extends Phaser.Scene {
       }
 
       // Check if user has purchased Chaos Mode
-      const sdk = window.FarcadeSDK;
       if (sdk?.hasItem) {
-        this.isChaosUnlocked = sdk.hasItem('chaos-mode-new-style-music');
+        this.isChaosUnlocked = sdk.hasItem("chaos-mode-new-style-music");
         console.log("🎮 Chaos Mode unlocked:", this.isChaosUnlocked);
       }
 
@@ -604,7 +603,11 @@ export default class StartScene extends Phaser.Scene {
     });
   }
 
-  updateChaosButtonAppearance(btnWidth: number, btnHeight: number, cornerRadius: number) {
+  updateChaosButtonAppearance(
+    btnWidth: number,
+    btnHeight: number,
+    cornerRadius: number
+  ) {
     const badgeX = btnWidth / 2 - 10;
     const badgeY = -btnHeight / 2 - 5;
 
@@ -709,7 +712,9 @@ export default class StartScene extends Phaser.Scene {
       const sdk = window.FarcadeSDK;
       if (sdk?.purchase) {
         console.log("🛒 Initiating Chaos Mode purchase...");
-        const result = await sdk.purchase({ item: 'chaos-mode-new-style-music' });
+        const result = await sdk.purchase({
+          item: "chaos-mode-new-style-music",
+        });
 
         if (result.success) {
           console.log("✅ Chaos Mode purchased successfully!");
@@ -732,7 +737,7 @@ export default class StartScene extends Phaser.Scene {
 
   checkChaosPurchase() {
     const sdk = window.FarcadeSDK;
-    if (sdk?.hasItem && sdk.hasItem('chaos-mode-new-style-music')) {
+    if (sdk?.hasItem && sdk.hasItem("chaos-mode-new-style-music")) {
       this.isChaosUnlocked = true;
       this.updateChaosButtonAppearance(
         Math.min(320, this.scale.width * 0.65),
