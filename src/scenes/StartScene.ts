@@ -512,11 +512,11 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createChaosModeButton(width: number, height: number) {
-    const btnWidth = Math.min(320, width * 0.65);
-    const btnHeight = 80;
-    const cornerRadius = 22;
+    const btnWidth = Math.min(340, width * 0.72);
+    const btnHeight = 90;
+    const cornerRadius = 24;
 
-    this.chaosBtnContainer = this.add.container(width / 2, height * 0.86);
+    this.chaosBtnContainer = this.add.container(width / 2, height * 0.84);
     this.chaosBtnContainer.setAlpha(0);
 
     // Button background
