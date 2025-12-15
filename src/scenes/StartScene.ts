@@ -351,9 +351,9 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createMainStartButton(width: number, height: number) {
-    const btnWidth = Math.min(320, width * 0.65);
-    const btnHeight = 80;
-    const cornerRadius = 22;
+    const btnWidth = Math.min(340, width * 0.72);
+    const btnHeight = 90;
+    const cornerRadius = 24;
 
     this.startBtnContainer = this.add.container(width / 2, height * 0.58);
     this.startBtnContainer.setAlpha(0);
@@ -437,9 +437,9 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createBallSelectButton(width: number, height: number) {
-    const btnWidth = Math.min(320, width * 0.65);
-    const btnHeight = 80;
-    const cornerRadius = 22;
+    const btnWidth = Math.min(340, width * 0.72);
+    const btnHeight = 90;
+    const cornerRadius = 24;
 
     this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.72);
     this.ballSelectBtnContainer.setAlpha(0);
