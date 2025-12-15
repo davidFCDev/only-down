@@ -1676,11 +1676,17 @@ export default class HelixScene extends Phaser.Scene {
                 // Create shield break effect
                 if (this.shieldVisual) {
                   // Flash bright before removing
-                  const mat = this.shieldVisual.material as THREE.MeshBasicMaterial;
+                  const mat = this.shieldVisual
+                    .material as THREE.MeshBasicMaterial;
                   mat.opacity = 1.0;
 
                   // Create cyan explosion effect
-                  this.createExplosion(this.ball.position.y, 0x00ffff, 12, true);
+                  this.createExplosion(
+                    this.ball.position.y,
+                    0x00ffff,
+                    12,
+                    true
+                  );
 
                   // Remove shield visual
                   this.threeScene.remove(this.shieldVisual);

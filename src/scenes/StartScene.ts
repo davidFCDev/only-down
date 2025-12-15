@@ -71,6 +71,12 @@ export default class StartScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked";
   private isChaosMode: boolean = false;
   private chaosBtnContainer!: Phaser.GameObjects.Container;
+  private isChaosUnlocked: boolean = false; // Whether user has purchased Chaos Mode
+  private chaosBtnBg!: Phaser.GameObjects.Graphics;
+  private chaosBtnText!: Phaser.GameObjects.Text;
+  private chaosBadgeBg!: Phaser.GameObjects.Graphics;
+  private chaosBadgeText!: Phaser.GameObjects.Text;
+  private chaosLockIcon!: Phaser.GameObjects.Text;
 
   // Development controls
   private testRank: string = "Remixer";
@@ -185,6 +191,20 @@ export default class StartScene extends Phaser.Scene {
         console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
       } else {
         console.log("📊 SDK not available or timed out, using defaults");
+      }
+
+      // Check if user has purchased Chaos Mode
+      const sdk = window.FarcadeSDK;
+      if (sdk?.hasItem) {
+        this.isChaosUnlocked = sdk.hasItem('chaos-mode-new-style-music');
+        console.log("🎮 Chaos Mode unlocked:", this.isChaosUnlocked);
+      }
+
+      // Listen for purchase completions
+      if (sdk?.onPurchaseComplete) {
+        sdk.onPurchaseComplete(() => {
+          this.checkChaosPurchase();
+        });
       }
     } catch (error) {
       console.log("Could not load game state:", error);
@@ -501,30 +521,20 @@ export default class StartScene extends Phaser.Scene {
     this.chaosBtnContainer = this.add.container(width / 2, height * 0.86);
     this.chaosBtnContainer.setAlpha(0);
 
-    // Button background - orange/fire with black border
-    const btnBg = this.add.graphics();
-    // Black border
-    btnBg.fillStyle(0x000000, 1);
-    btnBg.fillRoundedRect(
-      -btnWidth / 2 - 5,
-      -btnHeight / 2 - 5,
-      btnWidth + 10,
-      btnHeight + 10,
-      cornerRadius + 2
-    );
-    // Orange/fire fill
-    btnBg.fillStyle(0xff6b35, 1);
-    btnBg.fillRoundedRect(
-      -btnWidth / 2,
-      -btnHeight / 2,
-      btnWidth,
-      btnHeight,
-      cornerRadius
-    );
-    this.chaosBtnContainer.add(btnBg);
+    // Button background
+    this.chaosBtnBg = this.add.graphics();
+    this.chaosBtnContainer.add(this.chaosBtnBg);
+
+    // Lock icon (hidden if unlocked)
+    this.chaosLockIcon = this.add
+      .text(-btnWidth / 2 + 35, 0, "🔒", {
+        fontSize: "28px",
+      })
+      .setOrigin(0.5);
+    this.chaosBtnContainer.add(this.chaosLockIcon);
 
     // Button text
-    const btnText = this.add
+    this.chaosBtnText = this.add
       .text(0, 0, "CHAOS MODE", {
         fontSize: "42px",
         color: "#FFFFFF",
@@ -534,44 +544,29 @@ export default class StartScene extends Phaser.Scene {
         strokeThickness: 7,
       })
       .setOrigin(0.5);
-    this.chaosBtnContainer.add(btnText);
+    this.chaosBtnContainer.add(this.chaosBtnText);
 
-    // NEW badge
-    const badgeWidth = 55;
+    // Badge (NEW or 100 credits)
+    const badgeWidth = this.isChaosUnlocked ? 55 : 80;
     const badgeHeight = 24;
     const badgeX = btnWidth / 2 - 10;
     const badgeY = -btnHeight / 2 - 5;
 
-    const badgeBg = this.add.graphics();
-    // Badge background - bright green/cyan
-    badgeBg.fillStyle(0x00ff88, 1);
-    badgeBg.fillRoundedRect(
-      badgeX - badgeWidth / 2,
-      badgeY - badgeHeight / 2,
-      badgeWidth,
-      badgeHeight,
-      8
-    );
-    // Black border
-    badgeBg.lineStyle(2, 0x000000, 1);
-    badgeBg.strokeRoundedRect(
-      badgeX - badgeWidth / 2,
-      badgeY - badgeHeight / 2,
-      badgeWidth,
-      badgeHeight,
-      8
-    );
-    this.chaosBtnContainer.add(badgeBg);
+    this.chaosBadgeBg = this.add.graphics();
+    this.chaosBtnContainer.add(this.chaosBadgeBg);
 
-    const badgeText = this.add
-      .text(badgeX, badgeY, "NEW", {
+    this.chaosBadgeText = this.add
+      .text(badgeX, badgeY, "", {
         fontSize: "16px",
         color: "#000000",
         fontFamily: "Fredoka",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    this.chaosBtnContainer.add(badgeText);
+    this.chaosBtnContainer.add(this.chaosBadgeText);
+
+    // Update button appearance based on unlock status
+    this.updateChaosButtonAppearance(btnWidth, btnHeight, cornerRadius);
 
     // Interactive zone
     const zone = this.add
@@ -592,7 +587,11 @@ export default class StartScene extends Phaser.Scene {
         });
       })
       .on("pointerdown", () => {
-        this.startChaosMode();
+        if (this.isChaosUnlocked) {
+          this.startChaosMode();
+        } else {
+          this.purchaseChaosMode();
+        }
       });
     this.chaosBtnContainer.add(zone);
 
@@ -603,6 +602,145 @@ export default class StartScene extends Phaser.Scene {
       duration: 400,
       delay: 1000,
     });
+  }
+
+  updateChaosButtonAppearance(btnWidth: number, btnHeight: number, cornerRadius: number) {
+    const badgeX = btnWidth / 2 - 10;
+    const badgeY = -btnHeight / 2 - 5;
+
+    // Clear and redraw button background
+    this.chaosBtnBg.clear();
+
+    if (this.isChaosUnlocked) {
+      // UNLOCKED - Orange/fire with black border
+      this.chaosBtnBg.fillStyle(0x000000, 1);
+      this.chaosBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.chaosBtnBg.fillStyle(0xff6b35, 1);
+      this.chaosBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // Hide lock icon
+      this.chaosLockIcon.setVisible(false);
+      this.chaosBtnText.setX(0);
+
+      // NEW badge - green
+      const badgeWidth = 55;
+      const badgeHeight = 24;
+      this.chaosBadgeBg.clear();
+      this.chaosBadgeBg.fillStyle(0x00ff88, 1);
+      this.chaosBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.chaosBadgeBg.lineStyle(2, 0x000000, 1);
+      this.chaosBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.chaosBadgeText.setText("NEW");
+      this.chaosBadgeText.setX(badgeX);
+    } else {
+      // LOCKED - Gray with lock, purple/gold badge for credits
+      this.chaosBtnBg.fillStyle(0x000000, 1);
+      this.chaosBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.chaosBtnBg.fillStyle(0x555555, 1); // Gray background
+      this.chaosBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // Show lock icon
+      this.chaosLockIcon.setVisible(true);
+      this.chaosBtnText.setX(10); // Shift text right for lock icon
+
+      // 100 credits badge - gold/yellow
+      const badgeWidth = 95;
+      const badgeHeight = 26;
+      this.chaosBadgeBg.clear();
+      this.chaosBadgeBg.fillStyle(0xffd93d, 1); // Gold
+      this.chaosBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.chaosBadgeBg.lineStyle(2, 0x000000, 1);
+      this.chaosBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.chaosBadgeText.setText("💎 100");
+      this.chaosBadgeText.setX(badgeX);
+    }
+  }
+
+  async purchaseChaosMode() {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.purchase) {
+        console.log("🛒 Initiating Chaos Mode purchase...");
+        const result = await sdk.purchase({ item: 'chaos-mode-new-style-music' });
+
+        if (result.success) {
+          console.log("✅ Chaos Mode purchased successfully!");
+          this.isChaosUnlocked = true;
+          this.updateChaosButtonAppearance(
+            Math.min(320, this.scale.width * 0.65),
+            80,
+            22
+          );
+        } else {
+          console.log("❌ Chaos Mode purchase failed or cancelled");
+        }
+      } else {
+        console.log("⚠️ SDK purchase not available");
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+    }
+  }
+
+  checkChaosPurchase() {
+    const sdk = window.FarcadeSDK;
+    if (sdk?.hasItem && sdk.hasItem('chaos-mode-new-style-music')) {
+      this.isChaosUnlocked = true;
+      this.updateChaosButtonAppearance(
+        Math.min(320, this.scale.width * 0.65),
+        80,
+        22
+      );
+      console.log("🎉 Chaos Mode now unlocked!");
+    }
   }
 
   startChaosMode() {
