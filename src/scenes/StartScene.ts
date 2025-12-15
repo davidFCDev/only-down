@@ -355,7 +355,7 @@ export default class StartScene extends Phaser.Scene {
     const btnHeight = 90;
     const cornerRadius = 24;
 
-    this.startBtnContainer = this.add.container(width / 2, height * 0.58);
+    this.startBtnContainer = this.add.container(width / 2, height * 0.56);
     this.startBtnContainer.setAlpha(0);
 
     // Button background - green with black border
@@ -441,7 +441,7 @@ export default class StartScene extends Phaser.Scene {
     const btnHeight = 90;
     const cornerRadius = 24;
 
-    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.72);
+    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.70);
     this.ballSelectBtnContainer.setAlpha(0);
 
     // Button background - magenta with black border
