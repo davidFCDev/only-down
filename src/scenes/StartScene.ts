@@ -102,7 +102,7 @@ const LEVEL_BACKGROUNDS: {
 } = {
   classic: { name: "Classic", color: 0xf5d89a }, // Warm yellow/cream
   cyberpunk: { name: "Cyberpunk", color: 0x0a0a0a }, // Near black
-  ocean: { name: "Ocean", color: 0x1a1a2e }, // Dark blue
+  ocean: { name: "Ocean", color: 0xa9cce3 }, // Dark blue
   sunset: { name: "Sunset", color: 0xffeaa7 }, // Warm yellow/orange
 };
 

@@ -72,7 +72,8 @@ export default class HelixScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = false; // Chaos mode flag
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
-  private sunsetBackground: THREE.Group | null = null; // Sunset background with sun
+  private sunsetBackground: THREE.Group | null = null; // Sunset background
+  private oceanBackground: THREE.Group | null = null; // Ocean background with light rays
   private chaosGravity: number = -0.015; // Progressive gravity for Chaos Mode
   private chaosGravityMax: number = -0.025; // Maximum gravity in Chaos Mode
   private chaosJumpStrength: number = 0.35; // Progressive jump strength for Chaos Mode
@@ -346,9 +347,14 @@ export default class HelixScene extends Phaser.Scene {
       this.createCyberpunkGrid();
     }
 
-    // Sunset background with sun for Custom Level
+    // Sunset background for Custom Level
     if (this.customLevelConfig?.background === "sunset") {
       this.createSunsetBackground();
+    }
+
+    // Ocean background for Custom Level
+    if (this.customLevelConfig?.background === "ocean") {
+      this.createOceanBackground();
     }
 
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
@@ -1944,6 +1950,14 @@ export default class HelixScene extends Phaser.Scene {
       this.sunsetBackground.position.y = this.camera.position.y;
     }
 
+    // Keep ocean background following camera Y position
+    if (
+      this.oceanBackground &&
+      this.customLevelConfig?.background === "ocean"
+    ) {
+      this.oceanBackground.position.y = this.camera.position.y;
+    }
+
     // Update Shield power-up
     if (this.isShieldActive) {
       // Update timer
@@ -2370,6 +2384,126 @@ export default class HelixScene extends Phaser.Scene {
     // Add to scene
     this.threeScene.add(this.sunsetBackground);
     this.sunsetBackground.position.y = this.camera.position.y;
+  }
+
+  createOceanBackground() {
+    this.oceanBackground = new THREE.Group();
+
+    // Create underwater gradient - covers entire visible area
+    // Extended to cover from very top to very bottom, ending in white
+    const gradientColors = [
+      { color: 0x0a1628, y: 150, height: 80 }, // Very dark blue (deep ocean) - extended up
+      { color: 0x0d2137, y: 80, height: 60 }, // Dark blue
+      { color: 0x0f2847, y: 35, height: 45 }, // Deep blue
+      { color: 0x123a5c, y: 0, height: 35 }, // Ocean blue
+      { color: 0x1a5276, y: -25, height: 25 }, // Medium blue
+      { color: 0x2171a3, y: -45, height: 20 }, // Lighter blue
+      { color: 0x2e86ab, y: -60, height: 15 }, // Teal blue
+      { color: 0x3498db, y: -72, height: 12 }, // Bright blue
+      { color: 0x5dade2, y: -82, height: 10 }, // Light blue
+      { color: 0x74b9ff, y: -90, height: 8 }, // Lighter blue
+      { color: 0xa9cce3, y: -96, height: 6 }, // Pale blue
+      { color: 0xd4e6f1, y: -102, height: 8 }, // Very pale blue
+      { color: 0xecf0f1, y: -110, height: 10 }, // Almost white
+      { color: 0xffffff, y: -150, height: 80 }, // White - extended down
+    ];
+
+    const bandWidth = 250; // Wider to cover more
+    const bandZ = -80;
+
+    gradientColors.forEach((band) => {
+      const geometry = new THREE.PlaneGeometry(bandWidth, band.height);
+      const material = new THREE.MeshBasicMaterial({
+        color: band.color,
+        transparent: true,
+        opacity: 0.95,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, band.y, bandZ);
+      this.oceanBackground!.add(mesh);
+    });
+
+    // Light rays coming from above (god rays effect) - extended
+    const rayMaterial = new THREE.MeshBasicMaterial({
+      color: 0x87ceeb, // Light sky blue
+      transparent: true,
+      opacity: 0.08,
+    });
+
+    // Create several angled light rays - taller to reach bottom
+    const rays = [
+      { x: -30, width: 8, angle: 0.15 },
+      { x: -15, width: 12, angle: 0.1 },
+      { x: 5, width: 15, angle: -0.05 },
+      { x: 25, width: 10, angle: -0.12 },
+      { x: 40, width: 6, angle: -0.18 },
+    ];
+
+    rays.forEach((ray) => {
+      const rayGeometry = new THREE.PlaneGeometry(ray.width, 300); // Taller rays
+      const rayMesh = new THREE.Mesh(rayGeometry, rayMaterial.clone());
+      rayMesh.position.set(ray.x, 0, bandZ + 5); // Centered vertically
+      rayMesh.rotation.z = ray.angle;
+      this.oceanBackground!.add(rayMesh);
+    });
+
+    // Add floating bubbles (small circles)
+    const bubbleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.15,
+    });
+
+    // Create bubbles at various positions - more spread out
+    const bubblePositions = [
+      { x: -35, y: -20, size: 0.8 },
+      { x: -28, y: 10, size: 0.5 },
+      { x: -20, y: -50, size: 1.0 },
+      { x: -12, y: 25, size: 0.6 },
+      { x: -5, y: -10, size: 0.7 },
+      { x: 8, y: 40, size: 0.4 },
+      { x: 15, y: -40, size: 0.9 },
+      { x: 22, y: 5, size: 0.5 },
+      { x: 30, y: -60, size: 0.8 },
+      { x: 38, y: 15, size: 0.6 },
+      { x: -40, y: 50, size: 0.5 },
+      { x: 0, y: 60, size: 0.7 },
+      { x: 35, y: 45, size: 0.4 },
+      { x: -25, y: -70, size: 0.6 },
+      { x: 10, y: -80, size: 0.5 },
+    ];
+
+    bubblePositions.forEach((bubble) => {
+      const bubbleGeometry = new THREE.CircleGeometry(bubble.size, 16);
+      const bubbleMesh = new THREE.Mesh(bubbleGeometry, bubbleMaterial.clone());
+      bubbleMesh.position.set(bubble.x, bubble.y, bandZ + 10);
+      this.oceanBackground!.add(bubbleMesh);
+    });
+
+    // Add wavy horizontal lines for water texture - extended range
+    const waveMaterial = new THREE.LineBasicMaterial({
+      color: 0x5dade2,
+      transparent: true,
+      opacity: 0.1,
+    });
+
+    for (let y = -120; y <= 120; y += 12) {
+      // Extended range
+      const points: THREE.Vector3[] = [];
+      for (let x = -120; x <= 120; x += 5) {
+        // Wider coverage
+        // Create a subtle wave pattern
+        const waveY = y + Math.sin(x * 0.1) * 1.5;
+        points.push(new THREE.Vector3(x, waveY, bandZ + 2));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, waveMaterial);
+      this.oceanBackground!.add(line);
+    }
+
+    // Add to scene
+    this.threeScene.add(this.oceanBackground);
+    this.oceanBackground.position.y = this.camera.position.y;
   }
 
   createGlowTexture() {
