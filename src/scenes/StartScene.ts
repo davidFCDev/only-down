@@ -54,6 +54,37 @@ const RANK_ORDER = [
   "Remixer",
 ];
 
+// Custom Ball Configuration (Premium 500 credits)
+const CUSTOM_BALL_COLORS: { [key: string]: { name: string; hex: number } } = {
+  green: { name: "Green", hex: 0x2ecc71 },
+  cyan: { name: "Cyan", hex: 0x00d2d3 },
+  red: { name: "Red", hex: 0xff2222 },
+  orange: { name: "Orange", hex: 0xff6b35 },
+  yellow: { name: "Yellow", hex: 0xffd93d },
+  pink: { name: "Pink", hex: 0xe91e8c },
+  purple: { name: "Purple", hex: 0x9b59b6 },
+  white: { name: "White", hex: 0xffffff },
+  neon: { name: "Neon", hex: 0xb7ff00 },
+  black: { name: "Void", hex: 0x1a1a1a },
+};
+
+const CUSTOM_BALL_TRAILS: { [key: string]: { name: string; color: number } } = {
+  none: { name: "None", color: 0x000000 },
+  fire: { name: "Fire", color: 0xff4500 },
+  ice: { name: "Ice", color: 0x00bfff },
+  rainbow: { name: "Rainbow", color: 0xff00ff },
+  electric: { name: "Electric", color: 0xffff00 },
+  neon: { name: "Neon", color: 0xb7ff00 },
+};
+
+const CUSTOM_BALL_PATTERNS: { [key: string]: { name: string } } = {
+  solid: { name: "Solid" },
+  dots: { name: "Dots" },
+  stripes: { name: "Stripes" },
+  gradient: { name: "Gradient" },
+  glow: { name: "Glow" },
+};
+
 export default class StartScene extends Phaser.Scene {
   private titleContainer!: Phaser.GameObjects.Container;
   private titleText!: Phaser.GameObjects.Text;
@@ -81,6 +112,20 @@ export default class StartScene extends Phaser.Scene {
   private ballsBtnText!: Phaser.GameObjects.Text;
   private ballsBadgeBg!: Phaser.GameObjects.Graphics;
   private ballsBadgeText!: Phaser.GameObjects.Text;
+
+  // Custom Ball Creator (Premium 500 credits)
+  private isCustomBallUnlocked: boolean = false;
+  private customBallBtnContainer!: Phaser.GameObjects.Container;
+  private customBallBtnBg!: Phaser.GameObjects.Graphics;
+  private customBallBtnText!: Phaser.GameObjects.Text;
+  private customBallBadgeBg!: Phaser.GameObjects.Graphics;
+  private customBallBadgeText!: Phaser.GameObjects.Text;
+  private customBallModalContainer!: Phaser.GameObjects.Container;
+  private customBallConfig: { color: string; trail: string; pattern: string } = {
+    color: "green",
+    trail: "none",
+    pattern: "solid",
+  };
 
   // Development controls
   private testRank: string = "Remixer";
@@ -204,6 +249,15 @@ export default class StartScene extends Phaser.Scene {
 
         this.isBallsUnlocked = sdk.hasItem("exclusive-balls");
         console.log("⚽ Balls unlocked:", this.isBallsUnlocked);
+
+        this.isCustomBallUnlocked = sdk.hasItem("custom-ball-creator");
+        console.log("🎨 Custom Ball unlocked:", this.isCustomBallUnlocked);
+      }
+
+      // Load custom ball config from game state
+      if (gameInfo?.initialGameState?.gameState?.customBallConfig) {
+        this.customBallConfig = gameInfo.initialGameState.gameState.customBallConfig;
+        console.log("🎨 Custom Ball config loaded:", this.customBallConfig);
       }
 
       // Listen for purchase completions
@@ -211,6 +265,7 @@ export default class StartScene extends Phaser.Scene {
         sdk.onPurchaseComplete(() => {
           this.checkChaosPurchase();
           this.checkBallsPurchase();
+          this.checkCustomBallPurchase();
         });
       }
     } catch (error) {
@@ -361,10 +416,10 @@ export default class StartScene extends Phaser.Scene {
 
   createMainStartButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.startBtnContainer = this.add.container(width / 2, height * 0.56);
+    this.startBtnContainer = this.add.container(width / 2, height * 0.42);
     this.startBtnContainer.setAlpha(0);
 
     // Button background - green with black border
@@ -392,12 +447,12 @@ export default class StartScene extends Phaser.Scene {
     // Button text
     const btnText = this.add
       .text(0, 0, "PLAY", {
-        fontSize: "52px",
+        fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.startBtnContainer.add(btnText);
@@ -439,6 +494,9 @@ export default class StartScene extends Phaser.Scene {
     // Create chaos mode button
     this.createChaosModeButton(width, height);
 
+    // Create custom ball button (Premium)
+    this.createCustomBallButton(width, height);
+
     // Create bouncing ball animation after button appears
     this.time.delayedCall(1000, () => {
       this.createBouncingBall(width, height);
@@ -447,10 +505,10 @@ export default class StartScene extends Phaser.Scene {
 
   createBallSelectButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.7);
+    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.54);
     this.ballSelectBtnContainer.setAlpha(0);
 
     // Button background
@@ -460,12 +518,12 @@ export default class StartScene extends Phaser.Scene {
     // Button text
     this.ballsBtnText = this.add
       .text(0, 0, "BALLS", {
-        fontSize: "52px",
+        fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.ballSelectBtnContainer.add(this.ballsBtnText);
@@ -573,10 +631,10 @@ export default class StartScene extends Phaser.Scene {
       );
 
       // 10 credits badge - gold/yellow, OVERLAPPING bottom of button
-      const badgeWidth = 140;
-      const badgeHeight = 44;
+      const badgeWidth = 120;
+      const badgeHeight = 36;
       const badgeX = 0; // Centered
-      const badgeY = btnHeight / 2 + 8; // Overlapping bottom edge of button
+      const badgeY = btnHeight / 2 + 6; // Overlapping bottom edge of button
       this.ballsBadgeBg.clear();
       this.ballsBadgeBg.fillStyle(0xffd93d, 1); // Gold
       this.ballsBadgeBg.fillRoundedRect(
@@ -584,19 +642,19 @@ export default class StartScene extends Phaser.Scene {
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        12
+        10
       );
-      this.ballsBadgeBg.lineStyle(4, 0x000000, 1);
+      this.ballsBadgeBg.lineStyle(3, 0x000000, 1);
       this.ballsBadgeBg.strokeRoundedRect(
         badgeX - badgeWidth / 2,
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        12
+        10
       );
       this.ballsBadgeText.setText("10 CREDITS");
       this.ballsBadgeText.setPosition(badgeX, badgeY);
-      this.ballsBadgeText.setFontSize(24);
+      this.ballsBadgeText.setFontSize(20);
     }
   }
 
@@ -612,8 +670,8 @@ export default class StartScene extends Phaser.Scene {
           this.isBallsUnlocked = true;
           this.updateBallsButtonAppearance(
             Math.min(340, this.scale.width * 0.72),
-            90,
-            24
+            70,
+            20
           );
         } else {
           console.log("❌ Balls purchase failed or cancelled");
@@ -632,8 +690,8 @@ export default class StartScene extends Phaser.Scene {
       this.isBallsUnlocked = true;
       this.updateBallsButtonAppearance(
         Math.min(340, this.scale.width * 0.72),
-        90,
-        24
+        70,
+        20
       );
       console.log("🎉 Balls now unlocked!");
     }
@@ -641,10 +699,10 @@ export default class StartScene extends Phaser.Scene {
 
   createChaosModeButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.chaosBtnContainer = this.add.container(width / 2, height * 0.84);
+    this.chaosBtnContainer = this.add.container(width / 2, height * 0.66);
     this.chaosBtnContainer.setAlpha(0);
 
     // Button background
@@ -653,13 +711,13 @@ export default class StartScene extends Phaser.Scene {
 
     // Button text
     this.chaosBtnText = this.add
-      .text(0, 0, "CHAOS MODE", {
+      .text(0, 0, "CHAOS", {
         fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.chaosBtnContainer.add(this.chaosBtnText);
@@ -797,11 +855,11 @@ export default class StartScene extends Phaser.Scene {
 
       this.chaosBtnText.setX(0);
 
-      // 100 credits badge - gold/yellow, OVERLAPPING bottom of button, much bigger
-      const badgeWidth = 160;
-      const badgeHeight = 44;
+      // 100 credits badge - gold/yellow, OVERLAPPING bottom of button
+      const badgeWidth = 140;
+      const badgeHeight = 36;
       const badgeX = 0; // Centered
-      const badgeY = btnHeight / 2 + 8; // Overlapping bottom edge of button
+      const badgeY = btnHeight / 2 + 6; // Overlapping bottom edge of button
       this.chaosBadgeBg.clear();
       this.chaosBadgeBg.fillStyle(0xffd93d, 1); // Gold
       this.chaosBadgeBg.fillRoundedRect(
@@ -809,19 +867,19 @@ export default class StartScene extends Phaser.Scene {
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        12
+        10
       );
-      this.chaosBadgeBg.lineStyle(4, 0x000000, 1);
+      this.chaosBadgeBg.lineStyle(3, 0x000000, 1);
       this.chaosBadgeBg.strokeRoundedRect(
         badgeX - badgeWidth / 2,
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        12
+        10
       );
       this.chaosBadgeText.setText("100 CREDITS");
       this.chaosBadgeText.setPosition(badgeX, badgeY);
-      this.chaosBadgeText.setFontSize(24);
+      this.chaosBadgeText.setFontSize(20);
     }
   }
 
@@ -838,9 +896,9 @@ export default class StartScene extends Phaser.Scene {
           console.log("✅ Chaos Mode purchased successfully!");
           this.isChaosUnlocked = true;
           this.updateChaosButtonAppearance(
-            Math.min(320, this.scale.width * 0.65),
-            80,
-            22
+            Math.min(340, this.scale.width * 0.72),
+            70,
+            20
           );
         } else {
           console.log("❌ Chaos Mode purchase failed or cancelled");
@@ -858,9 +916,9 @@ export default class StartScene extends Phaser.Scene {
     if (sdk?.hasItem && sdk.hasItem("chaos-mode-new-style-music")) {
       this.isChaosUnlocked = true;
       this.updateChaosButtonAppearance(
-        Math.min(320, this.scale.width * 0.65),
-        80,
-        22
+        Math.min(340, this.scale.width * 0.72),
+        70,
+        20
       );
       console.log("🎉 Chaos Mode now unlocked!");
     }
@@ -875,6 +933,678 @@ export default class StartScene extends Phaser.Scene {
       highScore: this.highScore,
       chaosMode: true,
     });
+  }
+
+  // ============ CUSTOM BALL CREATOR (PREMIUM 500 CREDITS) ============
+
+  createCustomBallButton(width: number, height: number) {
+    const btnWidth = Math.min(340, width * 0.72);
+    const btnHeight = 70;
+    const cornerRadius = 20;
+
+    this.customBallBtnContainer = this.add.container(width / 2, height * 0.78);
+    this.customBallBtnContainer.setAlpha(0);
+
+    // Button background
+    this.customBallBtnBg = this.add.graphics();
+    this.customBallBtnContainer.add(this.customBallBtnBg);
+
+    // Button text
+    this.customBallBtnText = this.add
+      .text(0, 0, "CUSTOM", {
+        fontSize: "42px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    this.customBallBtnContainer.add(this.customBallBtnText);
+
+    // Badge (VIP or 500 credits)
+    this.customBallBadgeBg = this.add.graphics();
+    this.customBallBtnContainer.add(this.customBallBadgeBg);
+
+    this.customBallBadgeText = this.add
+      .text(0, 0, "", {
+        fontSize: "20px",
+        color: "#000000",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.customBallBtnContainer.add(this.customBallBadgeText);
+
+    // Update button appearance based on unlock status
+    this.updateCustomBallButtonAppearance(btnWidth, btnHeight, cornerRadius);
+
+    // Interactive zone
+    const zone = this.add
+      .zone(0, 0, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.customBallBtnContainer,
+          scale: 1.08,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: this.customBallBtnContainer,
+          scale: 1,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        if (this.isCustomBallUnlocked) {
+          this.showCustomBallModal();
+        } else {
+          this.purchaseCustomBall();
+        }
+      });
+    this.customBallBtnContainer.add(zone);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: this.customBallBtnContainer,
+      alpha: 1,
+      duration: 400,
+      delay: 1200,
+    });
+  }
+
+  updateCustomBallButtonAppearance(
+    btnWidth: number,
+    btnHeight: number,
+    cornerRadius: number
+  ) {
+    this.customBallBtnBg.clear();
+
+    if (this.isCustomBallUnlocked) {
+      // UNLOCKED - Rainbow/gradient effect (purple/cyan)
+      this.customBallBtnBg.fillStyle(0x000000, 1);
+      this.customBallBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.customBallBtnBg.fillStyle(0x9b59b6, 1); // Purple
+      this.customBallBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // VIP badge - gold, top right corner
+      const badgeWidth = 50;
+      const badgeHeight = 22;
+      const badgeX = btnWidth / 2 - 10;
+      const badgeY = -btnHeight / 2 - 5;
+      this.customBallBadgeBg.clear();
+      this.customBallBadgeBg.fillStyle(0xffd700, 1); // Gold
+      this.customBallBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.customBallBadgeBg.lineStyle(2, 0x000000, 1);
+      this.customBallBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.customBallBadgeText.setText("VIP");
+      this.customBallBadgeText.setPosition(badgeX, badgeY);
+      this.customBallBadgeText.setFontSize(14);
+    } else {
+      // LOCKED - Gray background
+      this.customBallBtnBg.fillStyle(0x000000, 1);
+      this.customBallBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.customBallBtnBg.fillStyle(0x555555, 1);
+      this.customBallBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // 500 credits badge - gold, OVERLAPPING bottom
+      const badgeWidth = 140;
+      const badgeHeight = 36;
+      const badgeX = 0;
+      const badgeY = btnHeight / 2 + 6;
+      this.customBallBadgeBg.clear();
+      this.customBallBadgeBg.fillStyle(0xffd93d, 1);
+      this.customBallBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+      this.customBallBadgeBg.lineStyle(3, 0x000000, 1);
+      this.customBallBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+      this.customBallBadgeText.setText("500 CREDITS");
+      this.customBallBadgeText.setPosition(badgeX, badgeY);
+      this.customBallBadgeText.setFontSize(20);
+    }
+  }
+
+  async purchaseCustomBall() {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.purchase) {
+        console.log("🛒 Initiating Custom Ball purchase...");
+        const result = await sdk.purchase({ item: "custom-ball-creator" });
+
+        if (result.success) {
+          console.log("✅ Custom Ball purchased successfully!");
+          this.isCustomBallUnlocked = true;
+          this.updateCustomBallButtonAppearance(
+            Math.min(340, this.scale.width * 0.72),
+            70,
+            20
+          );
+        } else {
+          console.log("❌ Custom Ball purchase failed or cancelled");
+        }
+      } else {
+        console.log("⚠️ SDK purchase not available");
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+    }
+  }
+
+  checkCustomBallPurchase() {
+    const sdk = window.FarcadeSDK;
+    if (sdk?.hasItem && sdk.hasItem("custom-ball-creator")) {
+      this.isCustomBallUnlocked = true;
+      this.updateCustomBallButtonAppearance(
+        Math.min(340, this.scale.width * 0.72),
+        70,
+        20
+      );
+      console.log("🎉 Custom Ball now unlocked!");
+    }
+  }
+
+  showCustomBallModal() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    this.customBallModalContainer = this.add.container(0, 0);
+    this.customBallModalContainer.setAlpha(0);
+    this.customBallModalContainer.setDepth(100);
+
+    // Dark overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.95);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, width, height),
+      Phaser.Geom.Rectangle.Contains
+    );
+    this.customBallModalContainer.add(overlay);
+
+    // Modal title
+    const titleFontSize = Math.min(36, width * 0.08);
+    const title = this.add
+      .text(width / 2, height * 0.06, "CUSTOM BALL", {
+        fontSize: `${titleFontSize}px`,
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(title);
+
+    // Preview ball in center-top
+    const previewY = height * 0.18;
+    const previewBall = this.createCustomBallPreview(width / 2, previewY);
+    this.customBallModalContainer.add(previewBall);
+
+    // Section 1: COLOR SELECTOR
+    const colorSectionY = height * 0.32;
+    this.createColorSelector(width, colorSectionY, previewBall);
+
+    // Section 2: TRAIL SELECTOR
+    const trailSectionY = height * 0.50;
+    this.createTrailSelector(width, trailSectionY, previewBall);
+
+    // Section 3: PATTERN SELECTOR
+    const patternSectionY = height * 0.68;
+    this.createPatternSelector(width, patternSectionY, previewBall);
+
+    // SAVE & CLOSE Buttons
+    const btnY = height * 0.88;
+    this.createCustomBallModalButtons(width, btnY);
+
+    // Fade in
+    this.tweens.add({
+      targets: this.customBallModalContainer,
+      alpha: 1,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  createCustomBallPreview(x: number, y: number): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const ballSize = 60;
+
+    // Ball preview graphics
+    const ballBorder = this.add.graphics();
+    ballBorder.fillStyle(0x000000, 1);
+    ballBorder.fillCircle(0, 0, ballSize / 2 + 4);
+    container.add(ballBorder);
+
+    const ballFill = this.add.graphics();
+    container.add(ballFill);
+    (container as any).ballFill = ballFill;
+
+    // Trail indicator (line below ball)
+    const trailIndicator = this.add.graphics();
+    container.add(trailIndicator);
+    (container as any).trailIndicator = trailIndicator;
+
+    // Initial draw
+    this.updateCustomBallPreview(container);
+
+    return container;
+  }
+
+  updateCustomBallPreview(container: Phaser.GameObjects.Container) {
+    const ballFill = (container as any).ballFill as Phaser.GameObjects.Graphics;
+    const trailIndicator = (container as any).trailIndicator as Phaser.GameObjects.Graphics;
+    const ballSize = 60;
+    const colorConfig = CUSTOM_BALL_COLORS[this.customBallConfig.color];
+    const trailConfig = CUSTOM_BALL_TRAILS[this.customBallConfig.trail];
+    const pattern = this.customBallConfig.pattern;
+
+    // Clear previous
+    ballFill.clear();
+    trailIndicator.clear();
+
+    // Draw ball based on pattern
+    switch (pattern) {
+      case "solid":
+        ballFill.fillStyle(colorConfig.hex, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+        break;
+
+      case "dots":
+        ballFill.fillStyle(colorConfig.hex, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+        // Add dots
+        ballFill.fillStyle(0x000000, 0.4);
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2;
+          const dx = Math.cos(angle) * (ballSize / 4);
+          const dy = Math.sin(angle) * (ballSize / 4);
+          ballFill.fillCircle(dx, dy, 4);
+        }
+        break;
+
+      case "stripes":
+        ballFill.fillStyle(colorConfig.hex, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+        // Add horizontal stripes
+        ballFill.fillStyle(0x000000, 0.3);
+        ballFill.fillRect(-ballSize / 2, -5, ballSize, 4);
+        ballFill.fillRect(-ballSize / 2, 8, ballSize, 4);
+        break;
+
+      case "gradient":
+        // Simulate gradient with lighter center
+        ballFill.fillStyle(colorConfig.hex, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+        ballFill.fillStyle(0xffffff, 0.4);
+        ballFill.fillCircle(-ballSize / 6, -ballSize / 6, ballSize / 4);
+        break;
+
+      case "glow":
+        // Aura effect
+        ballFill.fillStyle(colorConfig.hex, 0.3);
+        ballFill.fillCircle(0, 0, ballSize / 2 + 10);
+        ballFill.fillStyle(colorConfig.hex, 1);
+        ballFill.fillCircle(0, 0, ballSize / 2);
+        break;
+    }
+
+    // Draw trail indicator
+    if (this.customBallConfig.trail !== "none") {
+      trailIndicator.fillStyle(trailConfig.color, 0.7);
+      // Trail effect below ball
+      for (let i = 0; i < 5; i++) {
+        const alpha = 0.7 - i * 0.12;
+        const size = 8 - i * 1.2;
+        trailIndicator.fillStyle(trailConfig.color, alpha);
+        trailIndicator.fillCircle(0, ballSize / 2 + 12 + i * 8, size);
+      }
+    }
+  }
+
+  createColorSelector(width: number, y: number, previewBall: Phaser.GameObjects.Container) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 30, "COLOR", {
+        fontSize: "20px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(label);
+
+    // Color swatches
+    const colors = Object.keys(CUSTOM_BALL_COLORS);
+    const swatchSize = 36;
+    const spacing = 42;
+    const startX = width / 2 - ((colors.length - 1) * spacing) / 2;
+
+    colors.forEach((colorKey, index) => {
+      const colorData = CUSTOM_BALL_COLORS[colorKey];
+      const x = startX + index * spacing;
+
+      const swatch = this.add.graphics();
+      // Border
+      swatch.lineStyle(3, this.customBallConfig.color === colorKey ? 0xffd93d : 0x000000, 1);
+      swatch.strokeCircle(x, y, swatchSize / 2 + 2);
+      // Fill
+      swatch.fillStyle(colorData.hex, 1);
+      swatch.fillCircle(x, y, swatchSize / 2);
+      this.customBallModalContainer.add(swatch);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, swatchSize + 4, swatchSize + 4)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customBallConfig.color = colorKey;
+          this.updateCustomBallPreview(previewBall);
+          // Refresh selectors to update selection indicators
+          this.refreshCustomBallModal();
+        });
+      this.customBallModalContainer.add(zone);
+    });
+  }
+
+  createTrailSelector(width: number, y: number, previewBall: Phaser.GameObjects.Container) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 30, "TRAIL", {
+        fontSize: "20px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(label);
+
+    // Trail options
+    const trails = Object.keys(CUSTOM_BALL_TRAILS);
+    const btnWidth = 55;
+    const btnHeight = 32;
+    const spacing = 60;
+    const startX = width / 2 - ((trails.length - 1) * spacing) / 2;
+
+    trails.forEach((trailKey, index) => {
+      const trailData = CUSTOM_BALL_TRAILS[trailKey];
+      const x = startX + index * spacing;
+      const isSelected = this.customBallConfig.trail === trailKey;
+
+      const btn = this.add.graphics();
+      // Background
+      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 8);
+      btn.lineStyle(2, 0x000000, 1);
+      btn.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 8);
+      this.customBallModalContainer.add(btn);
+
+      // Trail color indicator (small dot)
+      if (trailKey !== "none") {
+        btn.fillStyle(trailData.color, 1);
+        btn.fillCircle(x, y, 8);
+      }
+
+      // Label
+      const trailLabel = this.add
+        .text(x, y + btnHeight / 2 + 12, trailData.name, {
+          fontSize: "12px",
+          color: isSelected ? "#ffd93d" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.customBallModalContainer.add(trailLabel);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, btnWidth, btnHeight + 20)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customBallConfig.trail = trailKey;
+          this.updateCustomBallPreview(previewBall);
+          this.refreshCustomBallModal();
+        });
+      this.customBallModalContainer.add(zone);
+    });
+  }
+
+  createPatternSelector(width: number, y: number, previewBall: Phaser.GameObjects.Container) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 30, "PATTERN", {
+        fontSize: "20px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(label);
+
+    // Pattern options
+    const patterns = Object.keys(CUSTOM_BALL_PATTERNS);
+    const btnWidth = 60;
+    const btnHeight = 32;
+    const spacing = 68;
+    const startX = width / 2 - ((patterns.length - 1) * spacing) / 2;
+
+    patterns.forEach((patternKey, index) => {
+      const patternData = CUSTOM_BALL_PATTERNS[patternKey];
+      const x = startX + index * spacing;
+      const isSelected = this.customBallConfig.pattern === patternKey;
+
+      const btn = this.add.graphics();
+      // Background
+      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 8);
+      btn.lineStyle(2, 0x000000, 1);
+      btn.strokeRoundedRect(x - btnWidth / 2, y - btnHeight / 2, btnWidth, btnHeight, 8);
+      this.customBallModalContainer.add(btn);
+
+      // Label
+      const patternLabel = this.add
+        .text(x, y, patternData.name, {
+          fontSize: "12px",
+          color: isSelected ? "#000000" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.customBallModalContainer.add(patternLabel);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, btnWidth, btnHeight)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customBallConfig.pattern = patternKey;
+          this.updateCustomBallPreview(previewBall);
+          this.refreshCustomBallModal();
+        });
+      this.customBallModalContainer.add(zone);
+    });
+  }
+
+  createCustomBallModalButtons(width: number, y: number) {
+    const btnWidth = 120;
+    const btnHeight = 44;
+    const spacing = 140;
+
+    // SAVE button
+    const saveBg = this.add.graphics();
+    saveBg.fillStyle(0x000000, 1);
+    saveBg.fillRoundedRect(
+      width / 2 - spacing / 2 - btnWidth / 2 - 3,
+      y - btnHeight / 2 - 3,
+      btnWidth + 6,
+      btnHeight + 6,
+      12
+    );
+    saveBg.fillStyle(0x2ecc71, 1);
+    saveBg.fillRoundedRect(
+      width / 2 - spacing / 2 - btnWidth / 2,
+      y - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      10
+    );
+    this.customBallModalContainer.add(saveBg);
+
+    const saveText = this.add
+      .text(width / 2 - spacing / 2, y, "SAVE", {
+        fontSize: "22px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(saveText);
+
+    const saveZone = this.add
+      .zone(width / 2 - spacing / 2, y, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", async () => {
+        await this.saveCustomBallConfig();
+        this.closeCustomBallModal();
+      });
+    this.customBallModalContainer.add(saveZone);
+
+    // CLOSE button
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0x000000, 1);
+    closeBg.fillRoundedRect(
+      width / 2 + spacing / 2 - btnWidth / 2 - 3,
+      y - btnHeight / 2 - 3,
+      btnWidth + 6,
+      btnHeight + 6,
+      12
+    );
+    closeBg.fillStyle(0x7f8c8d, 1);
+    closeBg.fillRoundedRect(
+      width / 2 + spacing / 2 - btnWidth / 2,
+      y - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      10
+    );
+    this.customBallModalContainer.add(closeBg);
+
+    const closeText = this.add
+      .text(width / 2 + spacing / 2, y, "CLOSE", {
+        fontSize: "22px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    this.customBallModalContainer.add(closeText);
+
+    const closeZone = this.add
+      .zone(width / 2 + spacing / 2, y, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        this.closeCustomBallModal();
+      });
+    this.customBallModalContainer.add(closeZone);
+  }
+
+  refreshCustomBallModal() {
+    // Destroy and recreate modal to update selection states
+    if (this.customBallModalContainer) {
+      this.customBallModalContainer.destroy();
+      this.showCustomBallModal();
+      this.customBallModalContainer.setAlpha(1);
+    }
+  }
+
+  async saveCustomBallConfig() {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.singlePlayer?.actions?.saveGameState) {
+        await sdk.singlePlayer.actions.saveGameState({
+          gameState: {
+            hasSeenTutorial: this.hasSeenTutorial,
+            highScore: this.highScore,
+            selectedBallStyle: this.selectedBallStyle,
+            customBallConfig: this.customBallConfig,
+          },
+        });
+        console.log("🎨 Custom Ball config saved:", this.customBallConfig);
+      }
+    } catch (error) {
+      console.log("Could not save custom ball config:", error);
+    }
+  }
+
+  closeCustomBallModal() {
+    if (this.customBallModalContainer) {
+      this.tweens.add({
+        targets: this.customBallModalContainer,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => {
+          this.customBallModalContainer.destroy();
+        },
+      });
+    }
   }
 
   showBallSelectModal() {
@@ -1336,8 +2066,8 @@ export default class StartScene extends Phaser.Scene {
     const oLetterY = titleY;
 
     // Button top position - must match createMainStartButton
-    const btnY = height * 0.56;
-    const btnHeight = 90;
+    const btnY = height * 0.42;
+    const btnHeight = 70;
     const buttonTopY = btnY - btnHeight / 2;
 
     // Ball properties
