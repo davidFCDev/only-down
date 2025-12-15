@@ -669,11 +669,11 @@ export default class StartScene extends Phaser.Scene {
 
       this.chaosBtnText.setX(0);
 
-      // 100 credits badge - gold/yellow, BELOW the button, bigger
-      const badgeWidth = 120;
-      const badgeHeight = 32;
+      // 100 credits badge - gold/yellow, OVERLAPPING bottom of button, much bigger
+      const badgeWidth = 160;
+      const badgeHeight = 44;
       const badgeX = 0; // Centered
-      const badgeY = btnHeight / 2 + 22; // Below button
+      const badgeY = btnHeight / 2 + 8; // Overlapping bottom edge of button
       this.chaosBadgeBg.clear();
       this.chaosBadgeBg.fillStyle(0xffd93d, 1); // Gold
       this.chaosBadgeBg.fillRoundedRect(
@@ -681,19 +681,19 @@ export default class StartScene extends Phaser.Scene {
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        10
+        12
       );
-      this.chaosBadgeBg.lineStyle(3, 0x000000, 1);
+      this.chaosBadgeBg.lineStyle(4, 0x000000, 1);
       this.chaosBadgeBg.strokeRoundedRect(
         badgeX - badgeWidth / 2,
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        10
+        12
       );
       this.chaosBadgeText.setText("100 CREDITS");
       this.chaosBadgeText.setPosition(badgeX, badgeY);
-      this.chaosBadgeText.setFontSize(18);
+      this.chaosBadgeText.setFontSize(24);
     }
   }
 
