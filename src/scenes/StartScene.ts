@@ -76,6 +76,11 @@ export default class StartScene extends Phaser.Scene {
   private chaosBtnText!: Phaser.GameObjects.Text;
   private chaosBadgeBg!: Phaser.GameObjects.Graphics;
   private chaosBadgeText!: Phaser.GameObjects.Text;
+  private isBallsUnlocked: boolean = false; // Whether user has purchased Ball Select
+  private ballsBtnBg!: Phaser.GameObjects.Graphics;
+  private ballsBtnText!: Phaser.GameObjects.Text;
+  private ballsBadgeBg!: Phaser.GameObjects.Graphics;
+  private ballsBadgeText!: Phaser.GameObjects.Text;
 
   // Development controls
   private testRank: string = "Remixer";
@@ -196,12 +201,16 @@ export default class StartScene extends Phaser.Scene {
       if (sdk?.hasItem) {
         this.isChaosUnlocked = sdk.hasItem("chaos-mode-new-style-music");
         console.log("🎮 Chaos Mode unlocked:", this.isChaosUnlocked);
+
+        this.isBallsUnlocked = sdk.hasItem("exclusive-balls");
+        console.log("⚽ Balls unlocked:", this.isBallsUnlocked);
       }
 
       // Listen for purchase completions
       if (sdk?.onPurchaseComplete) {
         sdk.onPurchaseComplete(() => {
           this.checkChaosPurchase();
+          this.checkBallsPurchase();
         });
       }
     } catch (error) {
@@ -441,33 +450,15 @@ export default class StartScene extends Phaser.Scene {
     const btnHeight = 90;
     const cornerRadius = 24;
 
-    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.70);
+    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.7);
     this.ballSelectBtnContainer.setAlpha(0);
 
-    // Button background - magenta with black border
-    const btnBg = this.add.graphics();
-    // Black border
-    btnBg.fillStyle(0x000000, 1);
-    btnBg.fillRoundedRect(
-      -btnWidth / 2 - 5,
-      -btnHeight / 2 - 5,
-      btnWidth + 10,
-      btnHeight + 10,
-      cornerRadius + 2
-    );
-    // Magenta fill
-    btnBg.fillStyle(0xe91e8c, 1);
-    btnBg.fillRoundedRect(
-      -btnWidth / 2,
-      -btnHeight / 2,
-      btnWidth,
-      btnHeight,
-      cornerRadius
-    );
-    this.ballSelectBtnContainer.add(btnBg);
+    // Button background
+    this.ballsBtnBg = this.add.graphics();
+    this.ballSelectBtnContainer.add(this.ballsBtnBg);
 
     // Button text
-    const btnText = this.add
+    this.ballsBtnText = this.add
       .text(0, 0, "BALLS", {
         fontSize: "52px",
         color: "#FFFFFF",
@@ -477,7 +468,24 @@ export default class StartScene extends Phaser.Scene {
         strokeThickness: 7,
       })
       .setOrigin(0.5);
-    this.ballSelectBtnContainer.add(btnText);
+    this.ballSelectBtnContainer.add(this.ballsBtnText);
+
+    // Badge (empty or 10 credits)
+    this.ballsBadgeBg = this.add.graphics();
+    this.ballSelectBtnContainer.add(this.ballsBadgeBg);
+
+    this.ballsBadgeText = this.add
+      .text(0, 0, "", {
+        fontSize: "24px",
+        color: "#000000",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.ballSelectBtnContainer.add(this.ballsBadgeText);
+
+    // Update button appearance based on unlock status
+    this.updateBallsButtonAppearance(btnWidth, btnHeight, cornerRadius);
 
     // Interactive zone
     const zone = this.add
@@ -498,7 +506,11 @@ export default class StartScene extends Phaser.Scene {
         });
       })
       .on("pointerdown", () => {
-        this.showBallSelectModal();
+        if (this.isBallsUnlocked) {
+          this.showBallSelectModal();
+        } else {
+          this.purchaseBalls();
+        }
       });
     this.ballSelectBtnContainer.add(zone);
 
@@ -509,6 +521,122 @@ export default class StartScene extends Phaser.Scene {
       duration: 400,
       delay: 800,
     });
+  }
+
+  updateBallsButtonAppearance(
+    btnWidth: number,
+    btnHeight: number,
+    cornerRadius: number
+  ) {
+    // Clear and redraw button background
+    this.ballsBtnBg.clear();
+
+    if (this.isBallsUnlocked) {
+      // UNLOCKED - Magenta with black border
+      this.ballsBtnBg.fillStyle(0x000000, 1);
+      this.ballsBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.ballsBtnBg.fillStyle(0xe91e8c, 1);
+      this.ballsBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // Hide badge when unlocked
+      this.ballsBadgeBg.clear();
+      this.ballsBadgeText.setText("");
+    } else {
+      // LOCKED - Gray background
+      this.ballsBtnBg.fillStyle(0x000000, 1);
+      this.ballsBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.ballsBtnBg.fillStyle(0x555555, 1); // Gray background
+      this.ballsBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // 10 credits badge - gold/yellow, OVERLAPPING bottom of button
+      const badgeWidth = 140;
+      const badgeHeight = 44;
+      const badgeX = 0; // Centered
+      const badgeY = btnHeight / 2 + 8; // Overlapping bottom edge of button
+      this.ballsBadgeBg.clear();
+      this.ballsBadgeBg.fillStyle(0xffd93d, 1); // Gold
+      this.ballsBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        12
+      );
+      this.ballsBadgeBg.lineStyle(4, 0x000000, 1);
+      this.ballsBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        12
+      );
+      this.ballsBadgeText.setText("10 CREDITS");
+      this.ballsBadgeText.setPosition(badgeX, badgeY);
+      this.ballsBadgeText.setFontSize(24);
+    }
+  }
+
+  async purchaseBalls() {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.purchase) {
+        console.log("🛒 Initiating Balls purchase...");
+        const result = await sdk.purchase({ item: "exclusive-balls" });
+
+        if (result.success) {
+          console.log("✅ Balls purchased successfully!");
+          this.isBallsUnlocked = true;
+          this.updateBallsButtonAppearance(
+            Math.min(340, this.scale.width * 0.72),
+            90,
+            24
+          );
+        } else {
+          console.log("❌ Balls purchase failed or cancelled");
+        }
+      } else {
+        console.log("⚠️ SDK purchase not available");
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+    }
+  }
+
+  checkBallsPurchase() {
+    const sdk = window.FarcadeSDK;
+    if (sdk?.hasItem && sdk.hasItem("exclusive-balls")) {
+      this.isBallsUnlocked = true;
+      this.updateBallsButtonAppearance(
+        Math.min(340, this.scale.width * 0.72),
+        90,
+        24
+      );
+      console.log("🎉 Balls now unlocked!");
+    }
   }
 
   createChaosModeButton(width: number, height: number) {
