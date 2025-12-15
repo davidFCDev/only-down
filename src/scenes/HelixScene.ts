@@ -1481,6 +1481,17 @@ export default class HelixScene extends Phaser.Scene {
         this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
         this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
+        // Keep backgrounds following camera during countdown too
+        if (this.cyberpunkGrid) {
+          this.cyberpunkGrid.position.y = this.camera.position.y;
+        }
+        if (this.sunsetBackground) {
+          this.sunsetBackground.position.y = this.camera.position.y;
+        }
+        if (this.oceanBackground) {
+          this.oceanBackground.position.y = this.camera.position.y;
+        }
+
         this.threeRenderer.render(this.threeScene, this.camera);
         return;
       } else {
@@ -1934,28 +1945,31 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Keep cyberpunk grid following camera Y position
-    if (
-      this.cyberpunkGrid &&
-      (this.isChaosMode || this.customLevelConfig?.background === "cyberpunk")
-    ) {
-      this.cyberpunkGrid.position.y = this.camera.position.y;
-    }
+    // Keep backgrounds following camera Y position (only after game starts, not during countdown)
+    if (!this.isGameStarting) {
+      // Keep cyberpunk grid following camera Y position
+      if (
+        this.cyberpunkGrid &&
+        (this.isChaosMode || this.customLevelConfig?.background === "cyberpunk")
+      ) {
+        this.cyberpunkGrid.position.y = this.camera.position.y;
+      }
 
-    // Keep sunset background following camera Y position
-    if (
-      this.sunsetBackground &&
-      this.customLevelConfig?.background === "sunset"
-    ) {
-      this.sunsetBackground.position.y = this.camera.position.y;
-    }
+      // Keep sunset background following camera Y position
+      if (
+        this.sunsetBackground &&
+        this.customLevelConfig?.background === "sunset"
+      ) {
+        this.sunsetBackground.position.y = this.camera.position.y;
+      }
 
-    // Keep ocean background following camera Y position
-    if (
-      this.oceanBackground &&
-      this.customLevelConfig?.background === "ocean"
-    ) {
-      this.oceanBackground.position.y = this.camera.position.y;
+      // Keep ocean background following camera Y position
+      if (
+        this.oceanBackground &&
+        this.customLevelConfig?.background === "ocean"
+      ) {
+        this.oceanBackground.position.y = this.camera.position.y;
+      }
     }
 
     // Update Shield power-up
@@ -2323,10 +2337,10 @@ export default class HelixScene extends Phaser.Scene {
       this.cyberpunkGrid.add(line);
     }
 
-    // Add to scene and position at camera Y immediately
+    // Add to scene with fixed initial position (will follow camera after countdown)
     this.threeScene.add(this.cyberpunkGrid);
-    // Set initial position to match camera
-    this.cyberpunkGrid.position.y = this.camera.position.y;
+    // Set initial position to final countdown camera position (y ≈ 6)
+    this.cyberpunkGrid.position.y = 6;
   }
 
   createSunsetBackground() {
@@ -2381,9 +2395,9 @@ export default class HelixScene extends Phaser.Scene {
       this.sunsetBackground!.add(line);
     }
 
-    // Add to scene
+    // Add to scene with fixed initial position (will follow camera after countdown)
     this.threeScene.add(this.sunsetBackground);
-    this.sunsetBackground.position.y = this.camera.position.y;
+    this.sunsetBackground.position.y = 6;
   }
 
   createOceanBackground() {
@@ -2501,9 +2515,9 @@ export default class HelixScene extends Phaser.Scene {
       this.oceanBackground!.add(line);
     }
 
-    // Add to scene
+    // Add to scene with fixed initial position (will follow camera after countdown)
     this.threeScene.add(this.oceanBackground);
-    this.oceanBackground.position.y = this.camera.position.y;
+    this.oceanBackground.position.y = 6;
   }
 
   createGlowTexture() {

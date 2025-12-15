@@ -1220,10 +1220,10 @@ export default class StartScene extends Phaser.Scene {
     );
     this.customLevelModalContainer.add(overlay);
 
-    // Modal title
-    const titleFontSize = Math.min(32, width * 0.07);
+    // Modal title - BIGGER
+    const titleFontSize = Math.min(38, width * 0.09);
     const title = this.add
-      .text(width / 2, height * 0.05, "CUSTOM LEVEL", {
+      .text(width / 2, height * 0.04, "CUSTOM LEVEL", {
         fontSize: `${titleFontSize}px`,
         color: "#FFFFFF",
         fontFamily: "Fredoka",
@@ -1234,20 +1234,16 @@ export default class StartScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.customLevelModalContainer.add(title);
 
-    // Section 1: PALETTE SELECTOR
-    const paletteSectionY = height * 0.16;
-    this.createPaletteSelector(width, paletteSectionY);
+    // Section 1: THEME SELECTOR (combines palette + background)
+    const themeSectionY = height * 0.1;
+    this.createThemeSelector(width, themeSectionY);
 
-    // Section 2: BACKGROUND SELECTOR
-    const bgSectionY = height * 0.38;
-    this.createBackgroundSelector(width, bgSectionY);
-
-    // Section 3: TRAIL SELECTOR
-    const trailSectionY = height * 0.6;
+    // Section 2: TRAIL SELECTOR
+    const trailSectionY = height * 0.65;
     this.createTrailSelector(width, trailSectionY);
 
     // Buttons: SAVE, RESET, CLOSE
-    const btnY = height * 0.82;
+    const btnY = height * 0.85;
     this.createCustomLevelModalButtons(width, btnY);
 
     // Fade in
@@ -1259,160 +1255,129 @@ export default class StartScene extends Phaser.Scene {
     });
   }
 
-  createPaletteSelector(width: number, y: number) {
+  createThemeSelector(width: number, startY: number) {
     // Section label
     const label = this.add
-      .text(width / 2, y - 35, "PALETTE", {
-        fontSize: "18px",
+      .text(width / 2, startY, "THEME", {
+        fontSize: "26px",
         color: "#ffd93d",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
     this.customLevelModalContainer.add(label);
 
-    // Palette options
-    const palettes = Object.keys(LEVEL_PALETTES);
-    const btnWidth = 75;
-    const btnHeight = 50;
-    const spacing = 82;
-    const startX = width / 2 - ((palettes.length - 1) * spacing) / 2;
+    // Theme options - 4 rows (OVERSIZE)
+    const themes = Object.keys(LEVEL_PALETTES);
+    const rowHeight = 85;
+    const rowWidth = width * 0.92;
+    const rowInnerHeight = 70;
+    const startRowY = startY + 55;
 
-    palettes.forEach((paletteKey, index) => {
-      const paletteData = LEVEL_PALETTES[paletteKey];
-      const x = startX + index * spacing;
-      const isSelected = this.customLevelConfig.palette === paletteKey;
+    themes.forEach((themeKey, index) => {
+      const paletteData = LEVEL_PALETTES[themeKey];
+      const bgData = LEVEL_BACKGROUNDS[themeKey];
+      const y = startRowY + index * rowHeight;
+      const isSelected = this.customLevelConfig.palette === themeKey;
 
-      // Button background
-      const btn = this.add.graphics();
-      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
-      btn.fillRoundedRect(
-        x - btnWidth / 2,
-        y - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        8
+      // Row background
+      const rowBg = this.add.graphics();
+      rowBg.fillStyle(0x1a1a1a, 1);
+      rowBg.fillRoundedRect(
+        width / 2 - rowWidth / 2,
+        y - rowInnerHeight / 2,
+        rowWidth,
+        rowInnerHeight,
+        12
       );
-      btn.lineStyle(2, 0x000000, 1);
-      btn.strokeRoundedRect(
-        x - btnWidth / 2,
-        y - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        8
-      );
-      this.customLevelModalContainer.add(btn);
 
-      // Color preview (4 small squares)
-      const previewSize = 12;
-      const previewSpacing = 14;
-      const previewStartX = x - previewSpacing * 1.5;
+      // Selection border (only if selected)
+      if (isSelected) {
+        rowBg.lineStyle(4, 0xffd93d, 1);
+        rowBg.strokeRoundedRect(
+          width / 2 - rowWidth / 2,
+          y - rowInnerHeight / 2,
+          rowWidth,
+          rowInnerHeight,
+          12
+        );
+      }
+      this.customLevelModalContainer.add(rowBg);
+
+      // Theme name (left side) - BIGGER
+      const themeName = this.add
+        .text(width / 2 - rowWidth / 2 + 20, y, paletteData.name, {
+          fontSize: "24px",
+          color: isSelected ? "#ffd93d" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0, 0.5);
+      this.customLevelModalContainer.add(themeName);
+
+      // Palette colors preview (4 squares in the middle) - BIGGER
+      const colorsStartX = width / 2 - 70;
+      const colorSize = 32;
+      const colorSpacing = 38;
       const colors = [
         paletteData.platform,
         paletteData.danger,
         paletteData.moving,
         paletteData.blinking,
       ];
+
       colors.forEach((color, ci) => {
-        const px = previewStartX + ci * previewSpacing;
-        btn.fillStyle(color, 1);
-        btn.fillRect(px, y - previewSize / 2, previewSize, previewSize);
+        const px = colorsStartX + ci * colorSpacing;
+        const colorSquare = this.add.graphics();
+        colorSquare.fillStyle(color, 1);
+        colorSquare.fillRoundedRect(
+          px,
+          y - colorSize / 2,
+          colorSize,
+          colorSize,
+          6
+        );
+        colorSquare.lineStyle(2, 0x000000, 0.5);
+        colorSquare.strokeRoundedRect(
+          px,
+          y - colorSize / 2,
+          colorSize,
+          colorSize,
+          6
+        );
+        this.customLevelModalContainer.add(colorSquare);
       });
 
-      // Label
-      const paletteLabel = this.add
-        .text(x, y + btnHeight / 2 + 12, paletteData.name, {
-          fontSize: "12px",
-          color: isSelected ? "#ffd93d" : "#FFFFFF",
-          fontFamily: "Fredoka",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      this.customLevelModalContainer.add(paletteLabel);
+      // Background color preview (right side) - BIGGER
+      const bgPreviewX = width / 2 + rowWidth / 2 - 75;
+      const bgPreview = this.add.graphics();
+      bgPreview.fillStyle(bgData.color, 1);
+      bgPreview.fillRoundedRect(bgPreviewX, y - 22, 55, 44, 8);
+      bgPreview.lineStyle(2, 0xffffff, 0.3);
+      bgPreview.strokeRoundedRect(bgPreviewX, y - 22, 55, 44, 8);
+      this.customLevelModalContainer.add(bgPreview);
 
-      // Interactive zone
-      const zone = this.add
-        .zone(x, y, btnWidth, btnHeight + 20)
-        .setInteractive({ useHandCursor: true })
-        .on("pointerdown", () => {
-          this.customLevelConfig.palette = paletteKey;
-          this.refreshCustomLevelModal();
-        });
-      this.customLevelModalContainer.add(zone);
-    });
-  }
-
-  createBackgroundSelector(width: number, y: number) {
-    // Section label
-    const label = this.add
-      .text(width / 2, y - 35, "BACKGROUND", {
-        fontSize: "18px",
-        color: "#ffd93d",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-    this.customLevelModalContainer.add(label);
-
-    // Background options
-    const backgrounds = Object.keys(LEVEL_BACKGROUNDS);
-    const btnWidth = 75;
-    const btnHeight = 50;
-    const spacing = 82;
-    const startX = width / 2 - ((backgrounds.length - 1) * spacing) / 2;
-
-    backgrounds.forEach((bgKey, index) => {
-      const bgData = LEVEL_BACKGROUNDS[bgKey];
-      const x = startX + index * spacing;
-      const isSelected = this.customLevelConfig.background === bgKey;
-
-      // Button background
-      const btn = this.add.graphics();
-      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
-      btn.fillRoundedRect(
-        x - btnWidth / 2,
-        y - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        8
-      );
-      btn.lineStyle(2, 0x000000, 1);
-      btn.strokeRoundedRect(
-        x - btnWidth / 2,
-        y - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        8
-      );
-      this.customLevelModalContainer.add(btn);
-
-      // Color preview (big square) with border for dark colors
-      btn.fillStyle(bgData.color, 1);
-      btn.fillRect(x - 20, y - 15, 40, 30);
-      btn.lineStyle(2, 0xffffff, 0.5);
-      btn.strokeRect(x - 20, y - 15, 40, 30);
-
-      // Label
+      // "BG" label on the background preview - BIGGER
       const bgLabel = this.add
-        .text(x, y + btnHeight / 2 + 12, bgData.name, {
-          fontSize: "12px",
-          color: isSelected ? "#ffd93d" : "#FFFFFF",
+        .text(bgPreviewX + 27.5, y, "BG", {
+          fontSize: "14px",
+          color: bgData.color === 0x0a0a0a ? "#FFFFFF" : "#000000",
           fontFamily: "Fredoka",
           fontStyle: "bold",
         })
         .setOrigin(0.5);
       this.customLevelModalContainer.add(bgLabel);
 
-      // Interactive zone
+      // Interactive zone for the whole row
       const zone = this.add
-        .zone(x, y, btnWidth, btnHeight + 20)
+        .zone(width / 2, y, rowWidth, rowInnerHeight)
         .setInteractive({ useHandCursor: true })
         .on("pointerdown", () => {
-          this.customLevelConfig.background = bgKey;
+          // Set both palette and background to the same theme
+          this.customLevelConfig.palette = themeKey;
+          this.customLevelConfig.background = themeKey;
           this.refreshCustomLevelModal();
         });
       this.customLevelModalContainer.add(zone);
@@ -1422,58 +1387,66 @@ export default class StartScene extends Phaser.Scene {
   createTrailSelector(width: number, y: number) {
     // Section label
     const label = this.add
-      .text(width / 2, y - 35, "BALL TRAIL", {
-        fontSize: "18px",
+      .text(width / 2, y - 55, "BALL TRAIL", {
+        fontSize: "26px",
         color: "#ffd93d",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
     this.customLevelModalContainer.add(label);
 
-    // Trail options
+    // Trail options - OVERSIZE (same width as theme section)
     const trails = Object.keys(LEVEL_TRAILS);
-    const btnWidth = 60;
-    const btnHeight = 40;
-    const spacing = 68;
-    const startX = width / 2 - ((trails.length - 1) * spacing) / 2;
+    const rowWidth = width * 0.92;
+    const btnWidth = (rowWidth - 40) / trails.length; // Divide equally
+    const btnHeight = 70;
+    const startX = width / 2 - rowWidth / 2 + btnWidth / 2 + 8;
 
     trails.forEach((trailKey, index) => {
       const trailData = LEVEL_TRAILS[trailKey];
-      const x = startX + index * spacing;
+      const x = startX + index * btnWidth;
       const isSelected = this.customLevelConfig.trail === trailKey;
 
-      // Button background
+      // Button background with border selection
       const btn = this.add.graphics();
-      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillStyle(0x1a1a1a, 1);
       btn.fillRoundedRect(
-        x - btnWidth / 2,
+        x - (btnWidth - 8) / 2,
         y - btnHeight / 2,
-        btnWidth,
+        btnWidth - 8,
         btnHeight,
-        8
+        12
       );
-      btn.lineStyle(2, 0x000000, 1);
-      btn.strokeRoundedRect(
-        x - btnWidth / 2,
-        y - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        8
-      );
+
+      // Selection border (only if selected)
+      if (isSelected) {
+        btn.lineStyle(4, 0xffd93d, 1);
+        btn.strokeRoundedRect(
+          x - (btnWidth - 8) / 2,
+          y - btnHeight / 2,
+          btnWidth - 8,
+          btnHeight,
+          12
+        );
+      }
       this.customLevelModalContainer.add(btn);
 
-      // Trail color indicator
+      // Trail color indicator - BIGGER glow effect
       if (trailData.enabled) {
+        // Outer glow effect
+        btn.fillStyle(trailData.color, 0.3);
+        btn.fillCircle(x, y - 8, 22);
+        // Inner solid circle
         btn.fillStyle(trailData.color, 1);
-        btn.fillCircle(x, y, 10);
+        btn.fillCircle(x, y - 8, 15);
       } else {
-        // X for none
+        // X for none - BIGGER
         const noneText = this.add
-          .text(x, y, "✕", {
-            fontSize: "16px",
+          .text(x, y - 8, "✕", {
+            fontSize: "32px",
             color: "#666666",
             fontFamily: "Fredoka",
           })
@@ -1481,10 +1454,10 @@ export default class StartScene extends Phaser.Scene {
         this.customLevelModalContainer.add(noneText);
       }
 
-      // Label
+      // Label - BIGGER
       const trailLabel = this.add
-        .text(x, y + btnHeight / 2 + 12, trailData.name, {
-          fontSize: "11px",
+        .text(x, y + btnHeight / 2 - 14, trailData.name, {
+          fontSize: "14px",
           color: isSelected ? "#ffd93d" : "#FFFFFF",
           fontFamily: "Fredoka",
           fontStyle: "bold",
@@ -1494,7 +1467,7 @@ export default class StartScene extends Phaser.Scene {
 
       // Interactive zone
       const zone = this.add
-        .zone(x, y, btnWidth, btnHeight + 20)
+        .zone(x, y, btnWidth - 8, btnHeight)
         .setInteractive({ useHandCursor: true })
         .on("pointerdown", () => {
           this.customLevelConfig.trail = trailKey;
@@ -1505,19 +1478,19 @@ export default class StartScene extends Phaser.Scene {
   }
 
   createCustomLevelModalButtons(width: number, y: number) {
-    const btnWidth = 100;
-    const btnHeight = 40;
-    const spacing = 110;
+    const btnWidth = 115;
+    const btnHeight = 55;
+    const spacing = 125;
 
-    // SAVE button
+    // SAVE button - BIGGER
     const saveBg = this.add.graphics();
     saveBg.fillStyle(0x000000, 1);
     saveBg.fillRoundedRect(
-      width / 2 - spacing - btnWidth / 2 - 3,
-      y - btnHeight / 2 - 3,
-      btnWidth + 6,
-      btnHeight + 6,
-      10
+      width / 2 - spacing - btnWidth / 2 - 4,
+      y - btnHeight / 2 - 4,
+      btnWidth + 8,
+      btnHeight + 8,
+      14
     );
     saveBg.fillStyle(0x2ecc71, 1);
     saveBg.fillRoundedRect(
@@ -1525,18 +1498,18 @@ export default class StartScene extends Phaser.Scene {
       y - btnHeight / 2,
       btnWidth,
       btnHeight,
-      8
+      12
     );
     this.customLevelModalContainer.add(saveBg);
 
     const saveText = this.add
       .text(width / 2 - spacing, y, "SAVE", {
-        fontSize: "20px",
+        fontSize: "24px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
     this.customLevelModalContainer.add(saveText);
@@ -1550,15 +1523,15 @@ export default class StartScene extends Phaser.Scene {
       });
     this.customLevelModalContainer.add(saveZone);
 
-    // RESET button
+    // RESET button - BIGGER
     const resetBg = this.add.graphics();
     resetBg.fillStyle(0x000000, 1);
     resetBg.fillRoundedRect(
-      width / 2 - btnWidth / 2 - 3,
-      y - btnHeight / 2 - 3,
-      btnWidth + 6,
-      btnHeight + 6,
-      10
+      width / 2 - btnWidth / 2 - 4,
+      y - btnHeight / 2 - 4,
+      btnWidth + 8,
+      btnHeight + 8,
+      14
     );
     resetBg.fillStyle(0xe74c3c, 1);
     resetBg.fillRoundedRect(
@@ -1566,18 +1539,18 @@ export default class StartScene extends Phaser.Scene {
       y - btnHeight / 2,
       btnWidth,
       btnHeight,
-      8
+      12
     );
     this.customLevelModalContainer.add(resetBg);
 
     const resetText = this.add
       .text(width / 2, y, "RESET", {
-        fontSize: "20px",
+        fontSize: "24px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
     this.customLevelModalContainer.add(resetText);
@@ -1591,15 +1564,15 @@ export default class StartScene extends Phaser.Scene {
       });
     this.customLevelModalContainer.add(resetZone);
 
-    // CLOSE button
+    // CLOSE button - BIGGER
     const closeBg = this.add.graphics();
     closeBg.fillStyle(0x000000, 1);
     closeBg.fillRoundedRect(
-      width / 2 + spacing - btnWidth / 2 - 3,
-      y - btnHeight / 2 - 3,
-      btnWidth + 6,
-      btnHeight + 6,
-      10
+      width / 2 + spacing - btnWidth / 2 - 4,
+      y - btnHeight / 2 - 4,
+      btnWidth + 8,
+      btnHeight + 8,
+      14
     );
     closeBg.fillStyle(0x7f8c8d, 1);
     closeBg.fillRoundedRect(
@@ -1607,18 +1580,18 @@ export default class StartScene extends Phaser.Scene {
       y - btnHeight / 2,
       btnWidth,
       btnHeight,
-      8
+      12
     );
     this.customLevelModalContainer.add(closeBg);
 
     const closeText = this.add
       .text(width / 2 + spacing, y, "CLOSE", {
-        fontSize: "20px",
+        fontSize: "24px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
     this.customLevelModalContainer.add(closeText);
