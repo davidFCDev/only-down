@@ -1648,7 +1648,7 @@ export default class HelixScene extends Phaser.Scene {
       const trailType = this.customLevelConfig.trail;
       const trailColors =
         HelixScene.TRAIL_COLORS[trailType] || HelixScene.TRAIL_COLORS.fire;
-      
+
       if (trailColors.length > 0) {
         // Different behavior per trail type
         switch (trailType) {
@@ -1656,7 +1656,8 @@ export default class HelixScene extends Phaser.Scene {
             // Fire: multiple particles rising with spread, flickering
             if (Math.random() > 0.25) {
               for (let i = 0; i < 3; i++) {
-                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+                const trailColor =
+                  trailColors[Math.floor(Math.random() * trailColors.length)];
                 const trailTexture = this.createGlowTexture();
                 const trailMat = new THREE.SpriteMaterial({
                   map: trailTexture,
@@ -1695,7 +1696,8 @@ export default class HelixScene extends Phaser.Scene {
               const numDots = 2 + Math.floor(Math.random() * 2);
               for (let i = 0; i < numDots; i++) {
                 const angle = (i / numDots) * Math.PI * 2 + Math.random() * 0.5;
-                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+                const trailColor =
+                  trailColors[Math.floor(Math.random() * trailColors.length)];
                 const trailTexture = this.createGlowTexture();
                 const trailMat = new THREE.SpriteMaterial({
                   map: trailTexture,
@@ -1730,12 +1732,14 @@ export default class HelixScene extends Phaser.Scene {
 
           case "frost":
             // Frost/Ice: subtle icy particles around the ball
-            if (Math.random() > 0.5) { // Less frequent
+            if (Math.random() > 0.5) {
+              // Less frequent
               const numFlakes = 2 + Math.floor(Math.random() * 2); // 2-3 particles
               for (let i = 0; i < numFlakes; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
-                
+                const trailColor =
+                  trailColors[Math.floor(Math.random() * trailColors.length)];
+
                 const trailTexture = this.createGlowTexture();
                 const trailMat = new THREE.SpriteMaterial({
                   map: trailTexture,
@@ -1813,7 +1817,8 @@ export default class HelixScene extends Phaser.Scene {
           default:
             // Fallback: simple spread
             if (Math.random() > 0.4) {
-              const trailColor = trailColors[Math.floor(Math.random() * trailColors.length)];
+              const trailColor =
+                trailColors[Math.floor(Math.random() * trailColors.length)];
               const trailTexture = this.createGlowTexture();
               const trailMat = new THREE.SpriteMaterial({
                 map: trailTexture,

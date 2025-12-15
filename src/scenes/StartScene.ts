@@ -123,7 +123,13 @@ const LEVEL_TRAILS: {
     enabled: true,
     style: "flames",
   },
-  neon: { name: "Neon", color: 0xb7ff00, color2: 0xffff00, enabled: true, style: "dots" },
+  neon: {
+    name: "Neon",
+    color: 0xb7ff00,
+    color2: 0xffff00,
+    enabled: true,
+    style: "dots",
+  },
   frost: {
     name: "Frost",
     color: 0xaaddff,
@@ -176,7 +182,7 @@ export default class StartScene extends Phaser.Scene {
   private ballsBadgeText!: Phaser.GameObjects.Text;
 
   // Custom Level (Premium 500 credits)
-  private isCustomLevelUnlocked: boolean = true; // DEV MODE: Set to true for testing
+  private isCustomLevelUnlocked: boolean = false; // Requires create-mode purchase
   private customLevelBtnContainer!: Phaser.GameObjects.Container;
   private customLevelBtnBg!: Phaser.GameObjects.Graphics;
   private customLevelBtnText!: Phaser.GameObjects.Text;
@@ -325,8 +331,8 @@ export default class StartScene extends Phaser.Scene {
         this.isBallsUnlocked = (sdk as any).hasItem("exclusive-balls");
         console.log("⚽ Balls unlocked:", this.isBallsUnlocked);
 
-        // Custom Level check (will be false in dev mode override)
-        // this.isCustomLevelUnlocked = (sdk as any).hasItem("custom-level");
+        // Custom Level check - requires create-mode tier
+        this.isCustomLevelUnlocked = (sdk as any).hasItem("create-mode");
         console.log("🎨 Custom Level unlocked:", this.isCustomLevelUnlocked);
       }
 
@@ -701,7 +707,7 @@ export default class StartScene extends Phaser.Scene {
       );
 
       // 10 credits badge - gold/yellow, OVERLAPPING bottom of button
-      const badgeWidth = 140;
+      const badgeWidth = 160;
       const badgeHeight = 44;
       const badgeX = 0; // Centered
       const badgeY = btnHeight / 2 + 8; // Overlapping bottom edge of button
@@ -1155,11 +1161,11 @@ export default class StartScene extends Phaser.Scene {
         cornerRadius
       );
 
-      // 500 credits badge
-      const badgeWidth = 140;
-      const badgeHeight = 36;
+      // 500 credits badge - same size as other badges
+      const badgeWidth = 160;
+      const badgeHeight = 44;
       const badgeX = 0;
-      const badgeY = btnHeight / 2 + 6;
+      const badgeY = btnHeight / 2 + 8;
       this.customLevelBadgeBg.clear();
       this.customLevelBadgeBg.fillStyle(0xffd93d, 1);
       this.customLevelBadgeBg.fillRoundedRect(
@@ -1167,19 +1173,19 @@ export default class StartScene extends Phaser.Scene {
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        10
+        12
       );
-      this.customLevelBadgeBg.lineStyle(3, 0x000000, 1);
+      this.customLevelBadgeBg.lineStyle(4, 0x000000, 1);
       this.customLevelBadgeBg.strokeRoundedRect(
         badgeX - badgeWidth / 2,
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        10
+        12
       );
       this.customLevelBadgeText.setText("500 CREDITS");
       this.customLevelBadgeText.setPosition(badgeX, badgeY);
-      this.customLevelBadgeText.setFontSize(20);
+      this.customLevelBadgeText.setFontSize(24);
     }
   }
 
@@ -1211,7 +1217,7 @@ export default class StartScene extends Phaser.Scene {
 
   checkCustomLevelPurchase() {
     const sdk = window.FarcadeSDK as any;
-    if (sdk?.hasItem && sdk.hasItem("custom-level")) {
+    if (sdk?.hasItem && sdk.hasItem("create-mode")) {
       this.isCustomLevelUnlocked = true;
       this.updateCustomLevelButtonAppearance(
         Math.min(340, this.scale.width * 0.72),
@@ -1255,7 +1261,7 @@ export default class StartScene extends Phaser.Scene {
     this.customLevelModalContainer.add(title);
 
     // Section 1: THEME SELECTOR (combines palette + background)
-    const themeSectionY = height * 0.10;
+    const themeSectionY = height * 0.1;
     this.createThemeSelector(width, themeSectionY);
 
     // Section 2: TRAIL SELECTOR
@@ -1519,7 +1525,7 @@ export default class StartScene extends Phaser.Scene {
           const dist1 = ballRadius + 4;
           const dist2 = ballRadius + 12;
           const dist3 = ballRadius + 20;
-          
+
           // Outer flame (yellow, faded)
           graphics.fillStyle(trailData.color2 || 0xffcc00, 0.3);
           graphics.fillCircle(
@@ -1556,7 +1562,7 @@ export default class StartScene extends Phaser.Scene {
           const dist = ballRadius + 6 + (i % 3) * 6;
           const size = 3 + (i % 3) * 2;
           const alpha = 0.9 - (i % 3) * 0.25;
-          
+
           graphics.fillStyle(trailData.color, alpha);
           graphics.fillCircle(
             x + Math.cos(angle) * dist,
@@ -1585,8 +1591,8 @@ export default class StartScene extends Phaser.Scene {
           { x: -14, y: 10, size: 2, alpha: 0.4 },
           { x: 14, y: 12, size: 1.5, alpha: 0.3 },
         ];
-        
-        snowPositions.forEach(sp => {
+
+        snowPositions.forEach((sp) => {
           // Draw snowflake as star pattern
           graphics.fillStyle(trailData.color, sp.alpha);
           graphics.fillCircle(x + sp.x, y + sp.y, sp.size);
@@ -1602,7 +1608,7 @@ export default class StartScene extends Phaser.Scene {
             graphics.strokePath();
           }
         });
-        
+
         // Central ball with icy glow
         graphics.fillStyle(trailData.color2 || 0xaaddff, 0.3);
         graphics.fillCircle(x, y, ballRadius + 6);
@@ -1614,19 +1620,21 @@ export default class StartScene extends Phaser.Scene {
 
       case "gradient":
         // Rainbow: multicolor rings emanating from ball
-        const rainbowColors = [0xff0000, 0xff7700, 0xffff00, 0x00ff00, 0x00ffff, 0xff00ff];
-        
+        const rainbowColors = [
+          0xff0000, 0xff7700, 0xffff00, 0x00ff00, 0x00ffff, 0xff00ff,
+        ];
+
         // Draw rainbow particles in spiral
         for (let ring = 0; ring < 3; ring++) {
           const ringDist = ballRadius + 5 + ring * 7;
           const particlesInRing = 6 + ring * 2;
-          
+
           for (let i = 0; i < particlesInRing; i++) {
             const angle = (i / particlesInRing) * Math.PI * 2 + ring * 0.3;
             const colorIndex = (i + ring) % rainbowColors.length;
             const alpha = 0.9 - ring * 0.25;
             const size = 4 - ring * 0.5;
-            
+
             graphics.fillStyle(rainbowColors[colorIndex], alpha);
             graphics.fillCircle(
               x + Math.cos(angle) * ringDist,
@@ -2241,8 +2249,8 @@ export default class StartScene extends Phaser.Scene {
     const oLetterY = titleY;
 
     // Button top position - must match createMainStartButton
-    const btnY = height * 0.56;
-    const btnHeight = 90;
+    const btnY = height * 0.42;
+    const btnHeight = 70;
     const buttonTopY = btnY - btnHeight / 2;
 
     // Ball properties
