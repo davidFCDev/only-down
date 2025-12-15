@@ -76,7 +76,6 @@ export default class StartScene extends Phaser.Scene {
   private chaosBtnText!: Phaser.GameObjects.Text;
   private chaosBadgeBg!: Phaser.GameObjects.Graphics;
   private chaosBadgeText!: Phaser.GameObjects.Text;
-  private chaosLockIcon!: Phaser.GameObjects.Text;
 
   // Development controls
   private testRank: string = "Remixer";
@@ -524,14 +523,6 @@ export default class StartScene extends Phaser.Scene {
     this.chaosBtnBg = this.add.graphics();
     this.chaosBtnContainer.add(this.chaosBtnBg);
 
-    // Lock icon (hidden if unlocked)
-    this.chaosLockIcon = this.add
-      .text(-btnWidth / 2 + 35, 0, "🔒", {
-        fontSize: "28px",
-      })
-      .setOrigin(0.5);
-    this.chaosBtnContainer.add(this.chaosLockIcon);
-
     // Button text
     this.chaosBtnText = this.add
       .text(0, 0, "CHAOS MODE", {
@@ -608,9 +599,6 @@ export default class StartScene extends Phaser.Scene {
     btnHeight: number,
     cornerRadius: number
   ) {
-    const badgeX = btnWidth / 2 - 10;
-    const badgeY = -btnHeight / 2 - 5;
-
     // Clear and redraw button background
     this.chaosBtnBg.clear();
 
@@ -633,13 +621,13 @@ export default class StartScene extends Phaser.Scene {
         cornerRadius
       );
 
-      // Hide lock icon
-      this.chaosLockIcon.setVisible(false);
       this.chaosBtnText.setX(0);
 
-      // NEW badge - green
+      // NEW badge - green, top right corner
       const badgeWidth = 55;
       const badgeHeight = 24;
+      const badgeX = btnWidth / 2 - 10;
+      const badgeY = -btnHeight / 2 - 5;
       this.chaosBadgeBg.clear();
       this.chaosBadgeBg.fillStyle(0x00ff88, 1);
       this.chaosBadgeBg.fillRoundedRect(
@@ -658,9 +646,10 @@ export default class StartScene extends Phaser.Scene {
         8
       );
       this.chaosBadgeText.setText("NEW");
-      this.chaosBadgeText.setX(badgeX);
+      this.chaosBadgeText.setPosition(badgeX, badgeY);
+      this.chaosBadgeText.setFontSize(16);
     } else {
-      // LOCKED - Gray with lock, purple/gold badge for credits
+      // LOCKED - Gray background
       this.chaosBtnBg.fillStyle(0x000000, 1);
       this.chaosBtnBg.fillRoundedRect(
         -btnWidth / 2 - 5,
@@ -678,13 +667,13 @@ export default class StartScene extends Phaser.Scene {
         cornerRadius
       );
 
-      // Show lock icon
-      this.chaosLockIcon.setVisible(true);
-      this.chaosBtnText.setX(10); // Shift text right for lock icon
+      this.chaosBtnText.setX(0);
 
-      // 100 credits badge - gold/yellow
-      const badgeWidth = 95;
-      const badgeHeight = 26;
+      // 100 credits badge - gold/yellow, BELOW the button, bigger
+      const badgeWidth = 120;
+      const badgeHeight = 32;
+      const badgeX = 0; // Centered
+      const badgeY = btnHeight / 2 + 22; // Below button
       this.chaosBadgeBg.clear();
       this.chaosBadgeBg.fillStyle(0xffd93d, 1); // Gold
       this.chaosBadgeBg.fillRoundedRect(
@@ -692,18 +681,19 @@ export default class StartScene extends Phaser.Scene {
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        8
+        10
       );
-      this.chaosBadgeBg.lineStyle(2, 0x000000, 1);
+      this.chaosBadgeBg.lineStyle(3, 0x000000, 1);
       this.chaosBadgeBg.strokeRoundedRect(
         badgeX - badgeWidth / 2,
         badgeY - badgeHeight / 2,
         badgeWidth,
         badgeHeight,
-        8
+        10
       );
-      this.chaosBadgeText.setText("💎 100");
-      this.chaosBadgeText.setX(badgeX);
+      this.chaosBadgeText.setText("100 CREDITS");
+      this.chaosBadgeText.setPosition(badgeX, badgeY);
+      this.chaosBadgeText.setFontSize(18);
     }
   }
 
