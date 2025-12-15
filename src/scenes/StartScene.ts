@@ -1207,9 +1207,9 @@ export default class StartScene extends Phaser.Scene {
     const oLetterX = width / 2 + charWidth * 1.62;
     const oLetterY = titleY;
 
-    // Button top position
-    const btnY = height * 0.58;
-    const btnHeight = 80;
+    // Button top position - must match createMainStartButton
+    const btnY = height * 0.56;
+    const btnHeight = 90;
     const buttonTopY = btnY - btnHeight / 2;
 
     // Ball properties
