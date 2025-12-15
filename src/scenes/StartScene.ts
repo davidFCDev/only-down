@@ -114,7 +114,7 @@ export default class StartScene extends Phaser.Scene {
   private ballsBadgeText!: Phaser.GameObjects.Text;
 
   // Custom Ball Creator (Premium 500 credits)
-  private isCustomBallUnlocked: boolean = false;
+  private isCustomBallUnlocked: boolean = true; // DEV MODE: Set to true for testing
   private customBallBtnContainer!: Phaser.GameObjects.Container;
   private customBallBtnBg!: Phaser.GameObjects.Graphics;
   private customBallBtnText!: Phaser.GameObjects.Text;
