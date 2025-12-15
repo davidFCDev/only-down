@@ -80,6 +80,73 @@ export default class HelixScene extends Phaser.Scene {
   private shieldTimer: number = 0; // Timer for shield duration
   private shieldMesh: THREE.Mesh | null = null; // Visual shield bubble around ball
 
+  // Custom Level Configuration
+  private customLevelConfig: {
+    palette: string;
+    background: string;
+    trail: string;
+  } | null = null;
+  private trailParticles: THREE.Mesh[] = []; // Trail effect particles
+
+  // Level Palettes (matching StartScene exactly)
+  private static readonly LEVEL_PALETTES: {
+    [key: string]: {
+      name: string;
+      platform: number;
+      danger: number;
+      moving: number;
+      blinking: number;
+    };
+  } = {
+    classic: {
+      name: "Classic",
+      platform: 0x2ecc71, // Green
+      danger: 0xe74c3c, // Red
+      moving: 0x3498db, // Blue
+      blinking: 0x9b59b6, // Purple
+    },
+    cyberpunk: {
+      name: "Cyberpunk",
+      platform: 0x00ff00, // Verde neón (igual que Chaos)
+      danger: 0xff0044, // Rojo neón
+      moving: 0xff00ff, // Púrpura/Magenta (igual que Chaos)
+      blinking: 0xffff00, // Amarillo (igual que Chaos)
+    },
+    ocean: {
+      name: "Ocean",
+      platform: 0x0077be, // Ocean blue
+      danger: 0xff6b6b, // Coral red
+      moving: 0x00cec9, // Teal
+      blinking: 0x74b9ff, // Light blue
+    },
+    sunset: {
+      name: "Sunset",
+      platform: 0xff7675, // Salmon
+      danger: 0xd63031, // Dark red
+      moving: 0xfdcb6e, // Golden
+      blinking: 0xe17055, // Orange
+    },
+  };
+
+  // Level Backgrounds (separate from palettes)
+  private static readonly LEVEL_BACKGROUNDS: {
+    [key: string]: { name: string; color: number };
+  } = {
+    classic: { name: "Classic", color: 0xf5d89a }, // Warm yellow/cream
+    cyberpunk: { name: "Cyberpunk", color: 0x0a0a0a }, // Near black
+    ocean: { name: "Ocean", color: 0x1a1a2e }, // Dark blue
+    sunset: { name: "Sunset", color: 0x2d1b69 }, // Deep purple
+  };
+
+  // Trail colors
+  private static readonly TRAIL_COLORS: { [key: string]: number[] } = {
+    none: [],
+    fire: [0xff4500, 0xff6600, 0xff8800, 0xffaa00],
+    neon: [0x00ff88, 0x00ffff, 0xff00ff, 0xffff00],
+    electric: [0x00bfff, 0x1e90ff, 0x4169e1, 0x0000ff],
+    rainbow: [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff],
+  };
+
   constructor() {
     super("HelixScene");
   }
@@ -89,9 +156,12 @@ export default class HelixScene extends Phaser.Scene {
     ballStyle?: string;
     highScore?: number;
     chaosMode?: boolean;
+    customLevelConfig?: { palette: string; background: string; trail: string };
   }) {
     // Reset chaos mode first (important for scene restarts)
     this.isChaosMode = false;
+    this.customLevelConfig = null; // Reset custom level config
+    this.trailParticles = []; // Reset trail particles
 
     if (data?.testRank) {
       this.testRank = data.testRank;
@@ -105,9 +175,15 @@ export default class HelixScene extends Phaser.Scene {
     if (data?.chaosMode === true) {
       this.isChaosMode = true;
     }
+    // Custom level config only applies to normal mode, not chaos mode
+    if (data?.customLevelConfig && !this.isChaosMode) {
+      this.customLevelConfig = data.customLevelConfig;
+    }
     console.log(
       "🎮 HelixScene init - chaosMode:",
       this.isChaosMode,
+      "customLevelConfig:",
+      this.customLevelConfig,
       "data:",
       data
     );
@@ -131,9 +207,15 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    // Background color - black for Chaos mode, warm yellow/cream for normal
+    // Background color - black for Chaos mode, custom background or warm yellow/cream for normal
     if (this.isChaosMode) {
       this.threeScene.background = new THREE.Color(0x0a0a0a); // Near black
+    } else if (this.customLevelConfig) {
+      // Use custom background (separate from palette)
+      const bgConfig =
+        HelixScene.LEVEL_BACKGROUNDS[this.customLevelConfig.background] ||
+        HelixScene.LEVEL_BACKGROUNDS.classic;
+      this.threeScene.background = new THREE.Color(bgConfig.color);
     } else {
       this.threeScene.background = new THREE.Color(0xf5d89a); // Warm yellow/cream
     }
@@ -491,12 +573,34 @@ export default class HelixScene extends Phaser.Scene {
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
-    console.log("🏗️ createPlatforms - isChaosMode:", this.isChaosMode);
+    console.log(
+      "🏗️ createPlatforms - isChaosMode:",
+      this.isChaosMode,
+      "customLevelConfig:",
+      this.customLevelConfig
+    );
 
-    // Cyberpunk palette for Chaos mode (green, purple, yellow), normal palette otherwise
-    const colors = this.isChaosMode
-      ? [0x00ff00, 0xff00ff, 0xffff00] // Neon Green, Purple, Yellow
-      : [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c]; // Original colors
+    // Determine colors based on mode
+    let colors: number[];
+    let customPalette: typeof HelixScene.LEVEL_PALETTES.classic | null = null;
+
+    if (this.isChaosMode) {
+      // Cyberpunk palette for Chaos mode (green, purple, yellow)
+      colors = [0x00ff00, 0xff00ff, 0xffff00]; // Neon Green, Purple, Yellow
+    } else if (this.customLevelConfig) {
+      // Custom level palette - use all palette colors
+      customPalette =
+        HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
+        HelixScene.LEVEL_PALETTES.classic;
+      colors = [
+        customPalette.platform,
+        customPalette.moving,
+        customPalette.blinking,
+      ];
+    } else {
+      // Original colors
+      colors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
+    }
 
     this.platforms = [];
     this.powerUps = [];
@@ -727,8 +831,15 @@ export default class HelixScene extends Phaser.Scene {
                 depth: this.platformThickness + 0.05,
                 bevelEnabled: false,
               });
-              // Neon red for Chaos, flat red for normal
-              const dangerColor = this.isChaosMode ? 0xff0044 : 0xe74c3c;
+              // Danger color: Chaos mode neon red, custom palette, or default red
+              let dangerColor: number;
+              if (this.isChaosMode) {
+                dangerColor = 0xff0044;
+              } else if (customPalette) {
+                dangerColor = customPalette.danger;
+              } else {
+                dangerColor = 0xe74c3c;
+              }
               const dangerMat = new THREE.MeshBasicMaterial({
                 color: dangerColor,
               });
@@ -874,10 +985,18 @@ export default class HelixScene extends Phaser.Scene {
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    // Platform colors - cyberpunk for Chaos mode (green, purple, yellow)
-    const platformColors = this.isChaosMode
-      ? [0x00ff00, 0xff00ff, 0xffff00] // Neon Green, Purple, Yellow
-      : [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3]; // Original colors
+    // Platform colors - based on mode (Chaos, custom palette, or default)
+    let platformColors: number[];
+    if (this.isChaosMode) {
+      platformColors = [0x00ff00, 0xff00ff, 0xffff00]; // Neon Green, Purple, Yellow
+    } else if (this.customLevelConfig) {
+      const palette =
+        HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
+        HelixScene.LEVEL_PALETTES.classic;
+      platformColors = [palette.platform, palette.moving, palette.blinking];
+    } else {
+      platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3]; // Original colors
+    }
     const innerRadius = 2;
     const outerRadius = 4;
 
@@ -1080,8 +1199,18 @@ export default class HelixScene extends Phaser.Scene {
               depth: this.platformThickness + 0.05,
               bevelEnabled: false,
             });
-            // Neon red for Chaos, flat red for normal
-            const dangerColor = this.isChaosMode ? 0xff0044 : 0xe74c3c;
+            // Danger color: Chaos mode neon red, custom palette, or default red
+            let dangerColor: number;
+            if (this.isChaosMode) {
+              dangerColor = 0xff0044;
+            } else if (this.customLevelConfig) {
+              const palette =
+                HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
+                HelixScene.LEVEL_PALETTES.classic;
+              dangerColor = palette.danger;
+            } else {
+              dangerColor = 0xe74c3c;
+            }
             const dangerMat = new THREE.MeshBasicMaterial({
               color: dangerColor,
             });
@@ -1479,6 +1608,46 @@ export default class HelixScene extends Phaser.Scene {
           velocity: new THREE.Vector3(0, 0.01, 0),
           life: 0.5,
         });
+      }
+    }
+
+    // Custom Level Trail Effect
+    if (
+      !this.isChaosMode &&
+      this.customLevelConfig &&
+      this.customLevelConfig.trail !== "none" &&
+      this.isGameActive &&
+      !this.isGameStarting
+    ) {
+      if (Math.random() > 0.4) {
+        const trailColors =
+          HelixScene.TRAIL_COLORS[this.customLevelConfig.trail] ||
+          HelixScene.TRAIL_COLORS.fire;
+        if (trailColors.length > 0) {
+          const trailColor =
+            trailColors[Math.floor(Math.random() * trailColors.length)];
+
+          const trailTexture = this.createGlowTexture();
+          const trailMat = new THREE.SpriteMaterial({
+            map: trailTexture,
+            color: trailColor,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          });
+          const trail = new THREE.Sprite(trailMat);
+          trail.scale.set(0.5, 0.5, 1);
+          trail.position.copy(this.ball.position);
+          trail.position.y += 0.1;
+
+          this.threeScene.add(trail);
+          this.particles.push({
+            mesh: trail,
+            velocity: new THREE.Vector3(0, 0.01, 0),
+            life: 0.4,
+          });
+        }
       }
     }
 

@@ -54,6 +54,79 @@ const RANK_ORDER = [
   "Remixer",
 ];
 
+// Custom Level Configuration (Premium 500 credits)
+const LEVEL_PALETTES: {
+  [key: string]: {
+    name: string;
+    platform: number; // Normal platform color
+    danger: number; // Danger zone color
+    moving: number; // Moving platform color
+    blinking: number; // Blinking platform color
+  };
+} = {
+  classic: {
+    name: "Classic",
+    platform: 0x2ecc71, // Green
+    danger: 0xe74c3c, // Red
+    moving: 0x3498db, // Blue
+    blinking: 0x9b59b6, // Purple
+  },
+  cyberpunk: {
+    name: "Cyberpunk",
+    platform: 0x00ff00, // Verde neón (igual que Chaos)
+    danger: 0xff0044, // Rojo neón
+    moving: 0xff00ff, // Púrpura/Magenta (igual que Chaos)
+    blinking: 0xffff00, // Amarillo (igual que Chaos)
+  },
+  ocean: {
+    name: "Ocean",
+    platform: 0x0077be, // Ocean blue
+    danger: 0xff6b6b, // Coral red
+    moving: 0x00cec9, // Teal
+    blinking: 0x74b9ff, // Light blue
+  },
+  sunset: {
+    name: "Sunset",
+    platform: 0xff7675, // Salmon
+    danger: 0xd63031, // Dark red
+    moving: 0xfdcb6e, // Golden
+    blinking: 0xe17055, // Orange
+  },
+};
+
+const LEVEL_BACKGROUNDS: {
+  [key: string]: {
+    name: string;
+    color: number;
+  };
+} = {
+  classic: { name: "Classic", color: 0xf5d89a }, // Warm yellow/cream
+  cyberpunk: { name: "Cyberpunk", color: 0x0a0a0a }, // Near black
+  ocean: { name: "Ocean", color: 0x1a1a2e }, // Dark blue
+  sunset: { name: "Sunset", color: 0x2d1b69 }, // Deep purple
+};
+
+const LEVEL_TRAILS: {
+  [key: string]: {
+    name: string;
+    color: number;
+    enabled: boolean;
+  };
+} = {
+  none: { name: "None", color: 0x000000, enabled: false },
+  fire: { name: "Fire", color: 0xff4500, enabled: true },
+  neon: { name: "Neon", color: 0xb7ff00, enabled: true },
+  electric: { name: "Electric", color: 0x00ffff, enabled: true },
+  rainbow: { name: "Rainbow", color: 0xff00ff, enabled: true },
+};
+
+// Default custom level config
+const DEFAULT_CUSTOM_LEVEL = {
+  palette: "classic",
+  background: "classic",
+  trail: "none",
+};
+
 export default class StartScene extends Phaser.Scene {
   private titleContainer!: Phaser.GameObjects.Container;
   private titleText!: Phaser.GameObjects.Text;
@@ -81,6 +154,22 @@ export default class StartScene extends Phaser.Scene {
   private ballsBtnText!: Phaser.GameObjects.Text;
   private ballsBadgeBg!: Phaser.GameObjects.Graphics;
   private ballsBadgeText!: Phaser.GameObjects.Text;
+
+  // Custom Level (Premium 500 credits)
+  private isCustomLevelUnlocked: boolean = true; // DEV MODE: Set to true for testing
+  private customLevelBtnContainer!: Phaser.GameObjects.Container;
+  private customLevelBtnBg!: Phaser.GameObjects.Graphics;
+  private customLevelBtnText!: Phaser.GameObjects.Text;
+  private customLevelBadgeBg!: Phaser.GameObjects.Graphics;
+  private customLevelBadgeText!: Phaser.GameObjects.Text;
+  private customLevelModalContainer!: Phaser.GameObjects.Container;
+  private customLevelConfig: {
+    palette: string;
+    background: string;
+    trail: string;
+  } = {
+    ...DEFAULT_CUSTOM_LEVEL,
+  };
 
   // Development controls
   private testRank: string = "Remixer";
@@ -193,17 +282,32 @@ export default class StartScene extends Phaser.Scene {
           this.highScore
         );
         console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
+
+        // Get custom level config
+        if (gameInfo?.initialGameState?.gameState?.customLevelConfig) {
+          this.customLevelConfig = {
+            ...DEFAULT_CUSTOM_LEVEL,
+            ...gameInfo.initialGameState.gameState.customLevelConfig,
+          };
+          console.log("🎨 Custom Level Config loaded:", this.customLevelConfig);
+        }
       } else {
         console.log("📊 SDK not available or timed out, using defaults");
       }
 
       // Check if user has purchased Chaos Mode
       if ((sdk as any)?.hasItem) {
-        this.isChaosUnlocked = (sdk as any).hasItem("chaos-mode-new-style-music");
+        this.isChaosUnlocked = (sdk as any).hasItem(
+          "chaos-mode-new-style-music"
+        );
         console.log("🎮 Chaos Mode unlocked:", this.isChaosUnlocked);
 
         this.isBallsUnlocked = (sdk as any).hasItem("exclusive-balls");
         console.log("⚽ Balls unlocked:", this.isBallsUnlocked);
+
+        // Custom Level check (will be false in dev mode override)
+        // this.isCustomLevelUnlocked = (sdk as any).hasItem("custom-level");
+        console.log("🎨 Custom Level unlocked:", this.isCustomLevelUnlocked);
       }
 
       // Listen for purchase completions
@@ -211,6 +315,7 @@ export default class StartScene extends Phaser.Scene {
         (sdk as any).onPurchaseComplete(() => {
           this.checkChaosPurchase();
           this.checkBallsPurchase();
+          this.checkCustomLevelPurchase();
         });
       }
     } catch (error) {
@@ -361,10 +466,10 @@ export default class StartScene extends Phaser.Scene {
 
   createMainStartButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.startBtnContainer = this.add.container(width / 2, height * 0.56);
+    this.startBtnContainer = this.add.container(width / 2, height * 0.42);
     this.startBtnContainer.setAlpha(0);
 
     // Button background - green with black border
@@ -392,12 +497,12 @@ export default class StartScene extends Phaser.Scene {
     // Button text
     const btnText = this.add
       .text(0, 0, "PLAY", {
-        fontSize: "52px",
+        fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.startBtnContainer.add(btnText);
@@ -439,6 +544,9 @@ export default class StartScene extends Phaser.Scene {
     // Create chaos mode button
     this.createChaosModeButton(width, height);
 
+    // Create custom level button (Premium)
+    this.createCustomLevelButton(width, height);
+
     // Create bouncing ball animation after button appears
     this.time.delayedCall(1000, () => {
       this.createBouncingBall(width, height);
@@ -447,10 +555,10 @@ export default class StartScene extends Phaser.Scene {
 
   createBallSelectButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.7);
+    this.ballSelectBtnContainer = this.add.container(width / 2, height * 0.54);
     this.ballSelectBtnContainer.setAlpha(0);
 
     // Button background
@@ -460,12 +568,12 @@ export default class StartScene extends Phaser.Scene {
     // Button text
     this.ballsBtnText = this.add
       .text(0, 0, "BALLS", {
-        fontSize: "52px",
+        fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.ballSelectBtnContainer.add(this.ballsBtnText);
@@ -641,10 +749,10 @@ export default class StartScene extends Phaser.Scene {
 
   createChaosModeButton(width: number, height: number) {
     const btnWidth = Math.min(340, width * 0.72);
-    const btnHeight = 90;
-    const cornerRadius = 24;
+    const btnHeight = 70;
+    const cornerRadius = 20;
 
-    this.chaosBtnContainer = this.add.container(width / 2, height * 0.84);
+    this.chaosBtnContainer = this.add.container(width / 2, height * 0.66);
     this.chaosBtnContainer.setAlpha(0);
 
     // Button background
@@ -653,13 +761,13 @@ export default class StartScene extends Phaser.Scene {
 
     // Button text
     this.chaosBtnText = this.add
-      .text(0, 0, "CHAOS MODE", {
+      .text(0, 0, "CHAOS", {
         fontSize: "42px",
         color: "#FFFFFF",
         fontFamily: "Fredoka",
         fontStyle: "bold",
         stroke: "#000000",
-        strokeThickness: 7,
+        strokeThickness: 6,
       })
       .setOrigin(0.5);
     this.chaosBtnContainer.add(this.chaosBtnText);
@@ -875,6 +983,693 @@ export default class StartScene extends Phaser.Scene {
       highScore: this.highScore,
       chaosMode: true,
     });
+  }
+
+  // ============ CUSTOM LEVEL (PREMIUM 500 CREDITS) ============
+
+  createCustomLevelButton(width: number, height: number) {
+    const btnWidth = Math.min(340, width * 0.72);
+    const btnHeight = 70;
+    const cornerRadius = 20;
+
+    this.customLevelBtnContainer = this.add.container(width / 2, height * 0.78);
+    this.customLevelBtnContainer.setAlpha(0);
+
+    // Button background
+    this.customLevelBtnBg = this.add.graphics();
+    this.customLevelBtnContainer.add(this.customLevelBtnBg);
+
+    // Button text
+    this.customLevelBtnText = this.add
+      .text(0, 0, "CUSTOM", {
+        fontSize: "42px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    this.customLevelBtnContainer.add(this.customLevelBtnText);
+
+    // Badge
+    this.customLevelBadgeBg = this.add.graphics();
+    this.customLevelBtnContainer.add(this.customLevelBadgeBg);
+
+    this.customLevelBadgeText = this.add
+      .text(0, 0, "", {
+        fontSize: "20px",
+        color: "#000000",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.customLevelBtnContainer.add(this.customLevelBadgeText);
+
+    // Update button appearance
+    this.updateCustomLevelButtonAppearance(btnWidth, btnHeight, cornerRadius);
+
+    // Interactive zone
+    const zone = this.add
+      .zone(0, 0, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.customLevelBtnContainer,
+          scale: 1.08,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: this.customLevelBtnContainer,
+          scale: 1,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        if (this.isCustomLevelUnlocked) {
+          this.showCustomLevelModal();
+        } else {
+          this.purchaseCustomLevel();
+        }
+      });
+    this.customLevelBtnContainer.add(zone);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: this.customLevelBtnContainer,
+      alpha: 1,
+      duration: 400,
+      delay: 1200,
+    });
+  }
+
+  updateCustomLevelButtonAppearance(
+    btnWidth: number,
+    btnHeight: number,
+    cornerRadius: number
+  ) {
+    this.customLevelBtnBg.clear();
+
+    if (this.isCustomLevelUnlocked) {
+      // UNLOCKED - Purple/gradient
+      this.customLevelBtnBg.fillStyle(0x000000, 1);
+      this.customLevelBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.customLevelBtnBg.fillStyle(0x9b59b6, 1); // Purple
+      this.customLevelBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // VIP badge - gold, top right
+      const badgeWidth = 50;
+      const badgeHeight = 22;
+      const badgeX = btnWidth / 2 - 10;
+      const badgeY = -btnHeight / 2 - 5;
+      this.customLevelBadgeBg.clear();
+      this.customLevelBadgeBg.fillStyle(0xffd700, 1);
+      this.customLevelBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.customLevelBadgeBg.lineStyle(2, 0x000000, 1);
+      this.customLevelBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        8
+      );
+      this.customLevelBadgeText.setText("VIP");
+      this.customLevelBadgeText.setPosition(badgeX, badgeY);
+      this.customLevelBadgeText.setFontSize(14);
+    } else {
+      // LOCKED - Gray
+      this.customLevelBtnBg.fillStyle(0x000000, 1);
+      this.customLevelBtnBg.fillRoundedRect(
+        -btnWidth / 2 - 5,
+        -btnHeight / 2 - 5,
+        btnWidth + 10,
+        btnHeight + 10,
+        cornerRadius + 2
+      );
+      this.customLevelBtnBg.fillStyle(0x555555, 1);
+      this.customLevelBtnBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        cornerRadius
+      );
+
+      // 500 credits badge
+      const badgeWidth = 140;
+      const badgeHeight = 36;
+      const badgeX = 0;
+      const badgeY = btnHeight / 2 + 6;
+      this.customLevelBadgeBg.clear();
+      this.customLevelBadgeBg.fillStyle(0xffd93d, 1);
+      this.customLevelBadgeBg.fillRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+      this.customLevelBadgeBg.lineStyle(3, 0x000000, 1);
+      this.customLevelBadgeBg.strokeRoundedRect(
+        badgeX - badgeWidth / 2,
+        badgeY - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+      this.customLevelBadgeText.setText("500 CREDITS");
+      this.customLevelBadgeText.setPosition(badgeX, badgeY);
+      this.customLevelBadgeText.setFontSize(20);
+    }
+  }
+
+  async purchaseCustomLevel() {
+    try {
+      const sdk = window.FarcadeSDK as any;
+      if (sdk?.purchase) {
+        console.log("🛒 Initiating Custom Level purchase...");
+        const result = await sdk.purchase({ item: "custom-level" });
+
+        if (result.success) {
+          console.log("✅ Custom Level purchased successfully!");
+          this.isCustomLevelUnlocked = true;
+          this.updateCustomLevelButtonAppearance(
+            Math.min(340, this.scale.width * 0.72),
+            70,
+            20
+          );
+        } else {
+          console.log("❌ Custom Level purchase failed or cancelled");
+        }
+      } else {
+        console.log("⚠️ SDK purchase not available");
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+    }
+  }
+
+  checkCustomLevelPurchase() {
+    const sdk = window.FarcadeSDK as any;
+    if (sdk?.hasItem && sdk.hasItem("custom-level")) {
+      this.isCustomLevelUnlocked = true;
+      this.updateCustomLevelButtonAppearance(
+        Math.min(340, this.scale.width * 0.72),
+        70,
+        20
+      );
+      console.log("🎉 Custom Level now unlocked!");
+    }
+  }
+
+  showCustomLevelModal() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    this.customLevelModalContainer = this.add.container(0, 0);
+    this.customLevelModalContainer.setAlpha(0);
+    this.customLevelModalContainer.setDepth(100);
+
+    // Dark overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.95);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, width, height),
+      Phaser.Geom.Rectangle.Contains
+    );
+    this.customLevelModalContainer.add(overlay);
+
+    // Modal title
+    const titleFontSize = Math.min(32, width * 0.07);
+    const title = this.add
+      .text(width / 2, height * 0.05, "CUSTOM LEVEL", {
+        fontSize: `${titleFontSize}px`,
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(title);
+
+    // Section 1: PALETTE SELECTOR
+    const paletteSectionY = height * 0.16;
+    this.createPaletteSelector(width, paletteSectionY);
+
+    // Section 2: BACKGROUND SELECTOR
+    const bgSectionY = height * 0.38;
+    this.createBackgroundSelector(width, bgSectionY);
+
+    // Section 3: TRAIL SELECTOR
+    const trailSectionY = height * 0.6;
+    this.createTrailSelector(width, trailSectionY);
+
+    // Buttons: SAVE, RESET, CLOSE
+    const btnY = height * 0.82;
+    this.createCustomLevelModalButtons(width, btnY);
+
+    // Fade in
+    this.tweens.add({
+      targets: this.customLevelModalContainer,
+      alpha: 1,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  createPaletteSelector(width: number, y: number) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 35, "PALETTE", {
+        fontSize: "18px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(label);
+
+    // Palette options
+    const palettes = Object.keys(LEVEL_PALETTES);
+    const btnWidth = 75;
+    const btnHeight = 50;
+    const spacing = 82;
+    const startX = width / 2 - ((palettes.length - 1) * spacing) / 2;
+
+    palettes.forEach((paletteKey, index) => {
+      const paletteData = LEVEL_PALETTES[paletteKey];
+      const x = startX + index * spacing;
+      const isSelected = this.customLevelConfig.palette === paletteKey;
+
+      // Button background
+      const btn = this.add.graphics();
+      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      btn.lineStyle(2, 0x000000, 1);
+      btn.strokeRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      this.customLevelModalContainer.add(btn);
+
+      // Color preview (4 small squares)
+      const previewSize = 12;
+      const previewSpacing = 14;
+      const previewStartX = x - previewSpacing * 1.5;
+      const colors = [
+        paletteData.platform,
+        paletteData.danger,
+        paletteData.moving,
+        paletteData.blinking,
+      ];
+      colors.forEach((color, ci) => {
+        const px = previewStartX + ci * previewSpacing;
+        btn.fillStyle(color, 1);
+        btn.fillRect(px, y - previewSize / 2, previewSize, previewSize);
+      });
+
+      // Label
+      const paletteLabel = this.add
+        .text(x, y + btnHeight / 2 + 12, paletteData.name, {
+          fontSize: "12px",
+          color: isSelected ? "#ffd93d" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.customLevelModalContainer.add(paletteLabel);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, btnWidth, btnHeight + 20)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customLevelConfig.palette = paletteKey;
+          this.refreshCustomLevelModal();
+        });
+      this.customLevelModalContainer.add(zone);
+    });
+  }
+
+  createBackgroundSelector(width: number, y: number) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 35, "BACKGROUND", {
+        fontSize: "18px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(label);
+
+    // Background options
+    const backgrounds = Object.keys(LEVEL_BACKGROUNDS);
+    const btnWidth = 75;
+    const btnHeight = 50;
+    const spacing = 82;
+    const startX = width / 2 - ((backgrounds.length - 1) * spacing) / 2;
+
+    backgrounds.forEach((bgKey, index) => {
+      const bgData = LEVEL_BACKGROUNDS[bgKey];
+      const x = startX + index * spacing;
+      const isSelected = this.customLevelConfig.background === bgKey;
+
+      // Button background
+      const btn = this.add.graphics();
+      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      btn.lineStyle(2, 0x000000, 1);
+      btn.strokeRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      this.customLevelModalContainer.add(btn);
+
+      // Color preview (big square) with border for dark colors
+      btn.fillStyle(bgData.color, 1);
+      btn.fillRect(x - 20, y - 15, 40, 30);
+      btn.lineStyle(2, 0xffffff, 0.5);
+      btn.strokeRect(x - 20, y - 15, 40, 30);
+
+      // Label
+      const bgLabel = this.add
+        .text(x, y + btnHeight / 2 + 12, bgData.name, {
+          fontSize: "12px",
+          color: isSelected ? "#ffd93d" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.customLevelModalContainer.add(bgLabel);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, btnWidth, btnHeight + 20)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customLevelConfig.background = bgKey;
+          this.refreshCustomLevelModal();
+        });
+      this.customLevelModalContainer.add(zone);
+    });
+  }
+
+  createTrailSelector(width: number, y: number) {
+    // Section label
+    const label = this.add
+      .text(width / 2, y - 35, "BALL TRAIL", {
+        fontSize: "18px",
+        color: "#ffd93d",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(label);
+
+    // Trail options
+    const trails = Object.keys(LEVEL_TRAILS);
+    const btnWidth = 60;
+    const btnHeight = 40;
+    const spacing = 68;
+    const startX = width / 2 - ((trails.length - 1) * spacing) / 2;
+
+    trails.forEach((trailKey, index) => {
+      const trailData = LEVEL_TRAILS[trailKey];
+      const x = startX + index * spacing;
+      const isSelected = this.customLevelConfig.trail === trailKey;
+
+      // Button background
+      const btn = this.add.graphics();
+      btn.fillStyle(isSelected ? 0xffd93d : 0x333333, 1);
+      btn.fillRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      btn.lineStyle(2, 0x000000, 1);
+      btn.strokeRoundedRect(
+        x - btnWidth / 2,
+        y - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        8
+      );
+      this.customLevelModalContainer.add(btn);
+
+      // Trail color indicator
+      if (trailData.enabled) {
+        btn.fillStyle(trailData.color, 1);
+        btn.fillCircle(x, y, 10);
+      } else {
+        // X for none
+        const noneText = this.add
+          .text(x, y, "✕", {
+            fontSize: "16px",
+            color: "#666666",
+            fontFamily: "Fredoka",
+          })
+          .setOrigin(0.5);
+        this.customLevelModalContainer.add(noneText);
+      }
+
+      // Label
+      const trailLabel = this.add
+        .text(x, y + btnHeight / 2 + 12, trailData.name, {
+          fontSize: "11px",
+          color: isSelected ? "#ffd93d" : "#FFFFFF",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.customLevelModalContainer.add(trailLabel);
+
+      // Interactive zone
+      const zone = this.add
+        .zone(x, y, btnWidth, btnHeight + 20)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          this.customLevelConfig.trail = trailKey;
+          this.refreshCustomLevelModal();
+        });
+      this.customLevelModalContainer.add(zone);
+    });
+  }
+
+  createCustomLevelModalButtons(width: number, y: number) {
+    const btnWidth = 100;
+    const btnHeight = 40;
+    const spacing = 110;
+
+    // SAVE button
+    const saveBg = this.add.graphics();
+    saveBg.fillStyle(0x000000, 1);
+    saveBg.fillRoundedRect(
+      width / 2 - spacing - btnWidth / 2 - 3,
+      y - btnHeight / 2 - 3,
+      btnWidth + 6,
+      btnHeight + 6,
+      10
+    );
+    saveBg.fillStyle(0x2ecc71, 1);
+    saveBg.fillRoundedRect(
+      width / 2 - spacing - btnWidth / 2,
+      y - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      8
+    );
+    this.customLevelModalContainer.add(saveBg);
+
+    const saveText = this.add
+      .text(width / 2 - spacing, y, "SAVE", {
+        fontSize: "20px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(saveText);
+
+    const saveZone = this.add
+      .zone(width / 2 - spacing, y, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", async () => {
+        await this.saveCustomLevelConfig();
+        this.closeCustomLevelModal();
+      });
+    this.customLevelModalContainer.add(saveZone);
+
+    // RESET button
+    const resetBg = this.add.graphics();
+    resetBg.fillStyle(0x000000, 1);
+    resetBg.fillRoundedRect(
+      width / 2 - btnWidth / 2 - 3,
+      y - btnHeight / 2 - 3,
+      btnWidth + 6,
+      btnHeight + 6,
+      10
+    );
+    resetBg.fillStyle(0xe74c3c, 1);
+    resetBg.fillRoundedRect(
+      width / 2 - btnWidth / 2,
+      y - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      8
+    );
+    this.customLevelModalContainer.add(resetBg);
+
+    const resetText = this.add
+      .text(width / 2, y, "RESET", {
+        fontSize: "20px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(resetText);
+
+    const resetZone = this.add
+      .zone(width / 2, y, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        this.customLevelConfig = { ...DEFAULT_CUSTOM_LEVEL };
+        this.refreshCustomLevelModal();
+      });
+    this.customLevelModalContainer.add(resetZone);
+
+    // CLOSE button
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0x000000, 1);
+    closeBg.fillRoundedRect(
+      width / 2 + spacing - btnWidth / 2 - 3,
+      y - btnHeight / 2 - 3,
+      btnWidth + 6,
+      btnHeight + 6,
+      10
+    );
+    closeBg.fillStyle(0x7f8c8d, 1);
+    closeBg.fillRoundedRect(
+      width / 2 + spacing - btnWidth / 2,
+      y - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      8
+    );
+    this.customLevelModalContainer.add(closeBg);
+
+    const closeText = this.add
+      .text(width / 2 + spacing, y, "CLOSE", {
+        fontSize: "20px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.customLevelModalContainer.add(closeText);
+
+    const closeZone = this.add
+      .zone(width / 2 + spacing, y, btnWidth, btnHeight)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        this.closeCustomLevelModal();
+      });
+    this.customLevelModalContainer.add(closeZone);
+  }
+
+  refreshCustomLevelModal() {
+    if (this.customLevelModalContainer) {
+      this.customLevelModalContainer.destroy();
+      this.showCustomLevelModal();
+      this.customLevelModalContainer.setAlpha(1);
+    }
+  }
+
+  async saveCustomLevelConfig() {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.singlePlayer?.actions?.saveGameState) {
+        await sdk.singlePlayer.actions.saveGameState({
+          gameState: {
+            hasSeenTutorial: this.hasSeenTutorial,
+            highScore: this.highScore,
+            selectedBallStyle: this.selectedBallStyle,
+            customLevelConfig: this.customLevelConfig,
+          },
+        });
+        console.log("🎨 Custom Level config saved:", this.customLevelConfig);
+      }
+    } catch (error) {
+      console.log("Could not save custom level config:", error);
+    }
+  }
+
+  closeCustomLevelModal() {
+    if (this.customLevelModalContainer) {
+      this.tweens.add({
+        targets: this.customLevelModalContainer,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => {
+          this.customLevelModalContainer.destroy();
+        },
+      });
+    }
   }
 
   showBallSelectModal() {
@@ -1440,11 +2235,18 @@ export default class StartScene extends Phaser.Scene {
     if (!this.hasSeenTutorial) {
       this.showTutorialModal();
     } else {
+      console.log("🚀 Starting HelixScene with customLevelConfig:", {
+        isCustomLevelUnlocked: this.isCustomLevelUnlocked,
+        customLevelConfig: this.customLevelConfig,
+      });
       this.scene.start("HelixScene", {
         testRank: this.testRank,
         ballStyle: this.selectedBallStyle,
         highScore: this.highScore,
         chaosMode: false,
+        customLevelConfig: this.isCustomLevelUnlocked
+          ? this.customLevelConfig
+          : undefined,
       });
     }
   }
@@ -1571,6 +2373,11 @@ export default class StartScene extends Phaser.Scene {
               ballStyle: this.selectedBallStyle,
               highScore: this.highScore,
               chaosMode: this.isChaosMode,
+              // Only pass custom level config for normal mode (not chaos)
+              customLevelConfig:
+                !this.isChaosMode && this.isCustomLevelUnlocked
+                  ? this.customLevelConfig
+                  : undefined,
             });
           },
         });

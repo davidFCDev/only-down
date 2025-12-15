@@ -3,10 +3,10 @@
  */
 
 // Phaser is loaded globally via CDN
-declare const Phaser: typeof import('phaser')
+declare const Phaser: typeof import("phaser");
 
 // Import the actual SDK types from the package
-import type { FarcadeSDK as FarcadeSDKType } from '@farcade/game-sdk'
+import type { FarcadeSDK as FarcadeSDKType } from "@farcade/game-sdk";
 
 // Extended Farcade SDK with purchase/credits features
 interface ExtendedFarcadeSDK extends FarcadeSDKType {
@@ -16,13 +16,13 @@ interface ExtendedFarcadeSDK extends FarcadeSDKType {
 }
 
 // Farcade SDK is loaded globally via CDN
-declare const FarcadeSDK: ExtendedFarcadeSDK
+declare const FarcadeSDK: ExtendedFarcadeSDK;
 
 // Extend window for global SDK access
 declare global {
   interface Window {
-    FarcadeSDK?: ExtendedFarcadeSDK
+    FarcadeSDK?: ExtendedFarcadeSDK;
   }
 }
 
-export {}
+export {};
