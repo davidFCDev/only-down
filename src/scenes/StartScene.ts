@@ -58,39 +58,39 @@ const RANK_ORDER = [
 const LEVEL_PALETTES: {
   [key: string]: {
     name: string;
-    platform: number; // Normal platform color
-    danger: number; // Danger zone color
-    moving: number; // Moving platform color
-    blinking: number; // Blinking platform color
+    color1: number; // Primary platform color
+    color2: number; // Secondary platform color
+    color3: number; // Tertiary platform color
+    dangerZone: number; // Color for actual danger zones (red areas)
   };
 } = {
   classic: {
     name: "Classic",
-    platform: 0x2ecc71, // Green
-    danger: 0xf39c12, // Orange/Yellow (distinct from red danger zones)
-    moving: 0x3498db, // Blue
-    blinking: 0x9b59b6, // Purple
+    color1: 0x2ecc71, // Green
+    color2: 0x3498db, // Blue
+    color3: 0x9b59b6, // Purple
+    dangerZone: 0xff2222, // Bright red for danger zones
   },
   cyberpunk: {
     name: "Cyberpunk",
-    platform: 0x00ff00, // Verde neón (igual que Chaos)
-    danger: 0xff0044, // Rojo neón
-    moving: 0xff00ff, // Púrpura/Magenta (igual que Chaos)
-    blinking: 0xffff00, // Amarillo (igual que Chaos)
+    color1: 0x00ff00, // Neon green
+    color2: 0xff00ff, // Magenta
+    color3: 0xffff00, // Yellow
+    dangerZone: 0xff0044, // Neon red for danger zones
   },
   ocean: {
     name: "Ocean",
-    platform: 0x0077be, // Ocean blue
-    danger: 0xff6b6b, // Coral red
-    moving: 0x00cec9, // Teal
-    blinking: 0x74b9ff, // Light blue
+    color1: 0x0077be, // Ocean blue
+    color2: 0x00cec9, // Teal
+    color3: 0x81ecec, // Aqua
+    dangerZone: 0xff6b6b, // Coral red for danger zones
   },
   sunset: {
     name: "Sunset",
-    platform: 0xff7675, // Salmon
-    danger: 0xd63031, // Dark red
-    moving: 0xfdcb6e, // Golden
-    blinking: 0xe17055, // Orange
+    color1: 0xff7675, // Salmon
+    color2: 0xfdcb6e, // Golden
+    color3: 0xe17055, // Orange
+    dangerZone: 0xd63031, // Dark red for danger zones
   },
 };
 
@@ -1343,15 +1343,14 @@ export default class StartScene extends Phaser.Scene {
         .setOrigin(0, 0.5);
       this.customLevelModalContainer.add(themeName);
 
-      // Palette colors preview (4 squares in the middle) - BIGGER
-      const colorsStartX = width / 2 - 70;
+      // Palette colors preview (3 squares in the middle)
+      const colorsStartX = width / 2 - 55;
       const colorSize = 32;
       const colorSpacing = 38;
       const colors = [
-        paletteData.platform,
-        paletteData.danger,
-        paletteData.moving,
-        paletteData.blinking,
+        paletteData.color1,
+        paletteData.color2,
+        paletteData.color3,
       ];
 
       colors.forEach((color, ci) => {
