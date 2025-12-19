@@ -377,7 +377,7 @@ export default class HelixScene extends Phaser.Scene {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       (this as any).touchSide =
         pointer.x < this.scale.width / 2 ? "left" : "right";
-      
+
       // Initialize and unlock AudioContext on first touch (mobile requirement)
       this.unlockAudioContext();
     });

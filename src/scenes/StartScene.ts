@@ -1412,7 +1412,7 @@ export default class StartScene extends Phaser.Scene {
   createTrailSelector(width: number, y: number) {
     // Section label - same separation as THEME
     const label = this.add
-      .text(width / 2, y - 65, "BALL TRAIL", {
+      .text(width / 2, y - 75, "BALL TRAIL", {
         fontSize: "26px",
         color: "#ffd93d",
         fontFamily: "Fredoka",
@@ -1427,7 +1427,7 @@ export default class StartScene extends Phaser.Scene {
     const trails = Object.keys(LEVEL_TRAILS);
     const rowWidth = width * 0.92;
     const btnWidth = (rowWidth - 20) / trails.length;
-    const btnHeight = 90; // More height to avoid overlap
+    const btnHeight = 115; // Increased height for better distribution
     const startX = width / 2 - rowWidth / 2 + btnWidth / 2 + 4;
 
     trails.forEach((trailKey, index) => {
@@ -1460,13 +1460,13 @@ export default class StartScene extends Phaser.Scene {
       this.customLevelModalContainer.add(btn);
 
       // Draw distinctive trail icon based on style
-      const iconY = y - 8;
+      const iconY = y - 12;
       this.drawTrailIcon(btn, x, iconY, trailData);
 
-      // Label
+      // Label - bigger text
       const trailLabel = this.add
-        .text(x, y + btnHeight / 2 - 12, trailData.name, {
-          fontSize: "13px",
+        .text(x, y + btnHeight / 2 - 18, trailData.name, {
+          fontSize: "16px",
           color: isSelected ? "#ffd93d" : "#FFFFFF",
           fontFamily: "Fredoka",
           fontStyle: "bold",
