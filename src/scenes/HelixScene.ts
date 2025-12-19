@@ -377,6 +377,9 @@ export default class HelixScene extends Phaser.Scene {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       (this as any).touchSide =
         pointer.x < this.scale.width / 2 ? "left" : "right";
+      
+      // Initialize and unlock AudioContext on first touch (mobile requirement)
+      this.unlockAudioContext();
     });
 
     this.input.on("pointerup", () => {
@@ -2350,6 +2353,25 @@ export default class HelixScene extends Phaser.Scene {
     this.threeScene.add(this.shieldVisual);
   }
 
+  // Unlock AudioContext on first user interaction (required for mobile)
+  private unlockAudioContext() {
+    if (!this.audioContext) {
+      try {
+        this.audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        this.masterGain = this.audioContext.createGain();
+        this.masterGain.connect(this.audioContext.destination);
+      } catch (e) {
+        return;
+      }
+    }
+
+    // Resume if suspended (mobile browsers suspend AudioContext until user gesture)
+    if (this.audioContext.state === "suspended") {
+      this.audioContext.resume();
+    }
+  }
+
   // Procedural sound for collecting power-up (cyberpunk dimensional portal)
   playPowerUpSound() {
     if (this.isMuted) return;
@@ -2363,6 +2385,11 @@ export default class HelixScene extends Phaser.Scene {
       } catch (e) {
         return;
       }
+    }
+
+    // Resume if suspended
+    if (this.audioContext.state === "suspended") {
+      this.audioContext.resume();
     }
 
     const ctx = this.audioContext;
@@ -2450,6 +2477,11 @@ export default class HelixScene extends Phaser.Scene {
       } catch (e) {
         return;
       }
+    }
+
+    // Resume if suspended
+    if (this.audioContext.state === "suspended") {
+      this.audioContext.resume();
     }
 
     const ctx = this.audioContext;
