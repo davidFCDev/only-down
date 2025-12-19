@@ -61,47 +61,25 @@ export class PreloadScene extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
-    // --- AUDIO ---
+    // --- ESSENTIAL AUDIO ONLY (for fast startup) ---
     this.load.audio(
       "beep",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta"
     );
     this.load.audio(
-      "music1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S"
-    );
-    this.load.audio(
-      "music2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
-    );
-    this.load.audio(
-      "music3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa"
-    );
-    this.load.audio(
       "jump",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm"
     );
+    // First track for each mode (guaranteed to be available)
     this.load.audio(
-      "unlock1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/unlock1-SEhg5HWmyX7cvHJlY8byomuBZEUqq9.mp3?g4mS"
-    );
-    this.load.audio(
-      "unlock2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/unlock2-TU5t1uk6rH6C4ryPpLzVrzhhqkzltI.mp3?utUq"
+      "music1",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S"
     );
     this.load.audio(
       "chaos1",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV"
     );
-    this.load.audio(
-      "chaos2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz"
-    );
-    this.load.audio(
-      "chaos3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of"
-    );
+    // NOTE: music2, chaos2, chaos3 are loaded in HelixScene after game starts
 
     // --- IMAGES ---
     this.load.image(

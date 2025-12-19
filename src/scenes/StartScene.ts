@@ -67,7 +67,7 @@ const LEVEL_PALETTES: {
   classic: {
     name: "Classic",
     platform: 0x2ecc71, // Green
-    danger: 0xe74c3c, // Red
+    danger: 0xf39c12, // Orange/Yellow (distinct from red danger zones)
     moving: 0x3498db, // Blue
     blinking: 0x9b59b6, // Purple
   },

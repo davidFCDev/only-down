@@ -60,9 +60,11 @@ export default class HelixScene extends Phaser.Scene {
   private beepSound!: Phaser.Sound.BaseSound;
   private jumpSound!: Phaser.Sound.BaseSound;
   private currentMusic!: Phaser.Sound.BaseSound;
-  private musicTracks: string[] = ["music1", "music2", "music3"];
-  private premiumMusicTracks: string[] = ["unlock1", "unlock2"]; // Unlocked at score >= 500
+  private musicTracks: string[] = ["music1", "music2"];
+  private premiumMusicTracks: string[] = []; // Removed for faster loading
   private chaosMusicTracks: string[] = ["chaos1", "chaos2", "chaos3"]; // Chaos Mode exclusive
+  private isFirstGame: boolean = true; // First game uses guaranteed tracks
+  private extraMusicLoaded: boolean = false; // Track if extra music has been loaded
   private playerHighScore: number = 0; // Player's high score for premium content
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
@@ -103,7 +105,7 @@ export default class HelixScene extends Phaser.Scene {
     classic: {
       name: "Classic",
       platform: 0x2ecc71, // Green
-      danger: 0xe74c3c, // Red
+      danger: 0xf39c12, // Orange/Yellow (distinct from red danger zones)
       moving: 0x3498db, // Blue
       blinking: 0x9b59b6, // Purple
     },
@@ -387,8 +389,38 @@ export default class HelixScene extends Phaser.Scene {
     // SDK Event Listeners
     this.setupSDKListeners();
 
+    // Load extra music in background (non-blocking)
+    this.loadExtraMusic();
+
     // Start the game logic
     this.restartGame();
+  }
+
+  private loadExtraMusic(): void {
+    if (this.extraMusicLoaded) return;
+
+    console.log("🎵 Cargando música extra en background...");
+
+    // Load additional tracks in background - won't block gameplay
+    this.load.audio(
+      "music2",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
+    );
+    this.load.audio(
+      "chaos2",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz"
+    );
+    this.load.audio(
+      "chaos3",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of"
+    );
+
+    this.load.on("complete", () => {
+      console.log("✅ Música extra cargada");
+      this.extraMusicLoaded = true;
+    });
+
+    this.load.start();
   }
 
   createStripedTexture() {
@@ -613,8 +645,14 @@ export default class HelixScene extends Phaser.Scene {
         customPalette.blinking,
       ];
     } else {
-      // Original colors
-      colors = [0x2ecc71, 0xe91e8c, 0xffd93d, 0x1abc9c];
+      // Classic mode - use all 4 colors from classic palette
+      const classicPalette = HelixScene.LEVEL_PALETTES.classic;
+      colors = [
+        classicPalette.platform,
+        classicPalette.danger,
+        classicPalette.moving,
+        classicPalette.blinking,
+      ];
     }
 
     this.platforms = [];
@@ -1010,7 +1048,14 @@ export default class HelixScene extends Phaser.Scene {
         HelixScene.LEVEL_PALETTES.classic;
       platformColors = [palette.platform, palette.moving, palette.blinking];
     } else {
-      platformColors = [0x48dbfb, 0x1dd1a1, 0x5f27cd, 0xff9ff3]; // Original colors
+      // Classic mode - use all 4 colors from classic palette
+      const classicPalette = HelixScene.LEVEL_PALETTES.classic;
+      platformColors = [
+        classicPalette.platform,
+        classicPalette.danger,
+        classicPalette.moving,
+        classicPalette.blinking,
+      ];
     }
     const innerRadius = 2;
     const outerRadius = 4;
@@ -1369,11 +1414,24 @@ export default class HelixScene extends Phaser.Scene {
     if (this.currentMusic) {
       this.currentMusic.stop();
     }
-    // Get available tracks based on player's high score
-    const availableTracks = this.getAvailableMusicTracks();
-    const randomTrack =
-      availableTracks[Math.floor(Math.random() * availableTracks.length)];
-    this.currentMusic = this.sound.add(randomTrack, { volume: 0, loop: true });
+
+    // Choose music track
+    let selectedTrack: string;
+    if (this.isFirstGame) {
+      // First game: use guaranteed loaded tracks (music1 or chaos1)
+      selectedTrack = this.isChaosMode ? "chaos1" : "music1";
+      this.isFirstGame = false;
+    } else {
+      // Subsequent games: random from available (loaded) tracks
+      const availableTracks = this.getAvailableMusicTracks();
+      selectedTrack =
+        availableTracks[Math.floor(Math.random() * availableTracks.length)];
+    }
+
+    this.currentMusic = this.sound.add(selectedTrack, {
+      volume: 0,
+      loop: true,
+    });
     this.currentMusic.play();
     // Beep will be played in update loop
 
@@ -2236,17 +2294,25 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   getAvailableMusicTracks(): string[] {
+    // Only return tracks that are actually loaded
+    const checkLoaded = (tracks: string[]) =>
+      tracks.filter((track) => this.cache.audio.exists(track));
+
     // Chaos Mode uses exclusive music tracks
     if (this.isChaosMode) {
-      return this.chaosMusicTracks;
+      const loadedChaos = checkLoaded(this.chaosMusicTracks);
+      return loadedChaos.length > 0 ? loadedChaos : ["chaos1"]; // Fallback to guaranteed track
     }
     // Premium tracks are unlocked at score >= 500 (Gravity Master rank)
     if (this.playerHighScore >= 500) {
       // Combine base tracks with premium tracks
-      return [...this.musicTracks, ...this.premiumMusicTracks];
+      const allTracks = [...this.musicTracks, ...this.premiumMusicTracks];
+      const loaded = checkLoaded(allTracks);
+      return loaded.length > 0 ? loaded : ["music1"]; // Fallback to guaranteed track
     }
     // Only base tracks
-    return this.musicTracks;
+    const loadedBase = checkLoaded(this.musicTracks);
+    return loadedBase.length > 0 ? loadedBase : ["music1"]; // Fallback to guaranteed track
   }
 
   activateSuperSmash() {
