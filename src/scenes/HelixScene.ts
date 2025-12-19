@@ -60,7 +60,7 @@ export default class HelixScene extends Phaser.Scene {
   private beepSound!: Phaser.Sound.BaseSound;
   private jumpSound!: Phaser.Sound.BaseSound;
   private currentMusic!: Phaser.Sound.BaseSound;
-  private musicTracks: string[] = ["music1", "music2"];
+  private musicTracks: string[] = ["music1", "music2", "music3"];
   private premiumMusicTracks: string[] = []; // Removed for faster loading
   private chaosMusicTracks: string[] = ["chaos1", "chaos2", "chaos3"]; // Chaos Mode exclusive
   private isFirstGame: boolean = true; // First game uses guaranteed tracks
@@ -408,6 +408,10 @@ export default class HelixScene extends Phaser.Scene {
     this.load.audio(
       "music2",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
+    );
+    this.load.audio(
+      "music3",
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa"
     );
     this.load.audio(
       "chaos2",
