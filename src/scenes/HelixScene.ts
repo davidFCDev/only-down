@@ -234,14 +234,14 @@ export default class HelixScene extends Phaser.Scene {
     if (typeof data?.highScore === "number") {
       this.playerHighScore = data.highScore;
     }
-    
+
     console.log(
       "🎮 HelixScene init - chaosMode:",
       this.isChaosMode,
       "ballStyle:",
       this.selectedBallStyle,
       "highScore:",
-      this.playerHighScore
+      this.playerHighScore,
     );
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -465,19 +465,19 @@ export default class HelixScene extends Phaser.Scene {
     // Load additional tracks in background - won't block gameplay
     this.load.audio(
       "music2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO",
     );
     this.load.audio(
       "music3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa",
     );
     this.load.audio(
       "chaos2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz",
     );
     this.load.audio(
       "chaos3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of",
     );
 
     this.load.on("complete", () => {
@@ -689,7 +689,7 @@ export default class HelixScene extends Phaser.Scene {
       "🏗️ createPlatforms - isChaosMode:",
       this.isChaosMode,
       "customLevelConfig:",
-      this.customLevelConfig
+      this.customLevelConfig,
     );
 
     // Determine colors based on mode
@@ -731,14 +731,14 @@ export default class HelixScene extends Phaser.Scene {
       // Dark purple/black tower for Chaos mode
       towerMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 10000, 16),
-        new THREE.MeshBasicMaterial({ color: 0x1a0a2e }) // Dark purple
+        new THREE.MeshBasicMaterial({ color: 0x1a0a2e }), // Dark purple
       );
     } else {
       // Barber pole style tower
       const barberTexture = this.createBarberPoleTexture();
       towerMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 10000, 16),
-        new THREE.MeshBasicMaterial({ map: barberTexture })
+        new THREE.MeshBasicMaterial({ map: barberTexture }),
       );
     }
     towerMesh.position.y = -4500; // Offset down so most is below Y=0
@@ -814,16 +814,16 @@ export default class HelixScene extends Phaser.Scene {
       for (const seg of solidSegments) {
         shape.moveTo(
           innerRadius * Math.cos(seg.start),
-          innerRadius * Math.sin(seg.start)
+          innerRadius * Math.sin(seg.start),
         );
         shape.lineTo(
           outerRadius * Math.cos(seg.start),
-          outerRadius * Math.sin(seg.start)
+          outerRadius * Math.sin(seg.start),
         );
         shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
         shape.lineTo(
           innerRadius * Math.cos(seg.end),
-          innerRadius * Math.sin(seg.end)
+          innerRadius * Math.sin(seg.end),
         );
         shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
       }
@@ -936,11 +936,11 @@ export default class HelixScene extends Phaser.Scene {
               const dEnd = zoneStart + zoneSize;
               dangerShape.moveTo(
                 innerRadius * Math.cos(zoneStart),
-                innerRadius * Math.sin(zoneStart)
+                innerRadius * Math.sin(zoneStart),
               );
               dangerShape.lineTo(
                 outerRadius * Math.cos(zoneStart),
-                outerRadius * Math.sin(zoneStart)
+                outerRadius * Math.sin(zoneStart),
               );
               dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
               dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
@@ -1046,7 +1046,7 @@ export default class HelixScene extends Phaser.Scene {
               0.15,
               0.15,
               0.8,
-              8
+              8,
             );
             const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
             cylOutline.scale.set(1.2, 1.1, 1.2);
@@ -1066,7 +1066,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1190,16 +1190,16 @@ export default class HelixScene extends Phaser.Scene {
     for (const seg of solidSegments) {
       shape.moveTo(
         innerRadius * Math.cos(seg.start),
-        innerRadius * Math.sin(seg.start)
+        innerRadius * Math.sin(seg.start),
       );
       shape.lineTo(
         outerRadius * Math.cos(seg.start),
-        outerRadius * Math.sin(seg.start)
+        outerRadius * Math.sin(seg.start),
       );
       shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
       shape.lineTo(
         innerRadius * Math.cos(seg.end),
-        innerRadius * Math.sin(seg.end)
+        innerRadius * Math.sin(seg.end),
       );
       shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
     }
@@ -1310,11 +1310,11 @@ export default class HelixScene extends Phaser.Scene {
             const dEnd = zoneStart + zoneSize;
             dangerShape.moveTo(
               innerRadius * Math.cos(zoneStart),
-              innerRadius * Math.sin(zoneStart)
+              innerRadius * Math.sin(zoneStart),
             );
             dangerShape.lineTo(
               outerRadius * Math.cos(zoneStart),
-              outerRadius * Math.sin(zoneStart)
+              outerRadius * Math.sin(zoneStart),
             );
             dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
             dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
@@ -1385,7 +1385,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1435,7 +1435,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1803,7 +1803,7 @@ export default class HelixScene extends Phaser.Scene {
                   velocity: new THREE.Vector3(
                     (Math.random() - 0.5) * 0.03,
                     0.02 + Math.random() * 0.02,
-                    (Math.random() - 0.5) * 0.03
+                    (Math.random() - 0.5) * 0.03,
                   ),
                   life: 0.4 + Math.random() * 0.3,
                 });
@@ -1843,7 +1843,7 @@ export default class HelixScene extends Phaser.Scene {
                   velocity: new THREE.Vector3(
                     Math.cos(angle) * 0.04,
                     0.01 + Math.random() * 0.02,
-                    Math.sin(angle) * 0.04
+                    Math.sin(angle) * 0.04,
                   ),
                   life: 0.35 + Math.random() * 0.2,
                 });
@@ -1887,7 +1887,7 @@ export default class HelixScene extends Phaser.Scene {
                   velocity: new THREE.Vector3(
                     (Math.random() - 0.5) * 0.015, // Gentler movement
                     0.015 + Math.random() * 0.01,
-                    (Math.random() - 0.5) * 0.015
+                    (Math.random() - 0.5) * 0.015,
                   ),
                   life: 0.4 + Math.random() * 0.2, // Shorter life
                 });
@@ -1927,7 +1927,7 @@ export default class HelixScene extends Phaser.Scene {
                   velocity: new THREE.Vector3(
                     Math.cos(angle) * 0.05,
                     0.015,
-                    Math.sin(angle) * 0.05
+                    Math.sin(angle) * 0.05,
                   ),
                   life: 0.45 + Math.random() * 0.2,
                 });
@@ -1962,7 +1962,7 @@ export default class HelixScene extends Phaser.Scene {
                 velocity: new THREE.Vector3(
                   (Math.random() - 0.5) * 0.02,
                   0.01,
-                  (Math.random() - 0.5) * 0.02
+                  (Math.random() - 0.5) * 0.02,
                 ),
                 life: 0.4,
               });
@@ -2174,7 +2174,7 @@ export default class HelixScene extends Phaser.Scene {
                     this.ball.position.y,
                     0x00ffff,
                     12,
-                    true
+                    true,
                   );
 
                   // Remove shield visual
@@ -2419,8 +2419,9 @@ export default class HelixScene extends Phaser.Scene {
   private unlockAudioContext() {
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2440,8 +2441,9 @@ export default class HelixScene extends Phaser.Scene {
 
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2532,8 +2534,9 @@ export default class HelixScene extends Phaser.Scene {
 
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2617,7 +2620,7 @@ export default class HelixScene extends Phaser.Scene {
       const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
       const line1 = new THREE.Line(
         geometry1,
-        i % 8 === 0 ? gridMaterial : gridMaterial2
+        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
       this.cyberpunkGrid.add(line1);
 
@@ -2629,7 +2632,7 @@ export default class HelixScene extends Phaser.Scene {
       const geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
       const line2 = new THREE.Line(
         geometry2,
-        i % 8 === 0 ? gridMaterial : gridMaterial2
+        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
       this.cyberpunkGrid.add(line2);
     }
@@ -2940,7 +2943,7 @@ export default class HelixScene extends Phaser.Scene {
       velocity: new THREE.Vector3(
         (Math.random() - 0.5) * 0.05,
         0.1 + Math.random() * 0.1,
-        (Math.random() - 0.5) * 0.05
+        (Math.random() - 0.5) * 0.05,
       ),
       life: 0.6,
     });
@@ -3023,7 +3026,7 @@ export default class HelixScene extends Phaser.Scene {
     yPos: number,
     color: number,
     count: number,
-    hasShockwave: boolean = true
+    hasShockwave: boolean = true,
   ) {
     const texture = this.createGlowTexture();
     const material = new THREE.SpriteMaterial({
@@ -3043,7 +3046,7 @@ export default class HelixScene extends Phaser.Scene {
       sprite.position.set(
         Math.cos(worldAngle) * radius,
         yPos,
-        Math.sin(worldAngle) * radius
+        Math.sin(worldAngle) * radius,
       );
 
       const scale = 0.5 + Math.random() * 0.5;
@@ -3052,7 +3055,7 @@ export default class HelixScene extends Phaser.Scene {
       const velocity = new THREE.Vector3(
         (Math.random() - 0.5) * 0.5,
         (Math.random() - 0.5) * 0.5,
-        (Math.random() - 0.5) * 0.5
+        (Math.random() - 0.5) * 0.5,
       );
 
       this.threeScene.add(sprite);
@@ -3167,7 +3170,7 @@ export default class HelixScene extends Phaser.Scene {
           "💾 High Score saved:",
           newHighScore,
           "Ball style preserved:",
-          currentBallStyle
+          currentBallStyle,
         );
       }
     } catch (error) {
@@ -3338,7 +3341,7 @@ export default class HelixScene extends Phaser.Scene {
           gameInfo = await (sdk.singlePlayer.actions as any).getGameState();
         } else if (sdk.singlePlayer.actions.ready) {
           const timeoutPromise = new Promise((resolve) =>
-            setTimeout(() => resolve(null), 500)
+            setTimeout(() => resolve(null), 500),
           );
           gameInfo = await Promise.race([
             sdk.singlePlayer.actions.ready(),
@@ -3348,11 +3351,15 @@ export default class HelixScene extends Phaser.Scene {
       }
 
       if (gameInfo) {
-        console.log("📊 SDK gameInfo loaded:", JSON.stringify(gameInfo, null, 2));
+        console.log(
+          "📊 SDK gameInfo loaded:",
+          JSON.stringify(gameInfo, null, 2),
+        );
 
         // Get selected ball style
         if (gameInfo?.initialGameState?.gameState?.selectedBallStyle) {
-          this.selectedBallStyle = gameInfo.initialGameState.gameState.selectedBallStyle;
+          this.selectedBallStyle =
+            gameInfo.initialGameState.gameState.selectedBallStyle;
         }
 
         // Get high score for rank system
@@ -3365,7 +3372,9 @@ export default class HelixScene extends Phaser.Scene {
           sdkHighScore = gameInfo.initialGameState.highScore;
         }
 
-        if (typeof gameInfo?.initialGameState?.gameState?.highScore === "number") {
+        if (
+          typeof gameInfo?.initialGameState?.gameState?.highScore === "number"
+        ) {
           gameStateHighScore = gameInfo.initialGameState.gameState.highScore;
         }
 
@@ -3375,10 +3384,10 @@ export default class HelixScene extends Phaser.Scene {
 
         // Update unlocked ball styles based on high score
         this.unlockedBallStyles = this.getUnlockedBallStyles();
-        
+
         // Update ball selector button appearance
         this.updateBallSelectorAppearance();
-        
+
         // Apply the loaded ball style
         this.applyBallStyle(this.testRank);
       }
@@ -3416,9 +3425,17 @@ export default class HelixScene extends Phaser.Scene {
     const buttonSize = 60;
     const margin = 20;
 
-    // Position on the right side of the screen
+    // Update unlocked styles first
+    this.unlockedBallStyles = this.getUnlockedBallStyles();
+
+    // Only show button if more than one ball style is unlocked
+    if (this.unlockedBallStyles.length <= 1) {
+      return; // Don't create button
+    }
+
+    // Position on the right side of the screen (higher up)
     const btnX = width - margin - buttonSize / 2;
-    const btnY = height / 2;
+    const btnY = height * 0.35; // Higher position
 
     this.ballSelectorContainer = this.add.container(btnX, btnY);
     this.ballSelectorContainer.setDepth(50);
@@ -3427,15 +3444,12 @@ export default class HelixScene extends Phaser.Scene {
     this.ballSelectorGraphics = this.add.graphics();
     this.ballSelectorContainer.add(this.ballSelectorGraphics);
 
-    // Update unlocked styles
-    this.unlockedBallStyles = this.getUnlockedBallStyles();
-
     // Draw initial button appearance
     this.updateBallSelectorAppearance();
 
     // Interactive zone
     const zone = this.add
-      .zone(0, 0, buttonSize + 10, buttonSize + 10)
+      .zone(0, 0, buttonSize + 20, buttonSize + 20)
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => {
         this.cycleBallStyle();
@@ -3443,7 +3457,7 @@ export default class HelixScene extends Phaser.Scene {
       .on("pointerover", () => {
         this.tweens.add({
           targets: this.ballSelectorContainer,
-          scale: 1.15,
+          scale: 1.1,
           duration: 100,
         });
       })
@@ -3455,18 +3469,6 @@ export default class HelixScene extends Phaser.Scene {
         });
       });
     this.ballSelectorContainer.add(zone);
-
-    // Arrow indicator (to show it's a cycler)
-    const arrowText = this.add
-      .text(0, buttonSize / 2 + 12, "▶", {
-        fontSize: "16px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-    this.ballSelectorContainer.add(arrowText);
   }
 
   updateBallSelectorAppearance() {
@@ -3475,26 +3477,63 @@ export default class HelixScene extends Phaser.Scene {
     const buttonSize = 60;
     this.ballSelectorGraphics.clear();
 
-    // Black border
-    this.ballSelectorGraphics.fillStyle(0x000000, 1);
-    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 4);
-
     // Get current ball style colors
-    const currentStyle = BALL_STYLES[this.selectedBallStyle] || BALL_STYLES.unranked;
+    const currentStyle =
+      BALL_STYLES[this.selectedBallStyle] || BALL_STYLES.unranked;
+
+    // Outer glow/aura if present (drawn first, behind everything)
+    if (currentStyle.colors.aura) {
+      this.ballSelectorGraphics.fillStyle(currentStyle.colors.aura, 0.25);
+      this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 12);
+    }
+
+    // Button frame - dark rounded rectangle to make it look like a button
+    this.ballSelectorGraphics.fillStyle(0x222222, 0.9);
+    this.ballSelectorGraphics.fillRoundedRect(
+      -buttonSize / 2 - 8,
+      -buttonSize / 2 - 8,
+      buttonSize + 16,
+      buttonSize + 16,
+      12
+    );
+
+    // Button border highlight (top-left lighter for 3D effect)
+    this.ballSelectorGraphics.lineStyle(3, 0x444444, 1);
+    this.ballSelectorGraphics.strokeRoundedRect(
+      -buttonSize / 2 - 8,
+      -buttonSize / 2 - 8,
+      buttonSize + 16,
+      buttonSize + 16,
+      12
+    );
+
+    // Black circle border for the ball
+    this.ballSelectorGraphics.fillStyle(0x000000, 1);
+    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 3);
 
     // Fill with ball color
     this.ballSelectorGraphics.fillStyle(currentStyle.colors.base, 1);
     this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2);
 
-    // Add aura glow if present
-    if (currentStyle.colors.aura) {
-      this.ballSelectorGraphics.fillStyle(currentStyle.colors.aura, 0.3);
-      this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 8);
-    }
-
-    // Add small highlight
+    // Add small highlight on ball
     this.ballSelectorGraphics.fillStyle(0xffffff, 0.4);
-    this.ballSelectorGraphics.fillCircle(-buttonSize * 0.15, -buttonSize * 0.15, buttonSize * 0.12);
+    this.ballSelectorGraphics.fillCircle(
+      -buttonSize * 0.15,
+      -buttonSize * 0.15,
+      buttonSize * 0.12
+    );
+
+    // Small cycle arrows icon at bottom-right corner
+    this.ballSelectorGraphics.fillStyle(0xffffff, 0.8);
+    this.ballSelectorGraphics.fillCircle(buttonSize / 2 - 2, buttonSize / 2 - 2, 8);
+    this.ballSelectorGraphics.fillStyle(0x000000, 1);
+    this.ballSelectorGraphics.fillCircle(buttonSize / 2 - 2, buttonSize / 2 - 2, 6);
+    this.ballSelectorGraphics.fillStyle(0xffffff, 1);
+    this.ballSelectorGraphics.fillTriangle(
+      buttonSize / 2 - 5, buttonSize / 2 - 4,
+      buttonSize / 2 + 1, buttonSize / 2 - 2,
+      buttonSize / 2 - 5, buttonSize / 2
+    );
   }
 
   cycleBallStyle() {
@@ -3502,14 +3541,14 @@ export default class HelixScene extends Phaser.Scene {
     this.unlockedBallStyles = this.getUnlockedBallStyles();
 
     if (this.unlockedBallStyles.length <= 1) {
-      // Only one style available, show feedback
-      this.showBallFeedback("Desbloquea más esferas consiguiendo puntos!");
-      return;
+      return; // Should not happen as button is hidden
     }
 
     // Find current index
-    const currentIndex = this.unlockedBallStyles.indexOf(this.selectedBallStyle);
-    
+    const currentIndex = this.unlockedBallStyles.indexOf(
+      this.selectedBallStyle,
+    );
+
     // Move to next style (cycle)
     const nextIndex = (currentIndex + 1) % this.unlockedBallStyles.length;
     const newStyle = this.unlockedBallStyles[nextIndex];
@@ -3523,39 +3562,12 @@ export default class HelixScene extends Phaser.Scene {
     // Save to SDK
     this.saveBallStyle(newStyle);
 
-    // Show feedback
-    const styleName = BALL_STYLES[newStyle]?.name || newStyle;
-    this.showBallFeedback(styleName);
-
     // Button press animation
     this.tweens.add({
       targets: this.ballSelectorContainer,
       scale: 0.9,
       duration: 50,
       yoyo: true,
-    });
-  }
-
-  showBallFeedback(message: string) {
-    const text = this.add
-      .text(this.scale.width / 2, this.scale.height - 100, message, {
-        fontSize: "28px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(150);
-
-    this.tweens.add({
-      targets: text,
-      y: text.y - 50,
-      alpha: 0,
-      duration: 1500,
-      ease: "Power2",
-      onComplete: () => text.destroy(),
     });
   }
 
@@ -3600,7 +3612,7 @@ export default class HelixScene extends Phaser.Scene {
 
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(positions, 3)
+      new THREE.Float32BufferAttribute(positions, 3),
     );
 
     const material = new THREE.PointsMaterial({

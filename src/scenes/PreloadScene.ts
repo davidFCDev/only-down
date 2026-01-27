@@ -19,7 +19,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet(
       "bootSprite",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/sprite-start-oVCq0bchsVLwbLqAPbLgVOrQqxcVh5.webp?Cbzd",
-      { frameWidth: 241, frameHeight: 345 }
+      { frameWidth: 241, frameHeight: 345 },
     );
   }
 
@@ -58,33 +58,33 @@ export class PreloadScene extends Phaser.Scene {
     // WebFont loader
     this.load.script(
       "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js",
     );
 
     // --- ESSENTIAL AUDIO ONLY (for fast startup) ---
     this.load.audio(
       "beep",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta",
     );
     this.load.audio(
       "jump",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm",
     );
     // First track for each mode (guaranteed to be available)
     this.load.audio(
       "music1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S",
     );
     this.load.audio(
       "chaos1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV",
     );
     // NOTE: music2, chaos2, chaos3 are loaded in HelixScene after game starts
 
     // --- IMAGES ---
     this.load.image(
       "startBg",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX",
     );
 
     // Listen for completion
@@ -125,7 +125,9 @@ export class PreloadScene extends Phaser.Scene {
   private checkTransition(): void {
     // Transition when BOTH animation finished AND assets loaded
     if (this.animationComplete && this.assetsLoaded) {
-      console.log("✅ Todo listo - transición directa a HelixScene (modo CHAOS)");
+      console.log(
+        "✅ Todo listo - transición directa a HelixScene (modo CHAOS)",
+      );
       // Go directly to HelixScene in chaos mode, skipping StartScene
       this.scene.start("HelixScene", {
         chaosMode: true,
