@@ -3495,22 +3495,27 @@ export default class HelixScene extends Phaser.Scene {
       this.ballSelectorGraphics.slice(0, 0, ballRadius, 0, Math.PI, false);
       this.ballSelectorGraphics.fillPath();
     } else if (this.selectedBallStyle === "legend") {
-      // Legend: Multicolor horizontal bands
+      // Legend: Multicolor horizontal bands using arc slices
       const bandColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
       const numBands = 8;
-      const bandHeight = (ballRadius * 2) / numBands;
       
-      // Draw each band as a rectangle, clipped to circle visually
+      // Draw bands as horizontal slices of the circle
       for (let i = 0; i < numBands; i++) {
-        const y = -ballRadius + i * bandHeight;
         const color = bandColors[i % bandColors.length];
         this.ballSelectorGraphics.fillStyle(color, 1);
-        this.ballSelectorGraphics.fillRect(-ballRadius, y, ballRadius * 2, bandHeight);
+        
+        // Calculate the angle range for this band
+        const startAngle = (Math.PI / numBands) * i - Math.PI / 2;
+        const endAngle = (Math.PI / numBands) * (i + 1) - Math.PI / 2;
+        
+        // Draw as pie slice
+        this.ballSelectorGraphics.slice(0, 0, ballRadius, startAngle, endAngle, false);
+        this.ballSelectorGraphics.fillPath();
+        
+        // Mirror on the other side
+        this.ballSelectorGraphics.slice(0, 0, ballRadius, Math.PI - endAngle, Math.PI - startAngle, false);
+        this.ballSelectorGraphics.fillPath();
       }
-      
-      // Draw circle mask (black border around to clip the bands)
-      this.ballSelectorGraphics.lineStyle(8, 0x000000, 1);
-      this.ballSelectorGraphics.strokeCircle(0, 0, ballRadius + 1);
     } else {
       // Simple solid color for unranked, noob, remixer
       this.ballSelectorGraphics.fillStyle(currentStyle.colors.base, 1);
