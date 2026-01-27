@@ -70,22 +70,12 @@ export class PreloadScene extends Phaser.Scene {
       "jump",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm",
     );
-    // First track for each mode (guaranteed to be available)
-    this.load.audio(
-      "music1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S",
-    );
+    // First track for CHAOS mode (the only mode now)
     this.load.audio(
       "chaos1",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV",
     );
-    // NOTE: music2, chaos2, chaos3 are loaded in HelixScene after game starts
-
-    // --- IMAGES ---
-    this.load.image(
-      "startBg",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX",
-    );
+    // NOTE: Extra music tracks (chaos2, chaos3) are loaded AFTER countdown finishes
 
     // Listen for completion
     this.load.on("complete", () => {

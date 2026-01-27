@@ -450,8 +450,7 @@ export default class HelixScene extends Phaser.Scene {
     // SDK Event Listeners
     this.setupSDKListeners();
 
-    // Load extra music in background (non-blocking)
-    this.loadExtraMusic();
+    // Extra music will be loaded AFTER countdown finishes to avoid stuttering
 
     // Start the game logic
     this.restartGame();
@@ -1624,6 +1623,9 @@ export default class HelixScene extends Phaser.Scene {
         this.ball.position.y = 2;
         this.ball.scale.set(1, 1, 1);
         this.ballVelocity = 0; // Reset velocity
+        
+        // NOW load extra music (after countdown to avoid stuttering)
+        this.loadExtraMusic();
       }
     }
 
