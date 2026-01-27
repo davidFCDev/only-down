@@ -461,15 +461,7 @@ export default class HelixScene extends Phaser.Scene {
 
     console.log("🎵 Cargando música extra en background...");
 
-    // Load additional tracks in background - won't block gameplay
-    this.load.audio(
-      "music2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO",
-    );
-    this.load.audio(
-      "music3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa",
-    );
+    // Load additional CHAOS tracks only (we only use chaos mode now)
     this.load.audio(
       "chaos2",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz",
@@ -480,7 +472,7 @@ export default class HelixScene extends Phaser.Scene {
     );
 
     this.load.on("complete", () => {
-      console.log("✅ Música extra cargada");
+      console.log("✅ Música extra cargada (chaos2, chaos3)");
       this.extraMusicLoaded = true;
     });
 
@@ -1480,11 +1472,11 @@ export default class HelixScene extends Phaser.Scene {
     // Choose music track
     let selectedTrack: string;
     if (this.isFirstGame) {
-      // First game: use guaranteed loaded tracks (music1 or chaos1)
-      selectedTrack = this.isChaosMode ? "chaos1" : "music1";
+      // First game: use guaranteed loaded track (chaos1)
+      selectedTrack = "chaos1";
       this.isFirstGame = false;
     } else {
-      // Subsequent games: random from available (loaded) tracks
+      // Subsequent games: random from available (loaded) chaos tracks
       const availableTracks = this.getAvailableMusicTracks();
       selectedTrack =
         availableTracks[Math.floor(Math.random() * availableTracks.length)];
@@ -2359,25 +2351,12 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   getAvailableMusicTracks(): string[] {
-    // Only return tracks that are actually loaded
+    // Only return CHAOS tracks that are actually loaded
     const checkLoaded = (tracks: string[]) =>
       tracks.filter((track) => this.cache.audio.exists(track));
 
-    // Chaos Mode uses exclusive music tracks
-    if (this.isChaosMode) {
-      const loadedChaos = checkLoaded(this.chaosMusicTracks);
-      return loadedChaos.length > 0 ? loadedChaos : ["chaos1"]; // Fallback to guaranteed track
-    }
-    // Premium tracks are unlocked at score >= 500 (Gravity Master rank)
-    if (this.playerHighScore >= 500) {
-      // Combine base tracks with premium tracks
-      const allTracks = [...this.musicTracks, ...this.premiumMusicTracks];
-      const loaded = checkLoaded(allTracks);
-      return loaded.length > 0 ? loaded : ["music1"]; // Fallback to guaranteed track
-    }
-    // Only base tracks
-    const loadedBase = checkLoaded(this.musicTracks);
-    return loadedBase.length > 0 ? loadedBase : ["music1"]; // Fallback to guaranteed track
+    const loadedChaos = checkLoaded(this.chaosMusicTracks);
+    return loadedChaos.length > 0 ? loadedChaos : ["chaos1"]; // Fallback to guaranteed track
   }
 
   activateSuperSmash() {
