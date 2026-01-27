@@ -418,13 +418,17 @@ export default class HelixScene extends Phaser.Scene {
 
     // Extra music will be loaded AFTER countdown finishes to avoid stuttering
 
+    // Position ball and camera at starting position for warm-up render
+    this.ball.position.set(0, 20, 2.5);
+    this.ball.scale.set(0.1, 0.1, 0.1);
+    this.camera.position.set(0, 24, 11); // Camera starts high, looking at ball
+    this.camera.lookAt(0, 18, 0);
+
     // Warm-up render to compile shaders before countdown starts
     this.threeRenderer.render(this.threeScene, this.camera);
 
-    // Start the game logic (delayed slightly to let render complete)
-    this.time.delayedCall(50, () => {
-      this.restartGame();
-    });
+    // Start the game logic
+    this.restartGame();
   }
 
   private loadExtraMusic(): void {
@@ -1494,8 +1498,9 @@ export default class HelixScene extends Phaser.Scene {
     this.ballVelocity = 0;
     this.ball.position.set(0, 20, 2.5);
     this.ball.scale.set(0.1, 0.1, 0.1);
-    this.camera.position.set(0, 5, 11);
-    this.camera.lookAt(0, -1, 0);
+    // Camera starts high, following ball from above
+    this.camera.position.set(0, 24, 11);
+    this.camera.lookAt(0, 18, 0);
 
     for (const p of this.particles) {
       this.threeScene.remove(p.mesh);
@@ -1534,7 +1539,7 @@ export default class HelixScene extends Phaser.Scene {
         // Animate Ball with smooth easing
         const targetY = 20 - 18 * progress;
         const targetScale = 0.1 + 0.9 * progress;
-        
+
         // Smooth interpolation for position and scale
         this.ball.position.y += (targetY - this.ball.position.y) * 0.15;
         const currentScale = this.ball.scale.x;
