@@ -418,8 +418,13 @@ export default class HelixScene extends Phaser.Scene {
 
     // Extra music will be loaded AFTER countdown finishes to avoid stuttering
 
-    // Start the game logic
-    this.restartGame();
+    // Warm-up render to compile shaders before countdown starts
+    this.threeRenderer.render(this.threeScene, this.camera);
+
+    // Start the game logic (delayed slightly to let render complete)
+    this.time.delayedCall(50, () => {
+      this.restartGame();
+    });
   }
 
   private loadExtraMusic(): void {
@@ -640,7 +645,7 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   createPlatforms() {
-    const platformCount = 80; // Reduced for mobile performance
+    const platformCount = 60; // Reduced for better mobile performance
 
     console.log(
       "🏗️ createPlatforms - isChaosMode:",
@@ -1512,22 +1517,29 @@ export default class HelixScene extends Phaser.Scene {
     if (this.isGameStarting) {
       this.startTimer += delta / 1000;
 
-      const initialDelay = 1.0;
-      const stepTime = 1.0; // Adjusted time between texts
+      const initialDelay = 0.5; // Reduced initial delay
+      const stepTime = 0.8; // Faster steps
       const totalTime = initialDelay + stepTime * 3;
 
       if (this.startTimer < totalTime) {
-        const progress = this.startTimer / totalTime;
+        // Use easeOutCubic for smoother animation
+        const linearProgress = Math.min(this.startTimer / totalTime, 1);
+        const progress = 1 - Math.pow(1 - linearProgress, 3); // easeOutCubic
 
         // Fade in music volume (0 to 1)
         if (this.currentMusic) {
-          (this.currentMusic as any).setVolume(progress);
+          (this.currentMusic as any).setVolume(linearProgress);
         }
 
-        // Animate Ball
-        this.ball.position.y = 20 - 18 * progress;
-        const scale = 0.1 + 0.9 * progress;
-        this.ball.scale.set(scale, scale, scale);
+        // Animate Ball with smooth easing
+        const targetY = 20 - 18 * progress;
+        const targetScale = 0.1 + 0.9 * progress;
+        
+        // Smooth interpolation for position and scale
+        this.ball.position.y += (targetY - this.ball.position.y) * 0.15;
+        const currentScale = this.ball.scale.x;
+        const newScale = currentScale + (targetScale - currentScale) * 0.15;
+        this.ball.scale.set(newScale, newScale, newScale);
 
         // Update Text & Play Beep
         if (this.startTimer < initialDelay) {
@@ -1554,9 +1566,9 @@ export default class HelixScene extends Phaser.Scene {
           this.startOverlay.setAlpha(1 - timeInGo / stepTime);
         }
 
-        // Camera Follow - Balanced view
-        const targetY = this.ball.position.y + 4;
-        this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
+        // Camera Follow - Smoother
+        const targetCamY = this.ball.position.y + 4;
+        this.camera.position.y += (targetCamY - this.camera.position.y) * 0.08;
         this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
         // Keep backgrounds following camera during countdown too
@@ -2564,13 +2576,17 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     // Create single LineSegments for magenta grid
-    const magentaGeometry = new THREE.BufferGeometry().setFromPoints(magentaPoints);
+    const magentaGeometry = new THREE.BufferGeometry().setFromPoints(
+      magentaPoints,
+    );
     const magentaMaterial = new THREE.LineBasicMaterial({
       color: 0xff00ff,
       transparent: true,
       opacity: 0.3,
     });
-    this.cyberpunkGrid.add(new THREE.LineSegments(magentaGeometry, magentaMaterial));
+    this.cyberpunkGrid.add(
+      new THREE.LineSegments(magentaGeometry, magentaMaterial),
+    );
 
     // Create single LineSegments for cyan grid
     const cyanGeometry = new THREE.BufferGeometry().setFromPoints(cyanPoints);
@@ -2583,23 +2599,29 @@ export default class HelixScene extends Phaser.Scene {
 
     // Vertical accent lines - merged into one geometry
     const verticalPoints: THREE.Vector3[] = [];
-    for (let i = -40; i <= 40; i += 20) { // Reduced frequency
+    for (let i = -40; i <= 40; i += 20) {
+      // Reduced frequency
       verticalPoints.push(
         new THREE.Vector3(i, floorY, -60),
         new THREE.Vector3(i, floorY + 200, -60),
       );
     }
-    const verticalGeometry = new THREE.BufferGeometry().setFromPoints(verticalPoints);
+    const verticalGeometry = new THREE.BufferGeometry().setFromPoints(
+      verticalPoints,
+    );
     const verticalMaterial = new THREE.LineBasicMaterial({
       color: 0x00ff00,
       transparent: true,
       opacity: 0.15,
     });
-    this.cyberpunkGrid.add(new THREE.LineSegments(verticalGeometry, verticalMaterial));
+    this.cyberpunkGrid.add(
+      new THREE.LineSegments(verticalGeometry, verticalMaterial),
+    );
 
     // Scan lines - merged and reduced
     const scanPoints: THREE.Vector3[] = [];
-    for (let y = floorY; y <= floorY + 200; y += 15) { // Increased spacing
+    for (let y = floorY; y <= floorY + 200; y += 15) {
+      // Increased spacing
       scanPoints.push(
         new THREE.Vector3(-50, y, -50),
         new THREE.Vector3(50, y, -50),
