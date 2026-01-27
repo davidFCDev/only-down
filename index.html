@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>antigravity-test</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,18 +15,29 @@
     <style>
       html,
       body {
+        width: 100%;
         height: 100%;
+        height: 100dvh; /* Dynamic viewport height for mobile */
         margin: 0;
         padding: 0;
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start; /* Align to top to avoid gap */
         overflow: hidden; /* Prevent scrollbars */
+        background-color: #000; /* Black background to match game */
+        touch-action: none; /* Prevent pull-to-refresh and other gestures */
+        -webkit-overflow-scrolling: none;
+        overscroll-behavior: none;
       }
 
       canvas {
         outline: none;
         margin: 0;
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
       }
     </style>
   </head>
