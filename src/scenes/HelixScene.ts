@@ -369,9 +369,6 @@ export default class HelixScene extends Phaser.Scene {
     this.camera.position.set(0, 5, 11);
     this.camera.lookAt(0, -1, 0);
 
-    // Cyberpunk grid background for Chaos Mode OR Custom Level with cyberpunk background
-    if (
-      this.isChaosMode ||
     // Cyberpunk grid background for Chaos Mode
     this.createCyberpunkGrid();
 
