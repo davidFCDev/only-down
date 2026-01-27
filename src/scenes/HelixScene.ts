@@ -420,8 +420,10 @@ export default class HelixScene extends Phaser.Scene {
     // UI Setup
     this.createUI();
 
-    // Create ball selector button (on the right side)
-    this.createBallSelectorButton();
+    // Load SDK state (highScore, ballStyle) then create ball selector
+    this.loadSDKState().then(() => {
+      this.createBallSelectorButton();
+    });
 
     // Input handling
     this.cursors = this.input.keyboard!.createCursorKeys();
