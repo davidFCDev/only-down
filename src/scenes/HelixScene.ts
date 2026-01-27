@@ -3397,7 +3397,7 @@ export default class HelixScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const buttonSize = 60;
-    const margin = 20;
+    const margin = 30; // Increased margin from edge
 
     // Update unlocked styles first
     this.unlockedBallStyles = this.getUnlockedBallStyles();
@@ -3457,14 +3457,8 @@ export default class HelixScene extends Phaser.Scene {
     const currentStyle =
       BALL_STYLES[this.selectedBallStyle] || BALL_STYLES.unranked;
 
-    // Outer glow/aura if present (drawn first, behind everything)
-    if (currentStyle.colors.aura) {
-      this.ballSelectorGraphics.fillStyle(currentStyle.colors.aura, 0.25);
-      this.ballSelectorGraphics.fillCircle(0, 0, ballRadius + 12);
-    }
-
     // Button frame - dark rounded rectangle to make it look like a button
-    this.ballSelectorGraphics.fillStyle(0x222222, 0.9);
+    this.ballSelectorGraphics.fillStyle(0x222222, 0.95);
     this.ballSelectorGraphics.fillRoundedRect(
       -buttonSize / 2 - 8,
       -buttonSize / 2 - 8,
