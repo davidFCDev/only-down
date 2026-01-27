@@ -113,12 +113,10 @@ export default class HelixScene extends Phaser.Scene {
   private beepSound!: Phaser.Sound.BaseSound;
   private jumpSound!: Phaser.Sound.BaseSound;
   private currentMusic!: Phaser.Sound.BaseSound;
-  private musicTracks: string[] = ["music1", "music2", "music3"];
-  private premiumMusicTracks: string[] = []; // Removed for faster loading
-  private chaosMusicTracks: string[] = ["chaos1", "chaos2", "chaos3"]; // Chaos Mode exclusive
+  private chaosMusicTracks: string[] = ["chaos1", "chaos2", "chaos3"]; // Chaos Mode music
   private isFirstGame: boolean = true; // First game uses guaranteed tracks
   private extraMusicLoaded: boolean = false; // Track if extra music has been loaded
-  private playerHighScore: number = 0; // Player's high score for premium content
+  private playerHighScore: number = 0; // Player's high score for ball unlocks
   private threeCanvas!: HTMLCanvasElement;
   private isMuted: boolean = false;
   private audioContext: AudioContext | null = null;
@@ -127,8 +125,6 @@ export default class HelixScene extends Phaser.Scene {
   private selectedBallStyle: string = "unranked"; // User selected ball style
   private isChaosMode: boolean = true; // Always chaos mode now
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
-  private sunsetBackground: THREE.Group | null = null; // Sunset background
-  private oceanBackground: THREE.Group | null = null; // Ocean background with light rays
   private chaosGravity: number = -0.015; // Progressive gravity for Chaos Mode
   private chaosGravityMax: number = -0.025; // Maximum gravity in Chaos Mode
   private chaosJumpStrength: number = 0.35; // Progressive jump strength for Chaos Mode
@@ -141,14 +137,6 @@ export default class HelixScene extends Phaser.Scene {
   private ballSelectorContainer!: Phaser.GameObjects.Container;
   private ballSelectorGraphics!: Phaser.GameObjects.Graphics;
   private unlockedBallStyles: string[] = ["unranked"];
-
-  // Custom Level Configuration
-  private customLevelConfig: {
-    palette: string;
-    background: string;
-    trail: string;
-  } | null = null;
-  private trailParticles: THREE.Mesh[] = []; // Trail effect particles
 
   // Level Palettes (matching StartScene exactly)
   private static readonly LEVEL_PALETTES: {
@@ -218,12 +206,9 @@ export default class HelixScene extends Phaser.Scene {
     ballStyle?: string;
     highScore?: number;
     chaosMode?: boolean;
-    customLevelConfig?: { palette: string; background: string; trail: string };
   }) {
     // Always force chaos mode now (simplified game)
     this.isChaosMode = true;
-    this.customLevelConfig = null; // No custom level config in simplified mode
-    this.trailParticles = []; // Reset trail particles
 
     if (data?.testRank) {
       this.testRank = data.testRank;
@@ -236,9 +221,7 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     console.log(
-      "🎮 HelixScene init - chaosMode:",
-      this.isChaosMode,
-      "ballStyle:",
+      "🎮 HelixScene init - ballStyle:",
       this.selectedBallStyle,
       "highScore:",
       this.playerHighScore,
@@ -263,18 +246,8 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    // Background color - black for Chaos mode, custom background or warm yellow/cream for normal
-    if (this.isChaosMode) {
-      this.threeScene.background = new THREE.Color(0x0a0a0a); // Near black
-    } else if (this.customLevelConfig) {
-      // Use custom background (separate from palette)
-      const bgConfig =
-        HelixScene.LEVEL_BACKGROUNDS[this.customLevelConfig.background] ||
-        HelixScene.LEVEL_BACKGROUNDS.classic;
-      this.threeScene.background = new THREE.Color(bgConfig.color);
-    } else {
-      this.threeScene.background = new THREE.Color(0xf5d89a); // Warm yellow/cream
-    }
+    // Background color - black for Chaos mode
+    this.threeScene.background = new THREE.Color(0x0a0a0a); // Near black
 
     const width = rect.width;
     const height = rect.height;
@@ -399,20 +372,8 @@ export default class HelixScene extends Phaser.Scene {
     // Cyberpunk grid background for Chaos Mode OR Custom Level with cyberpunk background
     if (
       this.isChaosMode ||
-      this.customLevelConfig?.background === "cyberpunk"
-    ) {
-      this.createCyberpunkGrid();
-    }
-
-    // Sunset background for Custom Level
-    if (this.customLevelConfig?.background === "sunset") {
-      this.createSunsetBackground();
-    }
-
-    // Ocean background for Custom Level
-    if (this.customLevelConfig?.background === "ocean") {
-      this.createOceanBackground();
-    }
+    // Cyberpunk grid background for Chaos Mode
+    this.createCyberpunkGrid();
 
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
     this.jumpSound = this.sound.add("jump", { volume: 0.3 }); // Low volume so music predominates
@@ -435,6 +396,11 @@ export default class HelixScene extends Phaser.Scene {
     // Touch controls: tap left half = rotate left, tap right half = rotate right
     // No drag needed - just hold to rotate continuously
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      // Don't rotate if clicking on ball selector button area
+      if ((this as any).ballSelectorClicked) {
+        (this as any).ballSelectorClicked = false;
+        return;
+      }
       (this as any).touchSide =
         pointer.x < this.scale.width / 2 ? "left" : "right";
 
@@ -1617,7 +1583,7 @@ export default class HelixScene extends Phaser.Scene {
         this.ball.position.y = 2;
         this.ball.scale.set(1, 1, 1);
         this.ballVelocity = 0; // Reset velocity
-        
+
         // NOW load extra music (after countdown to avoid stuttering)
         this.loadExtraMusic();
       }
@@ -3435,6 +3401,7 @@ export default class HelixScene extends Phaser.Scene {
       .zone(0, 0, buttonSize + 20, buttonSize + 20)
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => {
+        (this as any).ballSelectorClicked = true; // Prevent rotation
         this.cycleBallStyle();
       })
       .on("pointerover", () => {
@@ -3477,7 +3444,7 @@ export default class HelixScene extends Phaser.Scene {
       -buttonSize / 2 - 8,
       buttonSize + 16,
       buttonSize + 16,
-      12
+      12,
     );
 
     // Button border highlight (top-left lighter for 3D effect)
@@ -3487,7 +3454,7 @@ export default class HelixScene extends Phaser.Scene {
       -buttonSize / 2 - 8,
       buttonSize + 16,
       buttonSize + 16,
-      12
+      12,
     );
 
     // Black circle border for the ball
@@ -3503,19 +3470,7 @@ export default class HelixScene extends Phaser.Scene {
     this.ballSelectorGraphics.fillCircle(
       -buttonSize * 0.15,
       -buttonSize * 0.15,
-      buttonSize * 0.12
-    );
-
-    // Small cycle arrows icon at bottom-right corner
-    this.ballSelectorGraphics.fillStyle(0xffffff, 0.8);
-    this.ballSelectorGraphics.fillCircle(buttonSize / 2 - 2, buttonSize / 2 - 2, 8);
-    this.ballSelectorGraphics.fillStyle(0x000000, 1);
-    this.ballSelectorGraphics.fillCircle(buttonSize / 2 - 2, buttonSize / 2 - 2, 6);
-    this.ballSelectorGraphics.fillStyle(0xffffff, 1);
-    this.ballSelectorGraphics.fillTriangle(
-      buttonSize / 2 - 5, buttonSize / 2 - 4,
-      buttonSize / 2 + 1, buttonSize / 2 - 2,
-      buttonSize / 2 - 5, buttonSize / 2
+      buttonSize * 0.12,
     );
   }
 
