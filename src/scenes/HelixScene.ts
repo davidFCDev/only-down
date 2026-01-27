@@ -78,6 +78,7 @@ export default class HelixScene extends Phaser.Scene {
   private stripedMaterial!: THREE.MeshBasicMaterial;
   private blinkingMaterial!: THREE.MeshBasicMaterial;
   private originalMaterial!: THREE.Material; // Store material before power-up
+  private cachedGlowTexture!: THREE.CanvasTexture; // Cached glow texture for particles
 
   // Game State & Physics
   private platforms: THREE.Mesh[] = [];
@@ -265,8 +266,8 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   create() {
-    // Load SDK state first (async, non-blocking for game start)
-    this.loadSDKState();
+    // Pre-create cached textures first (optimization)
+    this.createGlowTexture();
 
     // No lights needed - using MeshBasicMaterial for flat shading
 
@@ -2539,83 +2540,78 @@ export default class HelixScene extends Phaser.Scene {
   createCyberpunkGrid() {
     this.cyberpunkGrid = new THREE.Group();
 
-    // Create horizontal lines (floor grid extending to horizon)
-    const gridMaterial = new THREE.LineBasicMaterial({
-      color: 0xff00ff, // Magenta
-      transparent: true,
-      opacity: 0.3,
-    });
-
-    const gridMaterial2 = new THREE.LineBasicMaterial({
-      color: 0x00ffff, // Cyan
-      transparent: true,
-      opacity: 0.2,
-    });
-
-    // Horizontal lines on floor plane
+    // OPTIMIZED: Merge all lines of same color into single geometries
     const floorY = -50;
     const gridSize = 100;
-    const lineSpacing = 4;
+    const lineSpacing = 8; // Increased spacing for fewer lines
+
+    // Collect points for magenta lines (main grid)
+    const magentaPoints: THREE.Vector3[] = [];
+    // Collect points for cyan lines (secondary grid)
+    const cyanPoints: THREE.Vector3[] = [];
 
     for (let i = -gridSize; i <= gridSize; i += lineSpacing) {
       // Lines along Z axis
-      const points1 = [
+      magentaPoints.push(
         new THREE.Vector3(i, floorY, -gridSize),
         new THREE.Vector3(i, floorY, gridSize),
-      ];
-      const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
-      const line1 = new THREE.Line(
-        geometry1,
-        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
-      this.cyberpunkGrid.add(line1);
-
       // Lines along X axis
-      const points2 = [
+      cyanPoints.push(
         new THREE.Vector3(-gridSize, floorY, i),
         new THREE.Vector3(gridSize, floorY, i),
-      ];
-      const geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
-      const line2 = new THREE.Line(
-        geometry2,
-        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
-      this.cyberpunkGrid.add(line2);
     }
 
-    // Add vertical accent lines in the background
+    // Create single LineSegments for magenta grid
+    const magentaGeometry = new THREE.BufferGeometry().setFromPoints(magentaPoints);
+    const magentaMaterial = new THREE.LineBasicMaterial({
+      color: 0xff00ff,
+      transparent: true,
+      opacity: 0.3,
+    });
+    this.cyberpunkGrid.add(new THREE.LineSegments(magentaGeometry, magentaMaterial));
+
+    // Create single LineSegments for cyan grid
+    const cyanGeometry = new THREE.BufferGeometry().setFromPoints(cyanPoints);
+    const cyanMaterial = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.2,
+    });
+    this.cyberpunkGrid.add(new THREE.LineSegments(cyanGeometry, cyanMaterial));
+
+    // Vertical accent lines - merged into one geometry
+    const verticalPoints: THREE.Vector3[] = [];
+    for (let i = -40; i <= 40; i += 20) { // Reduced frequency
+      verticalPoints.push(
+        new THREE.Vector3(i, floorY, -60),
+        new THREE.Vector3(i, floorY + 200, -60),
+      );
+    }
+    const verticalGeometry = new THREE.BufferGeometry().setFromPoints(verticalPoints);
     const verticalMaterial = new THREE.LineBasicMaterial({
-      color: 0x00ff00, // Green
+      color: 0x00ff00,
       transparent: true,
       opacity: 0.15,
     });
+    this.cyberpunkGrid.add(new THREE.LineSegments(verticalGeometry, verticalMaterial));
 
-    for (let i = -40; i <= 40; i += 10) {
-      const points = [
-        new THREE.Vector3(i, floorY, -60),
-        new THREE.Vector3(i, floorY + 200, -60), // Tall lines
-      ];
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, verticalMaterial);
-      this.cyberpunkGrid.add(line);
+    // Scan lines - merged and reduced
+    const scanPoints: THREE.Vector3[] = [];
+    for (let y = floorY; y <= floorY + 200; y += 15) { // Increased spacing
+      scanPoints.push(
+        new THREE.Vector3(-50, y, -50),
+        new THREE.Vector3(50, y, -50),
+      );
     }
-
-    // Add floating horizontal scan lines
+    const scanGeometry = new THREE.BufferGeometry().setFromPoints(scanPoints);
     const scanMaterial = new THREE.LineBasicMaterial({
-      color: 0xffff00, // Yellow
+      color: 0xffff00,
       transparent: true,
       opacity: 0.1,
     });
-
-    for (let y = floorY; y <= floorY + 200; y += 5) {
-      const points = [
-        new THREE.Vector3(-50, y, -50),
-        new THREE.Vector3(50, y, -50),
-      ];
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, scanMaterial);
-      this.cyberpunkGrid.add(line);
-    }
+    this.cyberpunkGrid.add(new THREE.LineSegments(scanGeometry, scanMaterial));
 
     // Add to scene with fixed initial position (will follow camera after countdown)
     this.threeScene.add(this.cyberpunkGrid);
@@ -2801,6 +2797,11 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   createGlowTexture() {
+    // Return cached texture if available (optimization)
+    if (this.cachedGlowTexture) {
+      return this.cachedGlowTexture;
+    }
+
     const canvas = document.createElement("canvas");
     canvas.width = 32;
     canvas.height = 32;
@@ -2812,8 +2813,8 @@ export default class HelixScene extends Phaser.Scene {
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
     context.fillStyle = gradient;
     context.fillRect(0, 0, 32, 32);
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
+    this.cachedGlowTexture = new THREE.CanvasTexture(canvas);
+    return this.cachedGlowTexture;
   }
 
   createElectricSpark() {
@@ -3464,7 +3465,7 @@ export default class HelixScene extends Phaser.Scene {
       // Pro: White with red polka dots
       this.ballSelectorGraphics.fillStyle(0xffffff, 1);
       this.ballSelectorGraphics.fillCircle(0, 0, ballRadius);
-      
+
       // Add red polka dots
       this.ballSelectorGraphics.fillStyle(0xff2222, 1);
       const dotRadius = 5;
@@ -3489,7 +3490,7 @@ export default class HelixScene extends Phaser.Scene {
       // Use clip path simulation with semicircles
       this.ballSelectorGraphics.fillStyle(0xff6b35, 1); // Red-orange
       this.ballSelectorGraphics.fillCircle(0, 0, ballRadius);
-      
+
       // Draw yellow bottom half
       this.ballSelectorGraphics.fillStyle(0xffd93d, 1);
       this.ballSelectorGraphics.slice(0, 0, ballRadius, 0, Math.PI, false);
@@ -3498,22 +3499,36 @@ export default class HelixScene extends Phaser.Scene {
       // Legend: Multicolor horizontal bands using arc slices
       const bandColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
       const numBands = 8;
-      
+
       // Draw bands as horizontal slices of the circle
       for (let i = 0; i < numBands; i++) {
         const color = bandColors[i % bandColors.length];
         this.ballSelectorGraphics.fillStyle(color, 1);
-        
+
         // Calculate the angle range for this band
         const startAngle = (Math.PI / numBands) * i - Math.PI / 2;
         const endAngle = (Math.PI / numBands) * (i + 1) - Math.PI / 2;
-        
+
         // Draw as pie slice
-        this.ballSelectorGraphics.slice(0, 0, ballRadius, startAngle, endAngle, false);
+        this.ballSelectorGraphics.slice(
+          0,
+          0,
+          ballRadius,
+          startAngle,
+          endAngle,
+          false,
+        );
         this.ballSelectorGraphics.fillPath();
-        
+
         // Mirror on the other side
-        this.ballSelectorGraphics.slice(0, 0, ballRadius, Math.PI - endAngle, Math.PI - startAngle, false);
+        this.ballSelectorGraphics.slice(
+          0,
+          0,
+          ballRadius,
+          Math.PI - endAngle,
+          Math.PI - startAngle,
+          false,
+        );
         this.ballSelectorGraphics.fillPath();
       }
     } else {
