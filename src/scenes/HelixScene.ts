@@ -3422,16 +3422,17 @@ export default class HelixScene extends Phaser.Scene {
     if (!this.ballSelectorGraphics) return;
 
     const buttonSize = 60;
+    const ballRadius = buttonSize / 2;
     this.ballSelectorGraphics.clear();
 
-    // Get current ball style colors
+    // Get current ball style
     const currentStyle =
       BALL_STYLES[this.selectedBallStyle] || BALL_STYLES.unranked;
 
     // Outer glow/aura if present (drawn first, behind everything)
     if (currentStyle.colors.aura) {
       this.ballSelectorGraphics.fillStyle(currentStyle.colors.aura, 0.25);
-      this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 12);
+      this.ballSelectorGraphics.fillCircle(0, 0, ballRadius + 12);
     }
 
     // Button frame - dark rounded rectangle to make it look like a button
@@ -3456,19 +3457,75 @@ export default class HelixScene extends Phaser.Scene {
 
     // Black circle border for the ball
     this.ballSelectorGraphics.fillStyle(0x000000, 1);
-    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 3);
+    this.ballSelectorGraphics.fillCircle(0, 0, ballRadius + 3);
 
-    // Fill with ball color
-    this.ballSelectorGraphics.fillStyle(currentStyle.colors.base, 1);
-    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2);
+    // Draw ball based on style
+    if (this.selectedBallStyle === "pro") {
+      // Pro: White with red polka dots
+      this.ballSelectorGraphics.fillStyle(0xffffff, 1);
+      this.ballSelectorGraphics.fillCircle(0, 0, ballRadius);
+      
+      // Add red polka dots
+      this.ballSelectorGraphics.fillStyle(0xff2222, 1);
+      const dotRadius = 5;
+      const dotPositions = [
+        { x: 0, y: 0 },
+        { x: -12, y: -10 },
+        { x: 12, y: -10 },
+        { x: -12, y: 10 },
+        { x: 12, y: 10 },
+        { x: 0, y: -18 },
+        { x: 0, y: 18 },
+      ];
+      for (const pos of dotPositions) {
+        // Only draw dots within the ball circle
+        const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+        if (dist + dotRadius <= ballRadius) {
+          this.ballSelectorGraphics.fillCircle(pos.x, pos.y, dotRadius);
+        }
+      }
+    } else if (this.selectedBallStyle === "master") {
+      // Master: Two-tone (red-orange top, yellow bottom)
+      // Use clip path simulation with semicircles
+      this.ballSelectorGraphics.fillStyle(0xff6b35, 1); // Red-orange
+      this.ballSelectorGraphics.fillCircle(0, 0, ballRadius);
+      
+      // Draw yellow bottom half
+      this.ballSelectorGraphics.fillStyle(0xffd93d, 1);
+      this.ballSelectorGraphics.slice(0, 0, ballRadius, 0, Math.PI, false);
+      this.ballSelectorGraphics.fillPath();
+    } else if (this.selectedBallStyle === "legend") {
+      // Legend: Multicolor horizontal bands
+      const bandColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+      const numBands = 8;
+      const bandHeight = (ballRadius * 2) / numBands;
+      
+      // Draw each band as a rectangle, clipped to circle visually
+      for (let i = 0; i < numBands; i++) {
+        const y = -ballRadius + i * bandHeight;
+        const color = bandColors[i % bandColors.length];
+        this.ballSelectorGraphics.fillStyle(color, 1);
+        this.ballSelectorGraphics.fillRect(-ballRadius, y, ballRadius * 2, bandHeight);
+      }
+      
+      // Draw circle mask (black border around to clip the bands)
+      this.ballSelectorGraphics.lineStyle(8, 0x000000, 1);
+      this.ballSelectorGraphics.strokeCircle(0, 0, ballRadius + 1);
+    } else {
+      // Simple solid color for unranked, noob, remixer
+      this.ballSelectorGraphics.fillStyle(currentStyle.colors.base, 1);
+      this.ballSelectorGraphics.fillCircle(0, 0, ballRadius);
+    }
 
-    // Add small highlight on ball
-    this.ballSelectorGraphics.fillStyle(0xffffff, 0.4);
-    this.ballSelectorGraphics.fillCircle(
-      -buttonSize * 0.15,
-      -buttonSize * 0.15,
-      buttonSize * 0.12,
-    );
+    // Add small highlight on ball (except for legend which has bands)
+    if (this.selectedBallStyle !== "legend") {
+      this.ballSelectorGraphics.fillStyle(0xffffff, 0.4);
+      this.ballSelectorGraphics.fillCircle(
+        -ballRadius * 0.3,
+        -ballRadius * 0.3,
+        ballRadius * 0.15,
+      );
+    }
   }
 
   cycleBallStyle() {
