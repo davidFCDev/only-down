@@ -3,6 +3,59 @@ import * as THREE from "three";
 // Use global Phaser loaded via CDN
 const Phaser = (window as any).Phaser;
 
+// Ball styles configuration (moved from StartScene)
+const BALL_STYLES: {
+  [key: string]: {
+    name: string;
+    requiredRank: string;
+    colors: { base: number; dots?: number[]; aura?: number };
+  };
+} = {
+  unranked: {
+    name: "Basic",
+    requiredRank: "Unranked",
+    colors: { base: 0x2ecc71 }, // Green like the game
+  },
+  noob: {
+    name: "Noob",
+    requiredRank: "Noob",
+    colors: { base: 0x00d2d3, aura: 0x00d2d3 }, // Cyan
+  },
+  pro: {
+    name: "Pro",
+    requiredRank: "Pro",
+    colors: { base: 0xffffff, dots: [0xff2222], aura: 0xff2222 },
+  },
+  master: {
+    name: "Master",
+    requiredRank: "Gravity Master",
+    colors: { base: 0xff6b35, dots: [0xffd93d], aura: 0xff6b35 },
+  },
+  legend: {
+    name: "Legend",
+    requiredRank: "Legend",
+    colors: {
+      base: 0xff9f43,
+      dots: [0xe91e8c, 0x00d2d3, 0xfeca57],
+      aura: 0xff9f43,
+    },
+  },
+  remixer: {
+    name: "Remixer",
+    requiredRank: "Remixer",
+    colors: { base: 0xb7ff00, aura: 0xb7ff00 },
+  },
+};
+
+const RANK_ORDER = [
+  "Unranked",
+  "Noob",
+  "Pro",
+  "Gravity Master",
+  "Legend",
+  "Remixer",
+];
+
 export default class HelixScene extends Phaser.Scene {
   private threeScene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
@@ -72,7 +125,7 @@ export default class HelixScene extends Phaser.Scene {
   private masterGain: GainNode | null = null; // Master gain for procedural audio mute control
   private testRank: string = "Remixer"; // For development testing
   private selectedBallStyle: string = "unranked"; // User selected ball style
-  private isChaosMode: boolean = false; // Chaos mode flag
+  private isChaosMode: boolean = true; // Always chaos mode now
   private cyberpunkGrid: THREE.Group | null = null; // Cyberpunk background grid
   private sunsetBackground: THREE.Group | null = null; // Sunset background
   private oceanBackground: THREE.Group | null = null; // Ocean background with light rays
@@ -83,6 +136,11 @@ export default class HelixScene extends Phaser.Scene {
   private hasShield: boolean = false; // Shield power-up active
   private shieldTimer: number = 0; // Timer for shield duration
   private shieldMesh: THREE.Mesh | null = null; // Visual shield bubble around ball
+
+  // Ball selector button
+  private ballSelectorContainer!: Phaser.GameObjects.Container;
+  private ballSelectorGraphics!: Phaser.GameObjects.Graphics;
+  private unlockedBallStyles: string[] = ["unranked"];
 
   // Custom Level Configuration
   private customLevelConfig: {
@@ -162,9 +220,9 @@ export default class HelixScene extends Phaser.Scene {
     chaosMode?: boolean;
     customLevelConfig?: { palette: string; background: string; trail: string };
   }) {
-    // Reset chaos mode first (important for scene restarts)
-    this.isChaosMode = false;
-    this.customLevelConfig = null; // Reset custom level config
+    // Always force chaos mode now (simplified game)
+    this.isChaosMode = true;
+    this.customLevelConfig = null; // No custom level config in simplified mode
     this.trailParticles = []; // Reset trail particles
 
     if (data?.testRank) {
@@ -176,20 +234,14 @@ export default class HelixScene extends Phaser.Scene {
     if (typeof data?.highScore === "number") {
       this.playerHighScore = data.highScore;
     }
-    if (data?.chaosMode === true) {
-      this.isChaosMode = true;
-    }
-    // Custom level config only applies to normal mode, not chaos mode
-    if (data?.customLevelConfig && !this.isChaosMode) {
-      this.customLevelConfig = data.customLevelConfig;
-    }
+    
     console.log(
       "🎮 HelixScene init - chaosMode:",
       this.isChaosMode,
-      "customLevelConfig:",
-      this.customLevelConfig,
-      "data:",
-      data
+      "ballStyle:",
+      this.selectedBallStyle,
+      "highScore:",
+      this.playerHighScore
     );
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -240,6 +292,9 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   create() {
+    // Load SDK state first (async, non-blocking for game start)
+    this.loadSDKState();
+
     // No lights needed - using MeshBasicMaterial for flat shading
 
     // Initialize tower group (platforms will be added in createPlatforms)
@@ -364,6 +419,9 @@ export default class HelixScene extends Phaser.Scene {
 
     // UI Setup
     this.createUI();
+
+    // Create ball selector button (on the right side)
+    this.createBallSelectorButton();
 
     // Input handling
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -3266,6 +3324,256 @@ export default class HelixScene extends Phaser.Scene {
         this.masterGain.gain.value = this.isMuted ? 0 : 1;
       }
     });
+  }
+
+  // ============ BALL SELECTOR METHODS ============
+
+  async loadSDKState() {
+    try {
+      const sdk = window.FarcadeSDK;
+      let gameInfo: any = null;
+
+      if (sdk?.singlePlayer?.actions) {
+        if ((sdk.singlePlayer.actions as any).getGameState) {
+          gameInfo = await (sdk.singlePlayer.actions as any).getGameState();
+        } else if (sdk.singlePlayer.actions.ready) {
+          const timeoutPromise = new Promise((resolve) =>
+            setTimeout(() => resolve(null), 500)
+          );
+          gameInfo = await Promise.race([
+            sdk.singlePlayer.actions.ready(),
+            timeoutPromise,
+          ]);
+        }
+      }
+
+      if (gameInfo) {
+        console.log("📊 SDK gameInfo loaded:", JSON.stringify(gameInfo, null, 2));
+
+        // Get selected ball style
+        if (gameInfo?.initialGameState?.gameState?.selectedBallStyle) {
+          this.selectedBallStyle = gameInfo.initialGameState.gameState.selectedBallStyle;
+        }
+
+        // Get high score for rank system
+        let sdkHighScore = 0;
+        let gameStateHighScore = 0;
+
+        if (typeof gameInfo?.highScore === "number") {
+          sdkHighScore = gameInfo.highScore;
+        } else if (typeof gameInfo?.initialGameState?.highScore === "number") {
+          sdkHighScore = gameInfo.initialGameState.highScore;
+        }
+
+        if (typeof gameInfo?.initialGameState?.gameState?.highScore === "number") {
+          gameStateHighScore = gameInfo.initialGameState.gameState.highScore;
+        }
+
+        this.playerHighScore = Math.max(sdkHighScore, gameStateHighScore);
+        console.log("🏆 High Score loaded:", this.playerHighScore);
+        console.log("⚽ Selected Ball Style:", this.selectedBallStyle);
+
+        // Update unlocked ball styles based on high score
+        this.unlockedBallStyles = this.getUnlockedBallStyles();
+        
+        // Update ball selector button appearance
+        this.updateBallSelectorAppearance();
+        
+        // Apply the loaded ball style
+        this.applyBallStyle(this.testRank);
+      }
+    } catch (error) {
+      console.log("Could not load game state:", error);
+    }
+  }
+
+  getRank(score: number): { name: string; color: string } {
+    if (score >= 1000) return { name: "Remixer", color: "#b7ff00" };
+    if (score >= 750) return { name: "Legend", color: "#ffd93d" };
+    if (score >= 500) return { name: "Gravity Master", color: "#ffd93d" };
+    if (score >= 250) return { name: "Pro", color: "#ffd93d" };
+    if (score >= 50) return { name: "Noob", color: "#ffd93d" };
+    return { name: "Unranked", color: "#ffd93d" };
+  }
+
+  getUnlockedBallStyles(): string[] {
+    const playerRank = this.getRank(this.playerHighScore).name;
+    const playerRankIndex = RANK_ORDER.indexOf(playerRank);
+
+    const unlockedStyles: string[] = [];
+    for (const [styleKey, style] of Object.entries(BALL_STYLES)) {
+      const requiredRankIndex = RANK_ORDER.indexOf(style.requiredRank);
+      if (requiredRankIndex <= playerRankIndex) {
+        unlockedStyles.push(styleKey);
+      }
+    }
+    return unlockedStyles;
+  }
+
+  createBallSelectorButton() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const buttonSize = 60;
+    const margin = 20;
+
+    // Position on the right side of the screen
+    const btnX = width - margin - buttonSize / 2;
+    const btnY = height / 2;
+
+    this.ballSelectorContainer = this.add.container(btnX, btnY);
+    this.ballSelectorContainer.setDepth(50);
+
+    // Button background (circular)
+    this.ballSelectorGraphics = this.add.graphics();
+    this.ballSelectorContainer.add(this.ballSelectorGraphics);
+
+    // Update unlocked styles
+    this.unlockedBallStyles = this.getUnlockedBallStyles();
+
+    // Draw initial button appearance
+    this.updateBallSelectorAppearance();
+
+    // Interactive zone
+    const zone = this.add
+      .zone(0, 0, buttonSize + 10, buttonSize + 10)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        this.cycleBallStyle();
+      })
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: this.ballSelectorContainer,
+          scale: 1.15,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.add({
+          targets: this.ballSelectorContainer,
+          scale: 1,
+          duration: 100,
+        });
+      });
+    this.ballSelectorContainer.add(zone);
+
+    // Arrow indicator (to show it's a cycler)
+    const arrowText = this.add
+      .text(0, buttonSize / 2 + 12, "▶", {
+        fontSize: "16px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    this.ballSelectorContainer.add(arrowText);
+  }
+
+  updateBallSelectorAppearance() {
+    if (!this.ballSelectorGraphics) return;
+
+    const buttonSize = 60;
+    this.ballSelectorGraphics.clear();
+
+    // Black border
+    this.ballSelectorGraphics.fillStyle(0x000000, 1);
+    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 4);
+
+    // Get current ball style colors
+    const currentStyle = BALL_STYLES[this.selectedBallStyle] || BALL_STYLES.unranked;
+
+    // Fill with ball color
+    this.ballSelectorGraphics.fillStyle(currentStyle.colors.base, 1);
+    this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2);
+
+    // Add aura glow if present
+    if (currentStyle.colors.aura) {
+      this.ballSelectorGraphics.fillStyle(currentStyle.colors.aura, 0.3);
+      this.ballSelectorGraphics.fillCircle(0, 0, buttonSize / 2 + 8);
+    }
+
+    // Add small highlight
+    this.ballSelectorGraphics.fillStyle(0xffffff, 0.4);
+    this.ballSelectorGraphics.fillCircle(-buttonSize * 0.15, -buttonSize * 0.15, buttonSize * 0.12);
+  }
+
+  cycleBallStyle() {
+    // Update unlocked styles (in case score changed)
+    this.unlockedBallStyles = this.getUnlockedBallStyles();
+
+    if (this.unlockedBallStyles.length <= 1) {
+      // Only one style available, show feedback
+      this.showBallFeedback("Desbloquea más esferas consiguiendo puntos!");
+      return;
+    }
+
+    // Find current index
+    const currentIndex = this.unlockedBallStyles.indexOf(this.selectedBallStyle);
+    
+    // Move to next style (cycle)
+    const nextIndex = (currentIndex + 1) % this.unlockedBallStyles.length;
+    const newStyle = this.unlockedBallStyles[nextIndex];
+
+    this.selectedBallStyle = newStyle;
+
+    // Update visuals
+    this.updateBallSelectorAppearance();
+    this.applyBallStyle(this.testRank);
+
+    // Save to SDK
+    this.saveBallStyle(newStyle);
+
+    // Show feedback
+    const styleName = BALL_STYLES[newStyle]?.name || newStyle;
+    this.showBallFeedback(styleName);
+
+    // Button press animation
+    this.tweens.add({
+      targets: this.ballSelectorContainer,
+      scale: 0.9,
+      duration: 50,
+      yoyo: true,
+    });
+  }
+
+  showBallFeedback(message: string) {
+    const text = this.add
+      .text(this.scale.width / 2, this.scale.height - 100, message, {
+        fontSize: "28px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setDepth(150);
+
+    this.tweens.add({
+      targets: text,
+      y: text.y - 50,
+      alpha: 0,
+      duration: 1500,
+      ease: "Power2",
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  async saveBallStyle(style: string) {
+    try {
+      const sdk = window.FarcadeSDK;
+      if (sdk?.singlePlayer?.actions?.saveGameState) {
+        await sdk.singlePlayer.actions.saveGameState({
+          gameState: {
+            highScore: this.playerHighScore,
+            selectedBallStyle: style,
+          },
+        });
+        console.log("⚽ Ball style saved:", style);
+      }
+    } catch (error) {
+      console.log("Could not save ball style:", error);
+    }
   }
 
   triggerHapticFeedback() {

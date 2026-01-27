@@ -125,8 +125,11 @@ export class PreloadScene extends Phaser.Scene {
   private checkTransition(): void {
     // Transition when BOTH animation finished AND assets loaded
     if (this.animationComplete && this.assetsLoaded) {
-      console.log("✅ Todo listo - transición a StartScene");
-      this.scene.start("StartScene");
+      console.log("✅ Todo listo - transición directa a HelixScene (modo CHAOS)");
+      // Go directly to HelixScene in chaos mode, skipping StartScene
+      this.scene.start("HelixScene", {
+        chaosMode: true,
+      });
     }
   }
 }

@@ -2,7 +2,6 @@ import { initRemix } from "@insidethesim/remix-dev";
 import GameSettings from "./config/GameSettings";
 import HelixScene from "./scenes/HelixScene";
 import { PreloadScene } from "./scenes/PreloadScene";
-import StartScene from "./scenes/StartScene";
 
 // Use global Phaser loaded via CDN
 const Phaser = (window as any).Phaser;
@@ -22,7 +21,7 @@ const config: Phaser.Types.Core.GameConfig = {
     height: GameSettings.canvas.height,
   },
   transparent: true, // Make Phaser canvas transparent
-  scene: [PreloadScene, StartScene, HelixScene],
+  scene: [PreloadScene, HelixScene],
   physics: {
     default: "arcade",
   },
