@@ -1,6 +1,5 @@
 import * as THREE from "three";
 
-// Use global Phaser loaded via CDN
 const Phaser = (window as any).Phaser;
 
 export default class HelixScene extends Phaser.Scene {
@@ -381,7 +380,7 @@ export default class HelixScene extends Phaser.Scene {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       // Ignore if clicking on ball selector button
       if (this.ballSelectorClicked) return;
-      
+
       (this as any).touchSide =
         pointer.x < this.scale.width / 2 ? "left" : "right";
 
@@ -567,9 +566,11 @@ export default class HelixScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
-    // Score position: use percentage of height for responsive layout
-    // ~7.4% from top on standard 2:3, scales naturally on taller screens
-    const scoreY = Math.round(height * 0.074);
+    // Score position: on tall/fullscreen screens push down to avoid camera/notch
+    const isTallScreen = height > 1100;
+    const scoreY = isTallScreen
+      ? Math.round(height * 0.12)
+      : Math.round(height * 0.074);
     this.scoreContainer = this.add.container(width / 2, scoreY);
 
     this.scoreText = this.add
@@ -610,7 +611,7 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.gameOverContainer.setDepth(100);
 
-    // Ball Selector Button (top-left corner)
+    // Ball Selector Button — only shown if user has purchased 'ball-styles'
     this.createBallSelectorButton(width, height);
   }
 
@@ -619,21 +620,39 @@ export default class HelixScene extends Phaser.Scene {
     const margin = 14;
 
     // Position at right side, upper-middle area
-    this.ballSelectorBtn = this.add.container(width - margin - btnSize / 2, height * 0.35);
+    this.ballSelectorBtn = this.add.container(
+      width - margin - btnSize / 2,
+      height * 0.35,
+    );
     this.ballSelectorBtn.setDepth(150);
     this.ballSelectorBtn.setAlpha(0.9);
+
+    // Start hidden — will be revealed once SDK confirms 'ball-styles' purchase
+    this.ballSelectorBtn.setVisible(false);
 
     // Button background - clean dark style with border
     const btnBg = this.add.graphics();
     // Outer glow/border effect
     btnBg.fillStyle(0x000000, 1);
-    btnBg.fillRoundedRect(-btnSize / 2 - 3, -btnSize / 2 - 3, btnSize + 6, btnSize + 6, 16);
+    btnBg.fillRoundedRect(
+      -btnSize / 2 - 3,
+      -btnSize / 2 - 3,
+      btnSize + 6,
+      btnSize + 6,
+      16,
+    );
     // Inner dark background
     btnBg.fillStyle(0x1a1a2e, 1);
     btnBg.fillRoundedRect(-btnSize / 2, -btnSize / 2, btnSize, btnSize, 14);
     // Subtle inner highlight
     btnBg.lineStyle(2, 0x4a4a6a, 0.8);
-    btnBg.strokeRoundedRect(-btnSize / 2 + 2, -btnSize / 2 + 2, btnSize - 4, btnSize - 4, 12);
+    btnBg.strokeRoundedRect(
+      -btnSize / 2 + 2,
+      -btnSize / 2 + 2,
+      btnSize - 4,
+      btnSize - 4,
+      12,
+    );
     this.ballSelectorBtn.add(btnBg);
 
     // Ball icon border (black circle behind)
@@ -683,6 +702,55 @@ export default class HelixScene extends Phaser.Scene {
         });
       });
     this.ballSelectorBtn.add(zone);
+
+    // Check SDK for 'ball-styles' purchase
+    this.checkBallStylesPurchase();
+  }
+
+  /**
+   * Wait for SDK ready, then check if user has purchased 'ball-styles'.
+   * Also listens for onPurchaseComplete so the button appears if bought mid-session.
+   */
+  private async checkBallStylesPurchase() {
+    const sdk = (window as any).RemixSDK;
+    if (!sdk) return;
+
+    // Wait for SDK to be ready (loads player data including purchasedItems)
+    try {
+      await sdk.ready();
+    } catch {
+      // SDK ready failed — leave button hidden
+      return;
+    }
+
+    // Check if user already owns 'ball-styles'
+    if (sdk.hasItem("ball-styles")) {
+      this.revealBallSelectorBtn();
+    }
+
+    // Listen for purchases completed mid-session
+    sdk.onPurchaseComplete(() => {
+      if (
+        sdk.hasItem("ball-styles") &&
+        this.ballSelectorBtn &&
+        !this.ballSelectorBtn.visible
+      ) {
+        this.revealBallSelectorBtn();
+      }
+    });
+  }
+
+  /** Fade-in the ball selector button */
+  private revealBallSelectorBtn() {
+    if (!this.ballSelectorBtn) return;
+    this.ballSelectorBtn.setVisible(true);
+    this.ballSelectorBtn.setAlpha(0);
+    this.tweens.add({
+      targets: this.ballSelectorBtn,
+      alpha: 0.9,
+      duration: 300,
+      ease: "Quad.easeOut",
+    });
   }
 
   cycleToNextBall() {
@@ -710,17 +778,17 @@ export default class HelixScene extends Phaser.Scene {
       ease: "Quad.easeOut",
     });
 
-    // Save to localStorage
-    try {
-      localStorage.setItem("selectedBallStyle", nextStyle);
-    } catch (e) {
-      // Ignore storage errors
-    }
+    // Ball style kept in memory only (this.selectedBallStyle)
   }
 
-  drawBallPreview(graphics: Phaser.GameObjects.Graphics, styleKey: string, radius: number) {
+  drawBallPreview(
+    graphics: Phaser.GameObjects.Graphics,
+    styleKey: string,
+    radius: number,
+  ) {
     graphics.clear();
-    const style = HelixScene.BALL_STYLES[styleKey] || HelixScene.BALL_STYLES.unranked;
+    const style =
+      HelixScene.BALL_STYLES[styleKey] || HelixScene.BALL_STYLES.unranked;
 
     // Draw ball based on style
     switch (styleKey) {
@@ -736,7 +804,14 @@ export default class HelixScene extends Phaser.Scene {
         for (let i = 0; i < segments; i++) {
           const color = legendColors[i % legendColors.length];
           graphics.fillStyle(color, 1);
-          graphics.slice(0, 0, radius, i * segmentAngle, (i + 1) * segmentAngle, false);
+          graphics.slice(
+            0,
+            0,
+            radius,
+            i * segmentAngle,
+            (i + 1) * segmentAngle,
+            false,
+          );
           graphics.fillPath();
         }
         break;
@@ -798,9 +873,15 @@ export default class HelixScene extends Phaser.Scene {
    * to avoid notch/status bar overlap and maintain visual balance.
    */
   private adjustUIForAspectRatio(width: number, height: number): void {
-    // Score container — keep at ~7.4% from top
+    // Score container — on standard 2:3 (1080) keep at ~7.4% from top.
+    // On fullscreen tall screens (height > 1080) push it down further
+    // to avoid being covered by the device camera/notch.
     if (this.scoreContainer) {
-      this.scoreContainer.setPosition(width / 2, Math.round(height * 0.074));
+      const isTallScreen = height > 1100;
+      const scoreY = isTallScreen
+        ? Math.round(height * 0.12) // ~12% from top on tall screens
+        : Math.round(height * 0.074); // ~7.4% on standard 2:3
+      this.scoreContainer.setPosition(width / 2, scoreY);
     }
 
     // Ball selector button — reposition to match new height
@@ -1220,7 +1301,8 @@ export default class HelixScene extends Phaser.Scene {
         const childMaterials: THREE.MeshBasicMaterial[] = [];
         platform.traverse((child) => {
           if (child !== platform && (child as THREE.Mesh).material) {
-            const childMat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+            const childMat = (child as THREE.Mesh)
+              .material as THREE.MeshBasicMaterial;
             if (childMat.opacity !== undefined) {
               childMat.transparent = true;
               childMaterials.push(childMat);
@@ -1604,7 +1686,8 @@ export default class HelixScene extends Phaser.Scene {
       const childMaterials: THREE.MeshBasicMaterial[] = [];
       platform.traverse((child) => {
         if (child !== platform && (child as THREE.Mesh).material) {
-          const childMat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          const childMat = (child as THREE.Mesh)
+            .material as THREE.MeshBasicMaterial;
           if (childMat.opacity !== undefined) {
             childMat.transparent = true;
             childMaterials.push(childMat);
@@ -1803,7 +1886,7 @@ export default class HelixScene extends Phaser.Scene {
     // Update Platforms (Movement & Blinking) - frame-independent
     for (let i = 0, len = this.platforms.length; i < len; i++) {
       const platform = this.platforms[i];
-      
+
       if (platform.userData.isMoving) {
         platform.rotation.z += platform.userData.moveSpeed * deltaMultiplier;
         // Keep rotationOffset in sync [0, 2PI]
@@ -1887,7 +1970,7 @@ export default class HelixScene extends Phaser.Scene {
       // Also limit max particles to prevent memory issues
       if (now - this.lastTrailTime > 50 && this.particles.length < 60) {
         this.lastTrailTime = now;
-        
+
         // Neon trail colors matching cyberpunk theme
         const chaosTrailColors = [0x00ff00, 0xff00ff, 0xffff00, 0x00ffff]; // Green, Magenta, Yellow, Cyan
         const trailColor =
@@ -1923,7 +2006,8 @@ export default class HelixScene extends Phaser.Scene {
 
       // Trail Effect - Throttled for performance (use cached geometry)
       const now = time;
-      if (now - this.lastTrailTime > 40 && this.particles.length < 60) { // ~25 trails per second max, limit total
+      if (now - this.lastTrailTime > 40 && this.particles.length < 60) {
+        // ~25 trails per second max, limit total
         this.lastTrailTime = now;
 
         // Get color based on current ball material
@@ -2166,7 +2250,8 @@ export default class HelixScene extends Phaser.Scene {
 
     // Electric Sparks for Remixer (throttled for performance)
     if (this.ball.material === this.remixerMaterial) {
-      if (time - this.lastSparkTime > 100 && this.electricSparks.length < 15) { // Max 10 sparks per second, max 15 total
+      if (time - this.lastSparkTime > 100 && this.electricSparks.length < 15) {
+        // Max 10 sparks per second, max 15 total
         this.lastSparkTime = time;
         this.createElectricSpark();
       }
@@ -2174,7 +2259,8 @@ export default class HelixScene extends Phaser.Scene {
 
     // Fire Trail for Gravity Master (throttled for performance)
     if (this.ball.material === this.masterMaterial) {
-      if (time - this.lastFireTime > 80 && this.particles.length < 60) { // Max ~12 fire particles per second
+      if (time - this.lastFireTime > 80 && this.particles.length < 60) {
+        // Max ~12 fire particles per second
         this.lastFireTime = time;
         this.createFireTrail();
       }
@@ -3059,382 +3145,17 @@ export default class HelixScene extends Phaser.Scene {
   async saveHighScoreAndGameOver() {
     const finalScore = this.score;
 
-    // Save high score to localStorage
+    // Report score to SDK
     try {
-      const savedHighScore = parseInt(
-        localStorage.getItem("highScore") || "0",
-        10,
-      );
-      const newHighScore = Math.max(savedHighScore, finalScore);
-      localStorage.setItem("highScore", newHighScore.toString());
-      console.log("💾 High Score saved to localStorage:", newHighScore);
-    } catch (error) {
-      console.log("Could not save high score:", error);
+      const sdk = (window as any).RemixSDK;
+      if (sdk) {
+        sdk.singlePlayer.actions.gameOver({ score: finalScore });
+      }
+    } catch (e) {
+      console.log("SDK gameOver failed:", e);
     }
 
-    // Show game over UI
-    this.showGameOverUI(finalScore);
-  }
-
-  getScoreMessage(score: number): { text: string; color: string } {
-    if (score >= 1000) return { text: "LEGENDARY!", color: "#FFD700" };
-    if (score >= 750) return { text: "INCREDIBLE!", color: "#FF6B6B" };
-    if (score >= 500) return { text: "AMAZING RUN!", color: "#9B59B6" };
-    if (score >= 300) return { text: "GREAT JOB!", color: "#3498DB" };
-    if (score >= 150) return { text: "NOT BAD!", color: "#2ECC71" };
-    if (score >= 50) return { text: "KEEP PRACTICING!", color: "#F39C12" };
-    if (score >= 20) return { text: "OUCH!", color: "#E74C3C" };
-    return { text: "TRY AGAIN!", color: "#95A5A6" };
-  }
-
-  showGameOverUI(finalScore: number) {
-    // Clear any previous UI elements
-    this.gameOverUIElements.forEach((el) => el?.destroy?.());
-    this.gameOverUIElements = [];
-
-    const width = this.scale.width;
-    const height = this.scale.height;
-
-    // Semi-transparent overlay
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.85);
-    overlay.fillRect(0, 0, width, height);
-    overlay.setDepth(200);
-    this.gameOverUIElements.push(overlay);
-
-    // Game Over text
-    const gameOverText = this.add
-      .text(width / 2, height * 0.22, "GAME OVER", {
-        fontSize: "58px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 8,
-      })
-      .setOrigin(0.5)
-      .setDepth(201);
-    this.gameOverUIElements.push(gameOverText);
-
-    // Animate game over text
-    this.tweens.add({
-      targets: gameOverText,
-      scale: { from: 0.5, to: 1 },
-      duration: 400,
-      ease: "Back.easeOut",
-    });
-
-    // Score text - BIGGER
-    const scoreText = this.add
-      .text(width / 2, height * 0.38, `${finalScore}`, {
-        fontSize: "110px",
-        color: "#FFD700",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 12,
-      })
-      .setOrigin(0.5)
-      .setDepth(201);
-    this.gameOverUIElements.push(scoreText);
-
-    // Score label
-    const scoreLabel = this.add
-      .text(width / 2, height * 0.48, "POINTS", {
-        fontSize: "24px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(201);
-    this.gameOverUIElements.push(scoreLabel);
-
-    // Animate score counting up
-    let displayScore = 0;
-    this.tweens.addCounter({
-      from: 0,
-      to: finalScore,
-      duration: 800,
-      ease: "Power2",
-      onUpdate: (tween: Phaser.Tweens.Tween) => {
-        displayScore = Math.floor(tween.getValue() ?? 0);
-        scoreText.setText(`${displayScore}`);
-      },
-    });
-
-    // Message based on score - without icons
-    const message = this.getScoreMessage(finalScore);
-    const messageText = this.add
-      .text(width / 2, height * 0.57, message.text, {
-        fontSize: "32px",
-        color: message.color,
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 5,
-      })
-      .setOrigin(0.5)
-      .setDepth(201)
-      .setAlpha(0);
-    this.gameOverUIElements.push(messageText);
-
-    // Animate message
-    this.tweens.add({
-      targets: messageText,
-      alpha: 1,
-      y: { from: height * 0.6, to: height * 0.57 },
-      duration: 500,
-      delay: 600,
-      ease: "Power2",
-    });
-
-    // Show high score if it's a new record
-    if (finalScore > this.playerHighScore && finalScore > 0) {
-      const newRecordText = this.add
-        .text(width / 2, height * 0.65, "NEW HIGH SCORE!", {
-          fontSize: "26px",
-          color: "#FFD700",
-          fontFamily: "Fredoka",
-          fontStyle: "bold",
-          stroke: "#000000",
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(201);
-      this.gameOverUIElements.push(newRecordText);
-
-      // Pulsing animation for new record
-      this.tweens.add({
-        targets: newRecordText,
-        scale: { from: 1, to: 1.1 },
-        duration: 500,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
-    }
-
-    // Buttons in ROW
-    const btnWidth = 140;
-    const btnHeight = 55;
-    const btnY = height * 0.8;
-    const btnSpacing = 15;
-
-    // RETRY button (left)
-    const retryX = width / 2 - btnWidth / 2 - btnSpacing;
-    const retryBg = this.add.graphics();
-    retryBg.fillStyle(0x000000, 1);
-    retryBg.fillRoundedRect(
-      retryX - btnWidth / 2 - 4,
-      btnY - btnHeight / 2 - 4,
-      btnWidth + 8,
-      btnHeight + 8,
-      16,
-    );
-    retryBg.fillStyle(0x2ecc71, 1);
-    retryBg.fillRoundedRect(
-      retryX - btnWidth / 2,
-      btnY - btnHeight / 2,
-      btnWidth,
-      btnHeight,
-      14,
-    );
-    retryBg.setDepth(201);
-    retryBg.setAlpha(0);
-    this.gameOverUIElements.push(retryBg);
-
-    const retryText = this.add
-      .text(retryX, btnY, "RETRY", {
-        fontSize: "26px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(202)
-      .setAlpha(0);
-    this.gameOverUIElements.push(retryText);
-
-    // HOME button (right)
-    const homeX = width / 2 + btnWidth / 2 + btnSpacing;
-    const homeBg = this.add.graphics();
-    homeBg.fillStyle(0x000000, 1);
-    homeBg.fillRoundedRect(
-      homeX - btnWidth / 2 - 4,
-      btnY - btnHeight / 2 - 4,
-      btnWidth + 8,
-      btnHeight + 8,
-      16,
-    );
-    homeBg.fillStyle(0x3498db, 1);
-    homeBg.fillRoundedRect(
-      homeX - btnWidth / 2,
-      btnY - btnHeight / 2,
-      btnWidth,
-      btnHeight,
-      14,
-    );
-    homeBg.setDepth(201);
-    homeBg.setAlpha(0);
-    this.gameOverUIElements.push(homeBg);
-
-    const homeText = this.add
-      .text(homeX, btnY, "HOME", {
-        fontSize: "26px",
-        color: "#FFFFFF",
-        fontFamily: "Fredoka",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(202)
-      .setAlpha(0);
-    this.gameOverUIElements.push(homeText);
-
-    // Animate buttons appearing
-    this.tweens.add({
-      targets: [retryBg, retryText, homeBg, homeText],
-      alpha: 1,
-      duration: 400,
-      delay: 1000,
-      ease: "Power2",
-    });
-
-    // RETRY button interactive
-    const retryHit = this.add.rectangle(
-      retryX,
-      btnY,
-      btnWidth,
-      btnHeight,
-      0x000000,
-      0,
-    );
-    retryHit.setDepth(203);
-    retryHit.setInteractive({ useHandCursor: true });
-    this.gameOverUIElements.push(retryHit);
-
-    retryHit.on("pointerdown", () => {
-      this.restartGame();
-    });
-
-    retryHit.on("pointerover", () => {
-      retryBg.clear();
-      retryBg.fillStyle(0x000000, 1);
-      retryBg.fillRoundedRect(
-        retryX - btnWidth / 2 - 4,
-        btnY - btnHeight / 2 - 4,
-        btnWidth + 8,
-        btnHeight + 8,
-        16,
-      );
-      retryBg.fillStyle(0x27ae60, 1);
-      retryBg.fillRoundedRect(
-        retryX - btnWidth / 2,
-        btnY - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        14,
-      );
-      this.tweens.add({ targets: retryText, scale: 1.05, duration: 100 });
-    });
-
-    retryHit.on("pointerout", () => {
-      retryBg.clear();
-      retryBg.fillStyle(0x000000, 1);
-      retryBg.fillRoundedRect(
-        retryX - btnWidth / 2 - 4,
-        btnY - btnHeight / 2 - 4,
-        btnWidth + 8,
-        btnHeight + 8,
-        16,
-      );
-      retryBg.fillStyle(0x2ecc71, 1);
-      retryBg.fillRoundedRect(
-        retryX - btnWidth / 2,
-        btnY - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        14,
-      );
-      this.tweens.add({ targets: retryText, scale: 1, duration: 100 });
-    });
-
-    // HOME button interactive
-    const homeHit = this.add.rectangle(
-      homeX,
-      btnY,
-      btnWidth,
-      btnHeight,
-      0x000000,
-      0,
-    );
-    homeHit.setDepth(203);
-    homeHit.setInteractive({ useHandCursor: true });
-    this.gameOverUIElements.push(homeHit);
-
-    homeHit.on("pointerdown", () => {
-      this.goToHome();
-    });
-
-    homeHit.on("pointerover", () => {
-      homeBg.clear();
-      homeBg.fillStyle(0x000000, 1);
-      homeBg.fillRoundedRect(
-        homeX - btnWidth / 2 - 4,
-        btnY - btnHeight / 2 - 4,
-        btnWidth + 8,
-        btnHeight + 8,
-        16,
-      );
-      homeBg.fillStyle(0x2980b9, 1);
-      homeBg.fillRoundedRect(
-        homeX - btnWidth / 2,
-        btnY - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        14,
-      );
-      this.tweens.add({ targets: homeText, scale: 1.05, duration: 100 });
-    });
-
-    homeHit.on("pointerout", () => {
-      homeBg.clear();
-      homeBg.fillStyle(0x000000, 1);
-      homeBg.fillRoundedRect(
-        homeX - btnWidth / 2 - 4,
-        btnY - btnHeight / 2 - 4,
-        btnWidth + 8,
-        btnHeight + 8,
-        16,
-      );
-      homeBg.fillStyle(0x3498db, 1);
-      homeBg.fillRoundedRect(
-        homeX - btnWidth / 2,
-        btnY - btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        14,
-      );
-      this.tweens.add({ targets: homeText, scale: 1, duration: 100 });
-    });
-  }
-
-  goToHome() {
-    // Clean up Three.js resources
-    if (this.threeCanvas) {
-      this.threeCanvas.remove();
-    }
-    if (this.threeRenderer) {
-      this.threeRenderer.dispose();
-    }
-    // Go back to start scene
-    this.scene.start("StartScene");
+    // High score tracked by SDK (gameOver above) — no local persistence
   }
 
   destroyPlatform(platform: THREE.Mesh, index: number) {
@@ -3569,11 +3290,30 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   setupSDKListeners() {
-    // SDK removed - no listeners needed
+    const sdk = (window as any).RemixSDK;
+    if (!sdk) return;
+
+    // Handle play again requests from the platform
+    sdk.onPlayAgain(() => {
+      this.restartGame();
+    });
+
+    // Handle mute/unmute from the platform
+    sdk.onToggleMute((data: { isMuted: boolean }) => {
+      this.sound.mute = data.isMuted;
+    });
   }
 
   triggerHapticFeedback() {
-    // Use native vibration API if available
+    // Use SDK haptic feedback
+    try {
+      const sdk = (window as any).RemixSDK;
+      if (sdk) {
+        sdk.hapticFeedback();
+      }
+    } catch (e) {
+      // Fallback to native vibration API
+    }
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }

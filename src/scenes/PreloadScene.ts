@@ -1,4 +1,3 @@
-// Use global Phaser loaded via CDN
 const Phaser = (window as any).Phaser;
 
 export class PreloadScene extends Phaser.Scene {
@@ -19,7 +18,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet(
       "bootSprite",
       "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/sprite-start-oVCq0bchsVLwbLqAPbLgVOrQqxcVh5.webp?Cbzd",
-      { frameWidth: 241, frameHeight: 345 }
+      { frameWidth: 241, frameHeight: 345 },
     );
   }
 
@@ -43,6 +42,9 @@ export class PreloadScene extends Phaser.Scene {
     this.bootSprite.setScale(scale);
     this.bootSprite.play("boot");
 
+    // Handle resize — reposition boot sprite if viewport changes during load
+    this.scale.on("resize", this.handleResize, this);
+
     // When animation finishes, it stays on last frame
     this.bootSprite.on("animationcomplete", () => {
       console.log("✅ Animación de boot completada - esperando assets...");
@@ -55,36 +57,30 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private loadRemainingAssets(): void {
-    // WebFont loader
-    this.load.script(
-      "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
-    );
-
     // --- ESSENTIAL AUDIO ONLY (for fast startup) ---
     this.load.audio(
       "beep",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/beep-aZS0fjcqYMF02tbEaXNicU1ZINgbFv.mp3?mLta",
     );
     this.load.audio(
       "jump",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/jump-dl6fQQe9R850MJre81hlFTMQeSeEdt.mp3?x2xm",
     );
     // First track for each mode (guaranteed to be available)
     this.load.audio(
       "music1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music1-ICgwk3vrOSfdkNNkxMGUUDAecJqSms.mp3?OQ9S",
     );
     this.load.audio(
       "chaos1",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos1-XUTPuodX90SvcqBFbUEoVmRPrnvekZ.mp3?SItV",
     );
     // NOTE: music2, chaos2, chaos3 are loaded in HelixScene after game starts
 
     // --- IMAGES ---
     this.load.image(
       "startBg",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/menu-K8YWWxHNtcoroaE0PEU6xyuiSyKAiu.webp?jQaX",
     );
 
     // Listen for completion
@@ -106,27 +102,35 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private loadFont(): void {
-    const checkWf = setInterval(() => {
-      const wf = (window as any).WebFont;
-      if (wf?.load) {
-        clearInterval(checkWf);
-        wf.load({
-          google: { families: ["Fredoka:700"] },
-          active: () => console.log("✅ Fuente Fredoka cargada"),
-          inactive: () => console.warn("⚠️ Fredoka no cargó"),
-          timeout: 2000,
-        });
+    // Font is loaded via <link> in index.html — just wait for it to be ready
+    document.fonts.ready.then(() => {
+      if (document.fonts.check("700 1em Fredoka")) {
+        console.log("✅ Fuente Fredoka cargada");
+      } else {
+        console.warn("⚠️ Fredoka no cargó");
       }
-    }, 50);
-
-    setTimeout(() => clearInterval(checkWf), 3000);
+    });
   }
 
   private checkTransition(): void {
     // Transition when BOTH animation finished AND assets loaded
     if (this.animationComplete && this.assetsLoaded) {
-      console.log("✅ Todo listo - transición a StartScene");
-      this.scene.start("StartScene");
+      console.log(
+        "✅ Todo listo - transición directa a HelixScene (Chaos Mode)",
+      );
+      this.scale.off("resize", this.handleResize, this);
+      // Go directly to HelixScene in Chaos mode — no start menu
+      this.scene.start("HelixScene", { chaosMode: true });
+    }
+  }
+
+  private handleResize(gameSize: { width: number; height: number }): void {
+    const width = gameSize.width;
+    const height = gameSize.height;
+    if (this.bootSprite) {
+      this.bootSprite.setPosition(width / 2, height / 2);
+      const scale = Math.min(width / 300, height / 400, 1.5);
+      this.bootSprite.setScale(scale);
     }
   }
 }
