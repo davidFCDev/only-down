@@ -712,7 +712,7 @@ export default class HelixScene extends Phaser.Scene {
    * Also listens for onPurchaseComplete so the button appears if bought mid-session.
    */
   private async checkBallStylesPurchase() {
-    const sdk = (window as any).RemixSDK;
+    const sdk = (window as any).FarcadeSDK;
     if (!sdk) return;
 
     // Wait for SDK to be ready (loads player data including purchasedItems)
@@ -3147,7 +3147,7 @@ export default class HelixScene extends Phaser.Scene {
 
     // Report score to SDK
     try {
-      const sdk = (window as any).RemixSDK;
+      const sdk = (window as any).FarcadeSDK;
       if (sdk) {
         sdk.singlePlayer.actions.gameOver({ score: finalScore });
       }
@@ -3290,7 +3290,7 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   setupSDKListeners() {
-    const sdk = (window as any).RemixSDK;
+    const sdk = (window as any).FarcadeSDK;
     if (!sdk) return;
 
     // Handle play again requests from the platform
@@ -3307,7 +3307,7 @@ export default class HelixScene extends Phaser.Scene {
   triggerHapticFeedback() {
     // Use SDK haptic feedback
     try {
-      const sdk = (window as any).RemixSDK;
+      const sdk = (window as any).FarcadeSDK;
       if (sdk) {
         sdk.hapticFeedback();
       }
