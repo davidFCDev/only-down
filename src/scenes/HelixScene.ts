@@ -84,15 +84,42 @@ export default class HelixScene extends Phaser.Scene {
   private shieldTimer: number = 0; // Timer for shield duration
   private shieldMesh: THREE.Mesh | null = null; // Visual shield bubble around ball
 
-  // Custom Level Configuration
-  private customLevelConfig: {
-    palette: string;
-    background: string;
-    trail: string;
-  } | null = null;
-  private trailParticles: THREE.Mesh[] = []; // Trail effect particles
+  // Game Over UI elements to clean up on restart
+  private gameOverUIElements: Phaser.GameObjects.GameObject[] = [];
 
-  // Level Palettes (matching StartScene exactly)
+  // Trail effect particles (kept for future use)
+  private trailParticles: THREE.Mesh[] = [];
+
+  // Performance: Cached geometries and textures (reused instead of creating new ones)
+  private cachedTrailGeometry!: THREE.BoxGeometry;
+  private cachedGlowTexture!: THREE.CanvasTexture;
+  private cachedSparkGeometry!: THREE.BufferGeometry;
+  private lastScoreUpdate: number = 0; // Throttle score UI updates
+  private lastTrailTime: number = 0; // Throttle trail creation
+  private lastSparkTime: number = 0; // Throttle spark creation
+  private lastFireTime: number = 0; // Throttle fire trail creation
+
+  // Ball Selector UI
+  private ballSelectorBtn!: Phaser.GameObjects.Container;
+  private ballSelectorClicked: boolean = false;
+  private ballPreviewGraphics!: Phaser.GameObjects.Graphics;
+
+  // Ball styles configuration
+  private static readonly BALL_STYLES: {
+    [key: string]: {
+      name: string;
+      colors: { base: number; aura?: number };
+    };
+  } = {
+    unranked: { name: "Basic", colors: { base: 0x2ecc71 } },
+    noob: { name: "Noob", colors: { base: 0x00d2d3, aura: 0x00d2d3 } },
+    pro: { name: "Pro", colors: { base: 0xffffff, aura: 0xff2222 } },
+    master: { name: "Master", colors: { base: 0xff6b35, aura: 0xff6b35 } },
+    legend: { name: "Legend", colors: { base: 0xff9f43, aura: 0xff9f43 } },
+    remixer: { name: "Remixer", colors: { base: 0xb7ff00, aura: 0xb7ff00 } },
+  };
+
+  // Level Palettes (for chaos mode colors)
   private static readonly LEVEL_PALETTES: {
     [key: string]: {
       name: string;
@@ -160,11 +187,9 @@ export default class HelixScene extends Phaser.Scene {
     ballStyle?: string;
     highScore?: number;
     chaosMode?: boolean;
-    customLevelConfig?: { palette: string; background: string; trail: string };
   }) {
     // Reset chaos mode first (important for scene restarts)
     this.isChaosMode = false;
-    this.customLevelConfig = null; // Reset custom level config
     this.trailParticles = []; // Reset trail particles
 
     if (data?.testRank) {
@@ -179,17 +204,11 @@ export default class HelixScene extends Phaser.Scene {
     if (data?.chaosMode === true) {
       this.isChaosMode = true;
     }
-    // Custom level config only applies to normal mode, not chaos mode
-    if (data?.customLevelConfig && !this.isChaosMode) {
-      this.customLevelConfig = data.customLevelConfig;
-    }
     console.log(
       "🎮 HelixScene init - chaosMode:",
       this.isChaosMode,
-      "customLevelConfig:",
-      this.customLevelConfig,
       "data:",
-      data
+      data,
     );
     // Get the Phaser canvas position and size
     const phaserCanvas = this.game.canvas;
@@ -211,15 +230,9 @@ export default class HelixScene extends Phaser.Scene {
     phaserCanvas.style.background = "transparent";
 
     this.threeScene = new THREE.Scene();
-    // Background color - black for Chaos mode, custom background or warm yellow/cream for normal
+    // Background color - black for Chaos mode, warm yellow/cream for normal
     if (this.isChaosMode) {
       this.threeScene.background = new THREE.Color(0x0a0a0a); // Near black
-    } else if (this.customLevelConfig) {
-      // Use custom background (separate from palette)
-      const bgConfig =
-        HelixScene.LEVEL_BACKGROUNDS[this.customLevelConfig.background] ||
-        HelixScene.LEVEL_BACKGROUNDS.classic;
-      this.threeScene.background = new THREE.Color(bgConfig.color);
     } else {
       this.threeScene.background = new THREE.Color(0xf5d89a); // Warm yellow/cream
     }
@@ -245,6 +258,10 @@ export default class HelixScene extends Phaser.Scene {
     // Initialize tower group (platforms will be added in createPlatforms)
     this.tower = new THREE.Group();
     this.threeScene.add(this.tower);
+
+    // Performance: Pre-cache reusable geometries and textures
+    this.cachedTrailGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    this.cachedGlowTexture = this.createGlowTexture();
 
     // Materials - Vibrant colors
     this.normalMaterial = new THREE.MeshBasicMaterial({
@@ -341,22 +358,9 @@ export default class HelixScene extends Phaser.Scene {
     this.camera.position.set(0, 5, 11);
     this.camera.lookAt(0, -1, 0);
 
-    // Cyberpunk grid background for Chaos Mode OR Custom Level with cyberpunk background
-    if (
-      this.isChaosMode ||
-      this.customLevelConfig?.background === "cyberpunk"
-    ) {
+    // Cyberpunk grid background for Chaos Mode
+    if (this.isChaosMode) {
       this.createCyberpunkGrid();
-    }
-
-    // Sunset background for Custom Level
-    if (this.customLevelConfig?.background === "sunset") {
-      this.createSunsetBackground();
-    }
-
-    // Ocean background for Custom Level
-    if (this.customLevelConfig?.background === "ocean") {
-      this.createOceanBackground();
     }
 
     this.beepSound = this.sound.add("beep", { volume: 0.3 }); // Low volume for countdown beeps
@@ -375,6 +379,9 @@ export default class HelixScene extends Phaser.Scene {
     // Touch controls: tap left half = rotate left, tap right half = rotate right
     // No drag needed - just hold to rotate continuously
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      // Ignore if clicking on ball selector button
+      if (this.ballSelectorClicked) return;
+      
       (this as any).touchSide =
         pointer.x < this.scale.width / 2 ? "left" : "right";
 
@@ -407,19 +414,19 @@ export default class HelixScene extends Phaser.Scene {
     // Load additional tracks in background - won't block gameplay
     this.load.audio(
       "music2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music2-e5yvNmydcY93DXLREewH08duLtpKHW.mp3?CqEO",
     );
     this.load.audio(
       "music3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/Music3-j3DjCMhHxGIB59oCtKifBJHGWlAs5V.mp3?4xTa",
     );
     this.load.audio(
       "chaos2",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos2-NLlm46zDRJmhhQCmVFqUmuUdabQZa6.mp3?K4pz",
     );
     this.load.audio(
       "chaos3",
-      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of"
+      "https://remix.gg/blob/13e738d9-e135-454e-9d2a-e456476a0c5e/chaos3-PAJHXFylcKGz6pSdO5MtPhfnz4v81n.mp3?J8of",
     );
 
     this.load.on("complete", () => {
@@ -560,7 +567,10 @@ export default class HelixScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
-    this.scoreContainer = this.add.container(width / 2, 80);
+    // Score position: use percentage of height for responsive layout
+    // ~7.4% from top on standard 2:3, scales naturally on taller screens
+    const scoreY = Math.round(height * 0.074);
+    this.scoreContainer = this.add.container(width / 2, scoreY);
 
     this.scoreText = this.add
       .text(0, 0, "0", {
@@ -600,7 +610,162 @@ export default class HelixScene extends Phaser.Scene {
     this.gameOverContainer.setVisible(false);
     this.gameOverContainer.setDepth(100);
 
-    // Game over container is now empty - SDK handles the game over UI
+    // Ball Selector Button (top-left corner)
+    this.createBallSelectorButton(width, height);
+  }
+
+  createBallSelectorButton(width: number, height: number) {
+    const btnSize = 70;
+    const margin = 14;
+
+    // Position at right side, upper-middle area
+    this.ballSelectorBtn = this.add.container(width - margin - btnSize / 2, height * 0.35);
+    this.ballSelectorBtn.setDepth(150);
+    this.ballSelectorBtn.setAlpha(0.9);
+
+    // Button background - clean dark style with border
+    const btnBg = this.add.graphics();
+    // Outer glow/border effect
+    btnBg.fillStyle(0x000000, 1);
+    btnBg.fillRoundedRect(-btnSize / 2 - 3, -btnSize / 2 - 3, btnSize + 6, btnSize + 6, 16);
+    // Inner dark background
+    btnBg.fillStyle(0x1a1a2e, 1);
+    btnBg.fillRoundedRect(-btnSize / 2, -btnSize / 2, btnSize, btnSize, 14);
+    // Subtle inner highlight
+    btnBg.lineStyle(2, 0x4a4a6a, 0.8);
+    btnBg.strokeRoundedRect(-btnSize / 2 + 2, -btnSize / 2 + 2, btnSize - 4, btnSize - 4, 12);
+    this.ballSelectorBtn.add(btnBg);
+
+    // Ball icon border (black circle behind)
+    const ballBorder = this.add.graphics();
+    ballBorder.fillStyle(0x000000, 1);
+    ballBorder.fillCircle(0, 0, 25);
+    this.ballSelectorBtn.add(ballBorder);
+
+    // Ball icon (preview of current ball)
+    this.ballPreviewGraphics = this.add.graphics();
+    this.drawBallPreview(this.ballPreviewGraphics, this.selectedBallStyle, 21);
+    this.ballSelectorBtn.add(this.ballPreviewGraphics);
+
+    // Interactive zone - prevent click from affecting tower rotation
+    const zone = this.add
+      .zone(0, 0, btnSize + 16, btnSize + 16)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        // Mark that this click is on the button, not for tower rotation
+        this.ballSelectorClicked = true;
+        pointer.event.stopPropagation();
+        if (this.isGameActive) {
+          this.cycleToNextBall();
+        }
+      })
+      .on("pointerup", () => {
+        // Reset flag after a short delay
+        this.time.delayedCall(50, () => {
+          this.ballSelectorClicked = false;
+        });
+      })
+      .on("pointerover", () => {
+        this.ballSelectorBtn.setAlpha(1);
+        this.tweens.add({
+          targets: this.ballSelectorBtn,
+          scale: 1.1,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.ballSelectorBtn.setAlpha(0.9);
+        this.ballSelectorClicked = false;
+        this.tweens.add({
+          targets: this.ballSelectorBtn,
+          scale: 1,
+          duration: 100,
+        });
+      });
+    this.ballSelectorBtn.add(zone);
+  }
+
+  cycleToNextBall() {
+    const allStyles = Object.keys(HelixScene.BALL_STYLES);
+    const currentIndex = allStyles.indexOf(this.selectedBallStyle);
+    const nextIndex = (currentIndex + 1) % allStyles.length;
+    const nextStyle = allStyles[nextIndex];
+
+    this.selectedBallStyle = nextStyle;
+
+    // Apply the new ball style immediately
+    this.applyBallStyle(this.testRank);
+
+    // Update the button preview
+    if (this.ballPreviewGraphics) {
+      this.drawBallPreview(this.ballPreviewGraphics, nextStyle, 18);
+    }
+
+    // Small bounce animation on the button
+    this.tweens.add({
+      targets: this.ballSelectorBtn,
+      scale: 1.25,
+      duration: 80,
+      yoyo: true,
+      ease: "Quad.easeOut",
+    });
+
+    // Save to localStorage
+    try {
+      localStorage.setItem("selectedBallStyle", nextStyle);
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }
+
+  drawBallPreview(graphics: Phaser.GameObjects.Graphics, styleKey: string, radius: number) {
+    graphics.clear();
+    const style = HelixScene.BALL_STYLES[styleKey] || HelixScene.BALL_STYLES.unranked;
+
+    // Draw ball based on style
+    switch (styleKey) {
+      case "remixer":
+        graphics.fillStyle(0xb7ff00, 1);
+        graphics.fillCircle(0, 0, radius);
+        break;
+      case "legend":
+        // Multi-color segments
+        const legendColors = [0xff9f43, 0xe91e8c, 0x00d2d3, 0xfeca57];
+        const segments = 8;
+        const segmentAngle = (Math.PI * 2) / segments;
+        for (let i = 0; i < segments; i++) {
+          const color = legendColors[i % legendColors.length];
+          graphics.fillStyle(color, 1);
+          graphics.slice(0, 0, radius, i * segmentAngle, (i + 1) * segmentAngle, false);
+          graphics.fillPath();
+        }
+        break;
+      case "master":
+        // Two-tone: orange/yellow
+        graphics.fillStyle(0xff6b35, 1);
+        graphics.slice(0, 0, radius, Math.PI, Math.PI * 2, false);
+        graphics.fillPath();
+        graphics.fillStyle(0xffd93d, 1);
+        graphics.slice(0, 0, radius, 0, Math.PI, false);
+        graphics.fillPath();
+        break;
+      case "pro":
+        // White with red dots
+        graphics.fillStyle(0xffffff, 1);
+        graphics.fillCircle(0, 0, radius);
+        graphics.fillStyle(0xff2222, 1);
+        graphics.fillCircle(-radius * 0.4, -radius * 0.3, radius * 0.25);
+        graphics.fillCircle(radius * 0.3, radius * 0.2, radius * 0.2);
+        break;
+      case "noob":
+        graphics.fillStyle(0x00d2d3, 1);
+        graphics.fillCircle(0, 0, radius);
+        break;
+      default:
+        graphics.fillStyle(0x2ecc71, 1);
+        graphics.fillCircle(0, 0, radius);
+        break;
+    }
   }
 
   resize(gameSize: Phaser.Structs.Size) {
@@ -622,35 +787,56 @@ export default class HelixScene extends Phaser.Scene {
     threeCanvas.style.width = rect.width + "px";
     threeCanvas.style.height = rect.height + "px";
     threeCanvas.style.zIndex = "0";
+
+    // Adjust UI elements for current aspect ratio
+    this.adjustUIForAspectRatio(width, height);
+  }
+
+  /**
+   * Adjust UI element positions based on current aspect ratio.
+   * On tall screens (9:16, 9:19.5) elements are pushed down slightly
+   * to avoid notch/status bar overlap and maintain visual balance.
+   */
+  private adjustUIForAspectRatio(width: number, height: number): void {
+    // Score container — keep at ~7.4% from top
+    if (this.scoreContainer) {
+      this.scoreContainer.setPosition(width / 2, Math.round(height * 0.074));
+    }
+
+    // Ball selector button — reposition to match new height
+    if (this.ballSelectorBtn) {
+      const btnSize = 70;
+      const margin = 14;
+      this.ballSelectorBtn.setPosition(
+        width - margin - btnSize / 2,
+        height * 0.35,
+      );
+    }
+
+    // Start overlay — redraw to cover full area
+    if (this.startOverlay && this.startOverlay.visible) {
+      this.startOverlay.clear();
+      this.startOverlay.fillStyle(0x000000, 0.8);
+      this.startOverlay.fillRect(0, 0, width, height);
+    }
+
+    // Start text — keep centered with offset
+    if (this.startText) {
+      this.startText.setPosition(width / 2, height / 2 - 180);
+    }
   }
 
   createPlatforms() {
     const platformCount = 80; // Reduced for mobile performance
 
-    console.log(
-      "🏗️ createPlatforms - isChaosMode:",
-      this.isChaosMode,
-      "customLevelConfig:",
-      this.customLevelConfig
-    );
+    console.log("🏗️ createPlatforms - isChaosMode:", this.isChaosMode);
 
     // Determine colors based on mode
     let colors: number[];
-    let customPalette: typeof HelixScene.LEVEL_PALETTES.classic | null = null;
 
     if (this.isChaosMode) {
       // Cyberpunk palette for Chaos mode (green, purple, yellow)
       colors = [0x00ff00, 0xff00ff, 0xffff00]; // Neon Green, Purple, Yellow
-    } else if (this.customLevelConfig) {
-      // Custom level palette - use all 3 colors
-      customPalette =
-        HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
-        HelixScene.LEVEL_PALETTES.classic;
-      colors = [
-        customPalette.color1,
-        customPalette.color2,
-        customPalette.color3,
-      ];
     } else {
       // Classic mode - use all 3 colors from classic palette
       const classicPalette = HelixScene.LEVEL_PALETTES.classic;
@@ -673,14 +859,14 @@ export default class HelixScene extends Phaser.Scene {
       // Dark purple/black tower for Chaos mode
       towerMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 10000, 16),
-        new THREE.MeshBasicMaterial({ color: 0x1a0a2e }) // Dark purple
+        new THREE.MeshBasicMaterial({ color: 0x1a0a2e }), // Dark purple
       );
     } else {
       // Barber pole style tower
       const barberTexture = this.createBarberPoleTexture();
       towerMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(2, 2, 10000, 16),
-        new THREE.MeshBasicMaterial({ map: barberTexture })
+        new THREE.MeshBasicMaterial({ map: barberTexture }),
       );
     }
     towerMesh.position.y = -4500; // Offset down so most is below Y=0
@@ -756,16 +942,16 @@ export default class HelixScene extends Phaser.Scene {
       for (const seg of solidSegments) {
         shape.moveTo(
           innerRadius * Math.cos(seg.start),
-          innerRadius * Math.sin(seg.start)
+          innerRadius * Math.sin(seg.start),
         );
         shape.lineTo(
           outerRadius * Math.cos(seg.start),
-          outerRadius * Math.sin(seg.start)
+          outerRadius * Math.sin(seg.start),
         );
         shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
         shape.lineTo(
           innerRadius * Math.cos(seg.end),
-          innerRadius * Math.sin(seg.end)
+          innerRadius * Math.sin(seg.end),
         );
         shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
       }
@@ -878,11 +1064,11 @@ export default class HelixScene extends Phaser.Scene {
               const dEnd = zoneStart + zoneSize;
               dangerShape.moveTo(
                 innerRadius * Math.cos(zoneStart),
-                innerRadius * Math.sin(zoneStart)
+                innerRadius * Math.sin(zoneStart),
               );
               dangerShape.lineTo(
                 outerRadius * Math.cos(zoneStart),
-                outerRadius * Math.sin(zoneStart)
+                outerRadius * Math.sin(zoneStart),
               );
               dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
               dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
@@ -890,12 +1076,10 @@ export default class HelixScene extends Phaser.Scene {
                 depth: this.platformThickness + 0.05,
                 bevelEnabled: false,
               });
-              // Danger color: Chaos mode neon red, custom palette, or default red
+              // Danger color: Chaos mode neon red or default red
               let dangerColor: number;
               if (this.isChaosMode) {
                 dangerColor = 0xff0044;
-              } else if (customPalette) {
-                dangerColor = customPalette.dangerZone;
               } else {
                 dangerColor = HelixScene.LEVEL_PALETTES.classic.dangerZone;
               }
@@ -988,7 +1172,7 @@ export default class HelixScene extends Phaser.Scene {
               0.15,
               0.15,
               0.8,
-              8
+              8,
             );
             const cylOutline = new THREE.Mesh(cylOutlineGeo, outlineMat);
             cylOutline.scale.set(1.2, 1.1, 1.2);
@@ -1008,7 +1192,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1028,7 +1212,23 @@ export default class HelixScene extends Phaser.Scene {
         moveSpeed: moveSpeed,
         isBlinking: isBlinking,
         blinkTime: Math.random() * 100, // Random start offset for blink cycle
+        blinkChildren: null as THREE.MeshBasicMaterial[] | null, // Cached for performance
       };
+
+      // Pre-cache child materials for blinking platforms (performance optimization)
+      if (isBlinking) {
+        const childMaterials: THREE.MeshBasicMaterial[] = [];
+        platform.traverse((child) => {
+          if (child !== platform && (child as THREE.Mesh).material) {
+            const childMat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+            if (childMat.opacity !== undefined) {
+              childMat.transparent = true;
+              childMaterials.push(childMat);
+            }
+          }
+        });
+        platform.userData.blinkChildren = childMaterials;
+      }
 
       this.tower.add(platform);
       this.platforms.push(platform);
@@ -1044,15 +1244,10 @@ export default class HelixScene extends Phaser.Scene {
 
   // Generate a single new platform at a specific Y position
   spawnNewPlatform(yPos: number) {
-    // Platform colors - based on mode (Chaos, custom palette, or default)
+    // Platform colors - based on mode (Chaos or Classic)
     let platformColors: number[];
     if (this.isChaosMode) {
       platformColors = [0x00ff00, 0xff00ff, 0xffff00]; // Neon Green, Purple, Yellow
-    } else if (this.customLevelConfig) {
-      const palette =
-        HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
-        HelixScene.LEVEL_PALETTES.classic;
-      platformColors = [palette.color1, palette.color2, palette.color3];
     } else {
       // Classic mode - use all 3 colors from classic palette
       const classicPalette = HelixScene.LEVEL_PALETTES.classic;
@@ -1132,16 +1327,16 @@ export default class HelixScene extends Phaser.Scene {
     for (const seg of solidSegments) {
       shape.moveTo(
         innerRadius * Math.cos(seg.start),
-        innerRadius * Math.sin(seg.start)
+        innerRadius * Math.sin(seg.start),
       );
       shape.lineTo(
         outerRadius * Math.cos(seg.start),
-        outerRadius * Math.sin(seg.start)
+        outerRadius * Math.sin(seg.start),
       );
       shape.absarc(0, 0, outerRadius, seg.start, seg.end, false);
       shape.lineTo(
         innerRadius * Math.cos(seg.end),
-        innerRadius * Math.sin(seg.end)
+        innerRadius * Math.sin(seg.end),
       );
       shape.absarc(0, 0, innerRadius, seg.end, seg.start, true);
     }
@@ -1252,11 +1447,11 @@ export default class HelixScene extends Phaser.Scene {
             const dEnd = zoneStart + zoneSize;
             dangerShape.moveTo(
               innerRadius * Math.cos(zoneStart),
-              innerRadius * Math.sin(zoneStart)
+              innerRadius * Math.sin(zoneStart),
             );
             dangerShape.lineTo(
               outerRadius * Math.cos(zoneStart),
-              outerRadius * Math.sin(zoneStart)
+              outerRadius * Math.sin(zoneStart),
             );
             dangerShape.absarc(0, 0, outerRadius, zoneStart, dEnd, false);
             dangerShape.absarc(0, 0, innerRadius, dEnd, zoneStart, true);
@@ -1264,15 +1459,10 @@ export default class HelixScene extends Phaser.Scene {
               depth: this.platformThickness + 0.05,
               bevelEnabled: false,
             });
-            // Danger color: Chaos mode neon red, custom palette, or default red
+            // Danger color: Chaos mode neon red or default red
             let dangerColor: number;
             if (this.isChaosMode) {
               dangerColor = 0xff0044;
-            } else if (this.customLevelConfig) {
-              const palette =
-                HelixScene.LEVEL_PALETTES[this.customLevelConfig.palette] ||
-                HelixScene.LEVEL_PALETTES.classic;
-              dangerColor = palette.dangerZone;
             } else {
               dangerColor = HelixScene.LEVEL_PALETTES.classic.dangerZone;
             }
@@ -1327,7 +1517,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1377,7 +1567,7 @@ export default class HelixScene extends Phaser.Scene {
           group.position.set(
             Math.cos(worldAngle) * radius,
             betweenY,
-            Math.sin(worldAngle) * radius
+            Math.sin(worldAngle) * radius,
           );
 
           group.scale.set(1.2, 1.2, 1.2);
@@ -1406,7 +1596,23 @@ export default class HelixScene extends Phaser.Scene {
       moveSpeed: moveSpeed,
       isBlinking: isBlinking,
       blinkTime: Math.random() * 100,
+      blinkChildren: null as THREE.MeshBasicMaterial[] | null, // Cached for performance
     };
+
+    // Pre-cache child materials for blinking platforms (performance optimization)
+    if (isBlinking) {
+      const childMaterials: THREE.MeshBasicMaterial[] = [];
+      platform.traverse((child) => {
+        if (child !== platform && (child as THREE.Mesh).material) {
+          const childMat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          if (childMat.opacity !== undefined) {
+            childMat.transparent = true;
+            childMaterials.push(childMat);
+          }
+        }
+      });
+      platform.userData.blinkChildren = childMaterials;
+    }
 
     this.tower.add(platform);
     this.platforms.push(platform);
@@ -1415,6 +1621,14 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   restartGame() {
+    // Clean up Game Over UI elements
+    this.gameOverUIElements.forEach((element) => {
+      if (element && element.destroy) {
+        element.destroy();
+      }
+    });
+    this.gameOverUIElements = [];
+
     // Audio Reset
     if (this.currentMusic) {
       this.currentMusic.stop();
@@ -1488,6 +1702,13 @@ export default class HelixScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (!this.isGameActive) return;
 
+    // Pause game logic when ball selector is open
+    if (this.isBallSelectorOpen) {
+      // Still render the scene but don't update physics
+      this.threeRenderer.render(this.threeScene, this.camera);
+      return;
+    }
+
     // Frame-independent delta multiplier (normalized to 60 FPS)
     // At 60 FPS: delta ≈ 16.67ms, so deltaMultiplier ≈ 1.0
     // At 30 FPS: delta ≈ 33.33ms, so deltaMultiplier ≈ 2.0
@@ -1544,15 +1765,9 @@ export default class HelixScene extends Phaser.Scene {
         this.camera.position.y += (targetY - this.camera.position.y) * 0.1;
         this.camera.lookAt(0, this.camera.position.y - 6, 0);
 
-        // Keep backgrounds following camera during countdown too
-        if (this.cyberpunkGrid) {
+        // Keep cyberpunk grid following camera during countdown (Chaos mode)
+        if (this.cyberpunkGrid && this.isChaosMode) {
           this.cyberpunkGrid.position.y = this.camera.position.y;
-        }
-        if (this.sunsetBackground) {
-          this.sunsetBackground.position.y = this.camera.position.y;
-        }
-        if (this.oceanBackground) {
-          this.oceanBackground.position.y = this.camera.position.y;
         }
 
         this.threeRenderer.render(this.threeScene, this.camera);
@@ -1586,7 +1801,9 @@ export default class HelixScene extends Phaser.Scene {
     }
 
     // Update Platforms (Movement & Blinking) - frame-independent
-    for (const platform of this.platforms) {
+    for (let i = 0, len = this.platforms.length; i < len; i++) {
+      const platform = this.platforms[i];
+      
       if (platform.userData.isMoving) {
         platform.rotation.z += platform.userData.moveSpeed * deltaMultiplier;
         // Keep rotationOffset in sync [0, 2PI]
@@ -1606,22 +1823,19 @@ export default class HelixScene extends Phaser.Scene {
           (Math.sin(platform.userData.blinkTime * blinkFrequency) + 1) / 2;
         const finalOpacity = 0.1 + opacity * 0.9;
 
-        // Set material opacity for platform and ALL children (danger zones, outlines)
+        // Set material opacity for platform
         const material = platform.material as THREE.MeshBasicMaterial;
         material.opacity = finalOpacity;
         material.transparent = true;
 
-        // Apply opacity to all children (danger zones, outline)
-        platform.traverse((child) => {
-          if (child !== platform && (child as THREE.Mesh).material) {
-            const childMat = (child as THREE.Mesh)
-              .material as THREE.MeshBasicMaterial;
-            if (childMat.opacity !== undefined) {
-              childMat.transparent = true;
-              childMat.opacity = finalOpacity;
-            }
+        // Apply opacity to cached children (danger zones, outline) - avoid traverse
+        const blinkChildren = platform.userData.blinkChildren;
+        if (blinkChildren) {
+          for (let j = 0, cLen = blinkChildren.length; j < cLen; j++) {
+            const childMat = blinkChildren[j];
+            childMat.opacity = finalOpacity;
           }
-        });
+        }
 
         // Track visibility state for collision
         platform.userData.isCurrentlyVisible = opacity > 0.4;
@@ -1666,19 +1880,22 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Chaos Mode Trail Effect - Smooth glowing neon trail
+    // Chaos Mode Trail Effect - Smooth glowing neon trail (throttled)
     if (this.isChaosMode && this.isGameActive && !this.isGameStarting) {
-      // Create trail particles more frequently for smooth effect
-      if (Math.random() > 0.3) {
+      const now = time;
+      // Throttle trail creation to max ~20 per second instead of every frame
+      // Also limit max particles to prevent memory issues
+      if (now - this.lastTrailTime > 50 && this.particles.length < 60) {
+        this.lastTrailTime = now;
+        
         // Neon trail colors matching cyberpunk theme
         const chaosTrailColors = [0x00ff00, 0xff00ff, 0xffff00, 0x00ffff]; // Green, Magenta, Yellow, Cyan
         const trailColor =
           chaosTrailColors[Math.floor(Math.random() * chaosTrailColors.length)];
 
-        // Create smooth glowing sprite trail instead of spheres
-        const trailTexture = this.createGlowTexture();
+        // Create smooth glowing sprite trail - use cached texture
         const trailMat = new THREE.SpriteMaterial({
-          map: trailTexture,
+          map: this.cachedGlowTexture,
           color: trailColor,
           transparent: true,
           opacity: 0.6,
@@ -1700,226 +1917,14 @@ export default class HelixScene extends Phaser.Scene {
       }
     }
 
-    // Custom Level Trail Effect - Enhanced with unique styles per trail type
-    if (
-      !this.isChaosMode &&
-      this.customLevelConfig &&
-      this.customLevelConfig.trail !== "none" &&
-      this.isGameActive &&
-      !this.isGameStarting
-    ) {
-      const trailType = this.customLevelConfig.trail;
-      const trailColors =
-        HelixScene.TRAIL_COLORS[trailType] || HelixScene.TRAIL_COLORS.fire;
-
-      if (trailColors.length > 0) {
-        // Different behavior per trail type
-        switch (trailType) {
-          case "fire":
-            // Fire: multiple particles rising with spread, flickering
-            if (Math.random() > 0.25) {
-              for (let i = 0; i < 3; i++) {
-                const trailColor =
-                  trailColors[Math.floor(Math.random() * trailColors.length)];
-                const trailTexture = this.createGlowTexture();
-                const trailMat = new THREE.SpriteMaterial({
-                  map: trailTexture,
-                  color: trailColor,
-                  transparent: true,
-                  opacity: 0.7 + Math.random() * 0.3,
-                  blending: THREE.AdditiveBlending,
-                  depthWrite: false,
-                });
-                const trail = new THREE.Sprite(trailMat);
-                const size = 0.4 + Math.random() * 0.4;
-                trail.scale.set(size, size, 1);
-                trail.position.copy(this.ball.position);
-                // Spread around the ball
-                trail.position.x += (Math.random() - 0.5) * 0.5;
-                trail.position.z += (Math.random() - 0.5) * 0.5;
-                trail.position.y += Math.random() * 0.2;
-
-                this.threeScene.add(trail);
-                this.particles.push({
-                  mesh: trail,
-                  velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.03,
-                    0.02 + Math.random() * 0.02,
-                    (Math.random() - 0.5) * 0.03
-                  ),
-                  life: 0.4 + Math.random() * 0.3,
-                });
-              }
-            }
-            break;
-
-          case "neon":
-            // Neon: bouncing dots that spread outward in bursts
-            if (Math.random() > 0.35) {
-              const numDots = 2 + Math.floor(Math.random() * 2);
-              for (let i = 0; i < numDots; i++) {
-                const angle = (i / numDots) * Math.PI * 2 + Math.random() * 0.5;
-                const trailColor =
-                  trailColors[Math.floor(Math.random() * trailColors.length)];
-                const trailTexture = this.createGlowTexture();
-                const trailMat = new THREE.SpriteMaterial({
-                  map: trailTexture,
-                  color: trailColor,
-                  transparent: true,
-                  opacity: 0.8,
-                  blending: THREE.AdditiveBlending,
-                  depthWrite: false,
-                });
-                const trail = new THREE.Sprite(trailMat);
-                const size = 0.3 + Math.random() * 0.25;
-                trail.scale.set(size, size, 1);
-                trail.position.copy(this.ball.position);
-                // Start from ball surface
-                const spread = 0.25;
-                trail.position.x += Math.cos(angle) * spread;
-                trail.position.z += Math.sin(angle) * spread;
-
-                this.threeScene.add(trail);
-                this.particles.push({
-                  mesh: trail,
-                  velocity: new THREE.Vector3(
-                    Math.cos(angle) * 0.04,
-                    0.01 + Math.random() * 0.02,
-                    Math.sin(angle) * 0.04
-                  ),
-                  life: 0.35 + Math.random() * 0.2,
-                });
-              }
-            }
-            break;
-
-          case "frost":
-            // Frost/Ice: subtle icy particles around the ball
-            if (Math.random() > 0.5) {
-              // Less frequent
-              const numFlakes = 2 + Math.floor(Math.random() * 2); // 2-3 particles
-              for (let i = 0; i < numFlakes; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const trailColor =
-                  trailColors[Math.floor(Math.random() * trailColors.length)];
-
-                const trailTexture = this.createGlowTexture();
-                const trailMat = new THREE.SpriteMaterial({
-                  map: trailTexture,
-                  color: trailColor,
-                  transparent: true,
-                  opacity: 0.7 + Math.random() * 0.2, // Softer opacity
-                  blending: THREE.AdditiveBlending,
-                  depthWrite: false,
-                });
-                const trail = new THREE.Sprite(trailMat);
-                // Smaller, subtler sizes
-                const size = 0.2 + Math.random() * 0.25;
-                trail.scale.set(size, size, 1);
-                trail.position.copy(this.ball.position);
-                // Gentle spread around the ball
-                const spread = 0.2 + Math.random() * 0.15;
-                trail.position.x += Math.cos(angle) * spread;
-                trail.position.z += Math.sin(angle) * spread;
-                trail.position.y += Math.random() * 0.15;
-
-                this.threeScene.add(trail);
-                this.particles.push({
-                  mesh: trail,
-                  velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.015, // Gentler movement
-                    0.015 + Math.random() * 0.01,
-                    (Math.random() - 0.5) * 0.015
-                  ),
-                  life: 0.4 + Math.random() * 0.2, // Shorter life
-                });
-              }
-            }
-            break;
-
-          case "rainbow":
-            // Rainbow: colorful spiral/ring emanating outward
-            if (Math.random() > 0.3) {
-              const numParticles = 4;
-              const baseAngle = Date.now() * 0.01; // Rotating pattern
-              for (let i = 0; i < numParticles; i++) {
-                const angle = baseAngle + (i / numParticles) * Math.PI * 2;
-                const trailColor = trailColors[i % trailColors.length];
-                const trailTexture = this.createGlowTexture();
-                const trailMat = new THREE.SpriteMaterial({
-                  map: trailTexture,
-                  color: trailColor,
-                  transparent: true,
-                  opacity: 0.75,
-                  blending: THREE.AdditiveBlending,
-                  depthWrite: false,
-                });
-                const trail = new THREE.Sprite(trailMat);
-                const size = 0.35 + Math.random() * 0.2;
-                trail.scale.set(size, size, 1);
-                trail.position.copy(this.ball.position);
-                // Spiral outward
-                const startDist = 0.2;
-                trail.position.x += Math.cos(angle) * startDist;
-                trail.position.z += Math.sin(angle) * startDist;
-
-                this.threeScene.add(trail);
-                this.particles.push({
-                  mesh: trail,
-                  velocity: new THREE.Vector3(
-                    Math.cos(angle) * 0.05,
-                    0.015,
-                    Math.sin(angle) * 0.05
-                  ),
-                  life: 0.45 + Math.random() * 0.2,
-                });
-              }
-            }
-            break;
-
-          default:
-            // Fallback: simple spread
-            if (Math.random() > 0.4) {
-              const trailColor =
-                trailColors[Math.floor(Math.random() * trailColors.length)];
-              const trailTexture = this.createGlowTexture();
-              const trailMat = new THREE.SpriteMaterial({
-                map: trailTexture,
-                color: trailColor,
-                transparent: true,
-                opacity: 0.5,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-              });
-              const trail = new THREE.Sprite(trailMat);
-              trail.scale.set(0.5, 0.5, 1);
-              trail.position.copy(this.ball.position);
-              trail.position.x += (Math.random() - 0.5) * 0.4;
-              trail.position.z += (Math.random() - 0.5) * 0.4;
-              trail.position.y += 0.1;
-
-              this.threeScene.add(trail);
-              this.particles.push({
-                mesh: trail,
-                velocity: new THREE.Vector3(
-                  (Math.random() - 0.5) * 0.02,
-                  0.01,
-                  (Math.random() - 0.5) * 0.02
-                ),
-                life: 0.4,
-              });
-            }
-        }
-      }
-    }
-
     // Physics (frame-independent)
     if (this.isSuperSmash) {
       this.ballVelocity = -0.8; // Fixed velocity for super smash (not affected by delta)
 
-      // Trail Effect - Reduced frequency for mobile (adjusted for frame rate)
-      if (Math.random() > 0.7 / deltaMultiplier) {
-        const trailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+      // Trail Effect - Throttled for performance (use cached geometry)
+      const now = time;
+      if (now - this.lastTrailTime > 40 && this.particles.length < 60) { // ~25 trails per second max, limit total
+        this.lastTrailTime = now;
 
         // Get color based on current ball material
         const materialToCheck = this.ball.material;
@@ -1946,7 +1951,7 @@ export default class HelixScene extends Phaser.Scene {
         }
 
         const trailMat = new THREE.MeshBasicMaterial({ color: trailColor });
-        const trail = new THREE.Mesh(trailGeo, trailMat);
+        const trail = new THREE.Mesh(this.cachedTrailGeometry, trailMat);
         trail.position.copy(this.ball.position);
         trail.position.y += 0.5;
         this.threeScene.add(trail);
@@ -2116,7 +2121,7 @@ export default class HelixScene extends Phaser.Scene {
                     this.ball.position.y,
                     0x00ffff,
                     12,
-                    true
+                    true,
                   );
 
                   // Remove shield visual
@@ -2159,17 +2164,23 @@ export default class HelixScene extends Phaser.Scene {
       this.ballAura.scale.set(scale, scale, 1);
     }
 
-    // Electric Sparks for Remixer (only when using remixerMaterial)
-    if (this.ball.material === this.remixerMaterial && Math.random() > 0.85) {
-      this.createElectricSpark();
+    // Electric Sparks for Remixer (throttled for performance)
+    if (this.ball.material === this.remixerMaterial) {
+      if (time - this.lastSparkTime > 100 && this.electricSparks.length < 15) { // Max 10 sparks per second, max 15 total
+        this.lastSparkTime = time;
+        this.createElectricSpark();
+      }
     }
 
-    // Fire Trail for Gravity Master (only when using masterMaterial)
-    if (this.ball.material === this.masterMaterial && Math.random() > 0.7) {
-      this.createFireTrail();
+    // Fire Trail for Gravity Master (throttled for performance)
+    if (this.ball.material === this.masterMaterial) {
+      if (time - this.lastFireTime > 80 && this.particles.length < 60) { // Max ~12 fire particles per second
+        this.lastFireTime = time;
+        this.createFireTrail();
+      }
     }
 
-    // Update and remove old sparks
+    // Update and remove old sparks (batch removal)
     for (let i = this.electricSparks.length - 1; i >= 0; i--) {
       const spark = this.electricSparks[i];
       const material = spark.material as THREE.LineBasicMaterial;
@@ -2183,28 +2194,9 @@ export default class HelixScene extends Phaser.Scene {
 
     // Keep backgrounds following camera Y position (only after game starts, not during countdown)
     if (!this.isGameStarting) {
-      // Keep cyberpunk grid following camera Y position
-      if (
-        this.cyberpunkGrid &&
-        (this.isChaosMode || this.customLevelConfig?.background === "cyberpunk")
-      ) {
+      // Keep cyberpunk grid following camera Y position (Chaos mode only)
+      if (this.cyberpunkGrid && this.isChaosMode) {
         this.cyberpunkGrid.position.y = this.camera.position.y;
-      }
-
-      // Keep sunset background following camera Y position
-      if (
-        this.sunsetBackground &&
-        this.customLevelConfig?.background === "sunset"
-      ) {
-        this.sunsetBackground.position.y = this.camera.position.y;
-      }
-
-      // Keep ocean background following camera Y position
-      if (
-        this.oceanBackground &&
-        this.customLevelConfig?.background === "ocean"
-      ) {
-        this.oceanBackground.position.y = this.camera.position.y;
       }
     }
 
@@ -2361,8 +2353,9 @@ export default class HelixScene extends Phaser.Scene {
   private unlockAudioContext() {
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2382,8 +2375,9 @@ export default class HelixScene extends Phaser.Scene {
 
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2474,8 +2468,9 @@ export default class HelixScene extends Phaser.Scene {
 
     if (!this.audioContext) {
       try {
-        this.audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        this.audioContext = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
         this.masterGain = this.audioContext.createGain();
         this.masterGain.connect(this.audioContext.destination);
       } catch (e) {
@@ -2559,7 +2554,7 @@ export default class HelixScene extends Phaser.Scene {
       const geometry1 = new THREE.BufferGeometry().setFromPoints(points1);
       const line1 = new THREE.Line(
         geometry1,
-        i % 8 === 0 ? gridMaterial : gridMaterial2
+        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
       this.cyberpunkGrid.add(line1);
 
@@ -2571,7 +2566,7 @@ export default class HelixScene extends Phaser.Scene {
       const geometry2 = new THREE.BufferGeometry().setFromPoints(points2);
       const line2 = new THREE.Line(
         geometry2,
-        i % 8 === 0 ? gridMaterial : gridMaterial2
+        i % 8 === 0 ? gridMaterial : gridMaterial2,
       );
       this.cyberpunkGrid.add(line2);
     }
@@ -2853,13 +2848,12 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   createFireTrail() {
-    // Create small fire particles behind the ball
-    const texture = this.createGlowTexture();
+    // Create small fire particles behind the ball - use cached texture
     const colors = [0xff6b35, 0xffd93d, 0xff4500]; // Red-orange, Yellow, Orange-red
     const color = colors[Math.floor(Math.random() * colors.length)];
 
     const material = new THREE.SpriteMaterial({
-      map: texture,
+      map: this.cachedGlowTexture,
       color: color,
       transparent: true,
       opacity: 0.8,
@@ -2882,7 +2876,7 @@ export default class HelixScene extends Phaser.Scene {
       velocity: new THREE.Vector3(
         (Math.random() - 0.5) * 0.05,
         0.1 + Math.random() * 0.1,
-        (Math.random() - 0.5) * 0.05
+        (Math.random() - 0.5) * 0.05,
       ),
       life: 0.6,
     });
@@ -2965,7 +2959,7 @@ export default class HelixScene extends Phaser.Scene {
     yPos: number,
     color: number,
     count: number,
-    hasShockwave: boolean = true
+    hasShockwave: boolean = true,
   ) {
     const texture = this.createGlowTexture();
     const material = new THREE.SpriteMaterial({
@@ -2985,7 +2979,7 @@ export default class HelixScene extends Phaser.Scene {
       sprite.position.set(
         Math.cos(worldAngle) * radius,
         yPos,
-        Math.sin(worldAngle) * radius
+        Math.sin(worldAngle) * radius,
       );
 
       const scale = 0.5 + Math.random() * 0.5;
@@ -2994,7 +2988,7 @@ export default class HelixScene extends Phaser.Scene {
       const velocity = new THREE.Vector3(
         (Math.random() - 0.5) * 0.5,
         (Math.random() - 0.5) * 0.5,
-        (Math.random() - 0.5) * 0.5
+        (Math.random() - 0.5) * 0.5,
       );
 
       this.threeScene.add(sprite);
@@ -3058,63 +3052,389 @@ export default class HelixScene extends Phaser.Scene {
     // Haptic feedback on death
     this.triggerHapticFeedback();
 
-    // Save high score to game state and call SDK gameOver
+    // Save high score and show game over UI
     this.saveHighScoreAndGameOver();
   }
 
   async saveHighScoreAndGameOver() {
-    const sdk = window.FarcadeSDK;
     const finalScore = this.score;
 
-    // CRITICAL: Call gameOver FIRST to ensure SDK shows play_again screen
-    // This must happen before any async operations that might hang on iOS
-    if ((sdk?.singlePlayer?.actions as any)?.gameOver) {
-      (sdk.singlePlayer.actions as any).gameOver({ score: finalScore });
-      console.log("🎮 GameOver called with score:", finalScore);
-    }
-
-    // Now try to save high score in the background (non-blocking)
+    // Save high score to localStorage
     try {
-      let currentHighScore = 0;
-      if (sdk?.singlePlayer?.actions?.ready) {
-        const gameInfo = await sdk.singlePlayer.actions.ready();
-        const savedHighScore = (gameInfo?.initialGameState?.gameState as any)
-          ?.highScore;
-        currentHighScore =
-          typeof savedHighScore === "number" ? savedHighScore : 0;
-      }
-
-      const newHighScore = Math.max(currentHighScore, finalScore);
-
-      if (sdk?.singlePlayer?.actions?.saveGameState) {
-        // Get current ball style to preserve it
-        let currentBallStyle = "unranked";
-        try {
-          const gameInfo = await sdk.singlePlayer.actions.ready();
-          currentBallStyle =
-            (gameInfo?.initialGameState?.gameState as any)?.selectedBallStyle ||
-            "unranked";
-        } catch (e) {
-          // Ignore
-        }
-
-        await sdk.singlePlayer.actions.saveGameState({
-          gameState: {
-            hasSeenTutorial: true,
-            highScore: newHighScore,
-            selectedBallStyle: currentBallStyle,
-          },
-        });
-        console.log(
-          "💾 High Score saved:",
-          newHighScore,
-          "Ball style preserved:",
-          currentBallStyle
-        );
-      }
+      const savedHighScore = parseInt(
+        localStorage.getItem("highScore") || "0",
+        10,
+      );
+      const newHighScore = Math.max(savedHighScore, finalScore);
+      localStorage.setItem("highScore", newHighScore.toString());
+      console.log("💾 High Score saved to localStorage:", newHighScore);
     } catch (error) {
       console.log("Could not save high score:", error);
     }
+
+    // Show game over UI
+    this.showGameOverUI(finalScore);
+  }
+
+  getScoreMessage(score: number): { text: string; color: string } {
+    if (score >= 1000) return { text: "LEGENDARY!", color: "#FFD700" };
+    if (score >= 750) return { text: "INCREDIBLE!", color: "#FF6B6B" };
+    if (score >= 500) return { text: "AMAZING RUN!", color: "#9B59B6" };
+    if (score >= 300) return { text: "GREAT JOB!", color: "#3498DB" };
+    if (score >= 150) return { text: "NOT BAD!", color: "#2ECC71" };
+    if (score >= 50) return { text: "KEEP PRACTICING!", color: "#F39C12" };
+    if (score >= 20) return { text: "OUCH!", color: "#E74C3C" };
+    return { text: "TRY AGAIN!", color: "#95A5A6" };
+  }
+
+  showGameOverUI(finalScore: number) {
+    // Clear any previous UI elements
+    this.gameOverUIElements.forEach((el) => el?.destroy?.());
+    this.gameOverUIElements = [];
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    // Semi-transparent overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.85);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setDepth(200);
+    this.gameOverUIElements.push(overlay);
+
+    // Game Over text
+    const gameOverText = this.add
+      .text(width / 2, height * 0.22, "GAME OVER", {
+        fontSize: "58px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 8,
+      })
+      .setOrigin(0.5)
+      .setDepth(201);
+    this.gameOverUIElements.push(gameOverText);
+
+    // Animate game over text
+    this.tweens.add({
+      targets: gameOverText,
+      scale: { from: 0.5, to: 1 },
+      duration: 400,
+      ease: "Back.easeOut",
+    });
+
+    // Score text - BIGGER
+    const scoreText = this.add
+      .text(width / 2, height * 0.38, `${finalScore}`, {
+        fontSize: "110px",
+        color: "#FFD700",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 12,
+      })
+      .setOrigin(0.5)
+      .setDepth(201);
+    this.gameOverUIElements.push(scoreText);
+
+    // Score label
+    const scoreLabel = this.add
+      .text(width / 2, height * 0.48, "POINTS", {
+        fontSize: "24px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(201);
+    this.gameOverUIElements.push(scoreLabel);
+
+    // Animate score counting up
+    let displayScore = 0;
+    this.tweens.addCounter({
+      from: 0,
+      to: finalScore,
+      duration: 800,
+      ease: "Power2",
+      onUpdate: (tween: Phaser.Tweens.Tween) => {
+        displayScore = Math.floor(tween.getValue() ?? 0);
+        scoreText.setText(`${displayScore}`);
+      },
+    });
+
+    // Message based on score - without icons
+    const message = this.getScoreMessage(finalScore);
+    const messageText = this.add
+      .text(width / 2, height * 0.57, message.text, {
+        fontSize: "32px",
+        color: message.color,
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setDepth(201)
+      .setAlpha(0);
+    this.gameOverUIElements.push(messageText);
+
+    // Animate message
+    this.tweens.add({
+      targets: messageText,
+      alpha: 1,
+      y: { from: height * 0.6, to: height * 0.57 },
+      duration: 500,
+      delay: 600,
+      ease: "Power2",
+    });
+
+    // Show high score if it's a new record
+    if (finalScore > this.playerHighScore && finalScore > 0) {
+      const newRecordText = this.add
+        .text(width / 2, height * 0.65, "NEW HIGH SCORE!", {
+          fontSize: "26px",
+          color: "#FFD700",
+          fontFamily: "Fredoka",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5)
+        .setDepth(201);
+      this.gameOverUIElements.push(newRecordText);
+
+      // Pulsing animation for new record
+      this.tweens.add({
+        targets: newRecordText,
+        scale: { from: 1, to: 1.1 },
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    }
+
+    // Buttons in ROW
+    const btnWidth = 140;
+    const btnHeight = 55;
+    const btnY = height * 0.8;
+    const btnSpacing = 15;
+
+    // RETRY button (left)
+    const retryX = width / 2 - btnWidth / 2 - btnSpacing;
+    const retryBg = this.add.graphics();
+    retryBg.fillStyle(0x000000, 1);
+    retryBg.fillRoundedRect(
+      retryX - btnWidth / 2 - 4,
+      btnY - btnHeight / 2 - 4,
+      btnWidth + 8,
+      btnHeight + 8,
+      16,
+    );
+    retryBg.fillStyle(0x2ecc71, 1);
+    retryBg.fillRoundedRect(
+      retryX - btnWidth / 2,
+      btnY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      14,
+    );
+    retryBg.setDepth(201);
+    retryBg.setAlpha(0);
+    this.gameOverUIElements.push(retryBg);
+
+    const retryText = this.add
+      .text(retryX, btnY, "RETRY", {
+        fontSize: "26px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(202)
+      .setAlpha(0);
+    this.gameOverUIElements.push(retryText);
+
+    // HOME button (right)
+    const homeX = width / 2 + btnWidth / 2 + btnSpacing;
+    const homeBg = this.add.graphics();
+    homeBg.fillStyle(0x000000, 1);
+    homeBg.fillRoundedRect(
+      homeX - btnWidth / 2 - 4,
+      btnY - btnHeight / 2 - 4,
+      btnWidth + 8,
+      btnHeight + 8,
+      16,
+    );
+    homeBg.fillStyle(0x3498db, 1);
+    homeBg.fillRoundedRect(
+      homeX - btnWidth / 2,
+      btnY - btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      14,
+    );
+    homeBg.setDepth(201);
+    homeBg.setAlpha(0);
+    this.gameOverUIElements.push(homeBg);
+
+    const homeText = this.add
+      .text(homeX, btnY, "HOME", {
+        fontSize: "26px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(202)
+      .setAlpha(0);
+    this.gameOverUIElements.push(homeText);
+
+    // Animate buttons appearing
+    this.tweens.add({
+      targets: [retryBg, retryText, homeBg, homeText],
+      alpha: 1,
+      duration: 400,
+      delay: 1000,
+      ease: "Power2",
+    });
+
+    // RETRY button interactive
+    const retryHit = this.add.rectangle(
+      retryX,
+      btnY,
+      btnWidth,
+      btnHeight,
+      0x000000,
+      0,
+    );
+    retryHit.setDepth(203);
+    retryHit.setInteractive({ useHandCursor: true });
+    this.gameOverUIElements.push(retryHit);
+
+    retryHit.on("pointerdown", () => {
+      this.restartGame();
+    });
+
+    retryHit.on("pointerover", () => {
+      retryBg.clear();
+      retryBg.fillStyle(0x000000, 1);
+      retryBg.fillRoundedRect(
+        retryX - btnWidth / 2 - 4,
+        btnY - btnHeight / 2 - 4,
+        btnWidth + 8,
+        btnHeight + 8,
+        16,
+      );
+      retryBg.fillStyle(0x27ae60, 1);
+      retryBg.fillRoundedRect(
+        retryX - btnWidth / 2,
+        btnY - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        14,
+      );
+      this.tweens.add({ targets: retryText, scale: 1.05, duration: 100 });
+    });
+
+    retryHit.on("pointerout", () => {
+      retryBg.clear();
+      retryBg.fillStyle(0x000000, 1);
+      retryBg.fillRoundedRect(
+        retryX - btnWidth / 2 - 4,
+        btnY - btnHeight / 2 - 4,
+        btnWidth + 8,
+        btnHeight + 8,
+        16,
+      );
+      retryBg.fillStyle(0x2ecc71, 1);
+      retryBg.fillRoundedRect(
+        retryX - btnWidth / 2,
+        btnY - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        14,
+      );
+      this.tweens.add({ targets: retryText, scale: 1, duration: 100 });
+    });
+
+    // HOME button interactive
+    const homeHit = this.add.rectangle(
+      homeX,
+      btnY,
+      btnWidth,
+      btnHeight,
+      0x000000,
+      0,
+    );
+    homeHit.setDepth(203);
+    homeHit.setInteractive({ useHandCursor: true });
+    this.gameOverUIElements.push(homeHit);
+
+    homeHit.on("pointerdown", () => {
+      this.goToHome();
+    });
+
+    homeHit.on("pointerover", () => {
+      homeBg.clear();
+      homeBg.fillStyle(0x000000, 1);
+      homeBg.fillRoundedRect(
+        homeX - btnWidth / 2 - 4,
+        btnY - btnHeight / 2 - 4,
+        btnWidth + 8,
+        btnHeight + 8,
+        16,
+      );
+      homeBg.fillStyle(0x2980b9, 1);
+      homeBg.fillRoundedRect(
+        homeX - btnWidth / 2,
+        btnY - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        14,
+      );
+      this.tweens.add({ targets: homeText, scale: 1.05, duration: 100 });
+    });
+
+    homeHit.on("pointerout", () => {
+      homeBg.clear();
+      homeBg.fillStyle(0x000000, 1);
+      homeBg.fillRoundedRect(
+        homeX - btnWidth / 2 - 4,
+        btnY - btnHeight / 2 - 4,
+        btnWidth + 8,
+        btnHeight + 8,
+        16,
+      );
+      homeBg.fillStyle(0x3498db, 1);
+      homeBg.fillRoundedRect(
+        homeX - btnWidth / 2,
+        btnY - btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        14,
+      );
+      this.tweens.add({ targets: homeText, scale: 1, duration: 100 });
+    });
+  }
+
+  goToHome() {
+    // Clean up Three.js resources
+    if (this.threeCanvas) {
+      this.threeCanvas.remove();
+    }
+    if (this.threeRenderer) {
+      this.threeRenderer.dispose();
+    }
+    // Go back to start scene
+    this.scene.start("StartScene");
   }
 
   destroyPlatform(platform: THREE.Mesh, index: number) {
@@ -3249,28 +3569,13 @@ export default class HelixScene extends Phaser.Scene {
   }
 
   setupSDKListeners() {
-    const sdk = window.FarcadeSDK;
-    if (!sdk) return;
-
-    // Handle play again requests from SDK
-    sdk.on("play_again", () => {
-      this.restartGame();
-    });
-
-    // Handle mute/unmute from SDK
-    sdk.on("toggle_mute", (data: any) => {
-      this.isMuted = data.isMuted;
-      this.sound.mute = this.isMuted;
-      // Also mute procedural audio via masterGain
-      if (this.masterGain) {
-        this.masterGain.gain.value = this.isMuted ? 0 : 1;
-      }
-    });
+    // SDK removed - no listeners needed
   }
 
   triggerHapticFeedback() {
-    if (window.FarcadeSDK?.singlePlayer?.actions?.hapticFeedback) {
-      window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+    // Use native vibration API if available
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
     }
   }
 
@@ -3292,7 +3597,7 @@ export default class HelixScene extends Phaser.Scene {
 
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(positions, 3)
+      new THREE.Float32BufferAttribute(positions, 3),
     );
 
     const material = new THREE.PointsMaterial({
