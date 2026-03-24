@@ -3,6 +3,7 @@ const Phaser = (window as any).Phaser;
 export class PreloadScene extends Phaser.Scene {
   private assetsLoaded: boolean = false;
   private animationComplete: boolean = false;
+  private fontLoaded: boolean = false;
   private bootSprite!: Phaser.GameObjects.Sprite;
 
   constructor() {
@@ -102,19 +103,39 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private loadFont(): void {
-    // Font is loaded via <link> in index.html — just wait for it to be ready
-    document.fonts.ready.then(() => {
-      if (document.fonts.check("700 1em Fredoka")) {
-        console.log("✅ Fuente Fredoka cargada");
-      } else {
-        console.warn("⚠️ Fredoka no cargó");
-      }
-    });
+    const markFontReady = () => {
+      this.fontLoaded = true;
+      this.checkTransition();
+    };
+
+    // Timeout fallback: don't block forever if font fails to load
+    const timeout = setTimeout(() => {
+      console.warn("⚠️ Fredoka timeout - continuando sin fuente");
+      markFontReady();
+    }, 5000);
+
+    // Actively trigger font loading and wait for it
+    document.fonts
+      .load("700 1em Fredoka")
+      .then(() => {
+        clearTimeout(timeout);
+        if (document.fonts.check("700 1em Fredoka")) {
+          console.log("✅ Fuente Fredoka cargada");
+        } else {
+          console.warn("⚠️ Fredoka no cargó correctamente");
+        }
+        markFontReady();
+      })
+      .catch(() => {
+        clearTimeout(timeout);
+        console.warn("⚠️ Error cargando Fredoka");
+        markFontReady();
+      });
   }
 
   private checkTransition(): void {
-    // Transition when BOTH animation finished AND assets loaded
-    if (this.animationComplete && this.assetsLoaded) {
+    // Transition when animation finished AND assets loaded AND font ready
+    if (this.animationComplete && this.assetsLoaded && this.fontLoaded) {
       console.log(
         "✅ Todo listo - transición directa a HelixScene (Chaos Mode)",
       );
