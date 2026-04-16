@@ -86,6 +86,10 @@ export default class HelixScene extends Phaser.Scene {
   // Game Over UI elements to clean up on restart
   private gameOverUIElements: Phaser.GameObjects.GameObject[] = [];
 
+  // Try Again overlay
+  private tryAgainUsed: boolean = false;
+  private tryAgainUIElements: Phaser.GameObjects.GameObject[] = [];
+
   // Trail effect particles (kept for future use)
   private trailParticles: THREE.Mesh[] = [];
 
@@ -1712,6 +1716,10 @@ export default class HelixScene extends Phaser.Scene {
     });
     this.gameOverUIElements = [];
 
+    // Clean up Try Again overlay
+    this.destroyTryAgainUI();
+    this.tryAgainUsed = false;
+
     // Audio Reset
     if (this.currentMusic) {
       this.currentMusic.stop();
@@ -3138,8 +3146,244 @@ export default class HelixScene extends Phaser.Scene {
     // Haptic feedback on death
     this.triggerHapticFeedback();
 
-    // Save high score and show game over UI
-    this.saveHighScoreAndGameOver();
+    // Show try-again overlay or go straight to game over
+    if (!this.tryAgainUsed) {
+      this.showTryAgainOverlay();
+    } else {
+      this.saveHighScoreAndGameOver();
+    }
+  }
+
+  private showTryAgainOverlay() {
+    const { width, height } = this.scale.gameSize;
+
+    // Semi-transparent dark overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.75);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setDepth(300);
+    this.tryAgainUIElements.push(overlay);
+
+    // "WANNA TRY AGAIN?" title
+    const title = this.add
+      .text(width / 2, height * 0.32, "WANNA TRY\nAGAIN?", {
+        fontSize: "72px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 10,
+        align: "center",
+      })
+      .setOrigin(0.5)
+      .setDepth(301);
+    this.tryAgainUIElements.push(title);
+
+    // Current score display
+    const scoreLabel = this.add
+      .text(width / 2, height * 0.48, `SCORE: ${this.score}`, {
+        fontSize: "40px",
+        color: "#FFD93D",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(301);
+    this.tryAgainUIElements.push(scoreLabel);
+
+    // --- TRY AGAIN button ---
+    const btnW = 320;
+    const btnH = 70;
+    const tryBtnY = height * 0.58;
+
+    const tryBtnBg = this.add.graphics();
+    tryBtnBg.fillStyle(0x2ecc71, 1);
+    tryBtnBg.fillRoundedRect(
+      width / 2 - btnW / 2,
+      tryBtnY - btnH / 2,
+      btnW,
+      btnH,
+      18,
+    );
+    tryBtnBg.lineStyle(3, 0x000000, 1);
+    tryBtnBg.strokeRoundedRect(
+      width / 2 - btnW / 2,
+      tryBtnY - btnH / 2,
+      btnW,
+      btnH,
+      18,
+    );
+    tryBtnBg.setDepth(301);
+    this.tryAgainUIElements.push(tryBtnBg);
+
+    const tryBtnText = this.add
+      .text(width / 2, tryBtnY, "\u25B6  TRY AGAIN", {
+        fontSize: "36px",
+        color: "#FFFFFF",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(302);
+    this.tryAgainUIElements.push(tryBtnText);
+
+    const tryBtnZone = this.add
+      .zone(width / 2, tryBtnY, btnW, btnH)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(303);
+    tryBtnZone.on("pointerdown", () => this.handleTryAgainPurchase());
+    tryBtnZone.on("pointerover", () => tryBtnBg.setAlpha(0.85));
+    tryBtnZone.on("pointerout", () => tryBtnBg.setAlpha(1));
+    this.tryAgainUIElements.push(tryBtnZone);
+
+    // --- GAME OVER button ---
+    const goBtnY = height * 0.68;
+
+    const goBtnBg = this.add.graphics();
+    goBtnBg.fillStyle(0x333333, 1);
+    goBtnBg.fillRoundedRect(
+      width / 2 - btnW / 2,
+      goBtnY - btnH / 2,
+      btnW,
+      btnH,
+      18,
+    );
+    goBtnBg.lineStyle(3, 0x000000, 1);
+    goBtnBg.strokeRoundedRect(
+      width / 2 - btnW / 2,
+      goBtnY - btnH / 2,
+      btnW,
+      btnH,
+      18,
+    );
+    goBtnBg.setDepth(301);
+    this.tryAgainUIElements.push(goBtnBg);
+
+    const goBtnText = this.add
+      .text(width / 2, goBtnY, "GAME OVER", {
+        fontSize: "36px",
+        color: "#AAAAAA",
+        fontFamily: "Fredoka",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(302);
+    this.tryAgainUIElements.push(goBtnText);
+
+    const goBtnZone = this.add
+      .zone(width / 2, goBtnY, btnW, btnH)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(303);
+    goBtnZone.on("pointerdown", () => {
+      this.destroyTryAgainUI();
+      this.saveHighScoreAndGameOver();
+    });
+    goBtnZone.on("pointerover", () => goBtnBg.setAlpha(0.85));
+    goBtnZone.on("pointerout", () => goBtnBg.setAlpha(1));
+    this.tryAgainUIElements.push(goBtnZone);
+
+    // Entrance animation
+    title.setAlpha(0).setScale(0.8);
+    this.tweens.add({
+      targets: title,
+      alpha: 1,
+      scale: 1,
+      duration: 400,
+      ease: "Back.easeOut",
+    });
+    scoreLabel.setAlpha(0);
+    this.tweens.add({
+      targets: scoreLabel,
+      alpha: 1,
+      duration: 300,
+      delay: 150,
+    });
+    tryBtnBg.setAlpha(0);
+    tryBtnText.setAlpha(0);
+    this.tweens.add({
+      targets: [tryBtnBg, tryBtnText],
+      alpha: 1,
+      duration: 300,
+      delay: 300,
+    });
+    goBtnBg.setAlpha(0);
+    goBtnText.setAlpha(0);
+    this.tweens.add({
+      targets: [goBtnBg, goBtnText],
+      alpha: 1,
+      duration: 300,
+      delay: 400,
+    });
+  }
+
+  private async handleTryAgainPurchase() {
+    const sdk = (window as any).FarcadeSDK;
+    if (!sdk) {
+      this.destroyTryAgainUI();
+      this.saveHighScoreAndGameOver();
+      return;
+    }
+
+    try {
+      const result = await sdk.purchase({ item: "try-again" });
+      if (result && result.success) {
+        this.tryAgainUsed = true;
+        this.destroyTryAgainUI();
+        this.revivePlayer();
+      } else {
+        // Purchase cancelled/failed — stay on the overlay
+      }
+    } catch (e) {
+      console.log("Try-again purchase failed:", e);
+    }
+  }
+
+  private revivePlayer() {
+    // Reset ball above camera position
+    this.ball.scale.set(1, 1, 1);
+    this.ball.position.y = this.camera.position.y + 2;
+    this.ball.position.x = 0;
+    this.ball.position.z = 2.5;
+    this.ballVelocity = 0;
+
+    // Reapply ball style
+    this.applyBallStyle(this.testRank);
+
+    // Re-activate game
+    this.isGameActive = true;
+    this.scoreContainer.setVisible(true);
+
+    // Activate shield with visual bubble
+    this.activateShield();
+    this.shieldTimer = 5000; // 5 seconds of shield on revive
+
+    // Flash effect on revive
+    const { width, height } = this.scale.gameSize;
+    const flash = this.add.graphics();
+    flash.fillStyle(0xffffff, 0.6);
+    flash.fillRect(0, 0, width, height);
+    flash.setDepth(400);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => flash.destroy(),
+    });
+
+    this.triggerHapticFeedback();
+  }
+
+  private destroyTryAgainUI() {
+    this.tryAgainUIElements.forEach((el) => {
+      if (el && el.destroy) el.destroy();
+    });
+    this.tryAgainUIElements = [];
   }
 
   async saveHighScoreAndGameOver() {
